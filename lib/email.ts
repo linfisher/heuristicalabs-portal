@@ -1,8 +1,6 @@
 import { Resend } from "resend"
 import type { ReactElement } from "react"
 
-const resend = new Resend(process.env.RESEND_API_KEY!)
-
 export async function sendEmail({
   to,
   subject,
@@ -15,6 +13,9 @@ export async function sendEmail({
   if (!to || !to.includes("@") || !to.includes(".")) {
     throw new Error(`Invalid recipient email address: ${to}`)
   }
+
+  // Lazy-initialize so the constructor doesn't throw at build time
+  const resend = new Resend(process.env.RESEND_API_KEY!)
 
   const { error } = await resend.emails.send({
     from: process.env.FROM_EMAIL!,
