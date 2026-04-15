@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { clerkClient } from "@/lib/clerk"
+import { isAdminEmail } from "@/lib/auth"
 
 export default async function AdminLayout({
   children,
@@ -19,7 +20,7 @@ export default async function AdminLayout({
 
   const user = await clerkClient.users.getUser(userId)
 
-  if (user.primaryEmailAddress?.emailAddress !== process.env.ADMIN_EMAIL) {
+  if (!isAdminEmail(user.primaryEmailAddress?.emailAddress)) {
     redirect("/portal")
   }
 

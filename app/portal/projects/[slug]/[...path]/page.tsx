@@ -56,6 +56,31 @@ export default async function ProjectContentPage({ params }: Props) {
 
   const pageTitle = page.title;
 
+  // PDF — proxy route handles auth + byte streaming; no server-side fetch needed
+  if (page.fileType === "pdf") {
+    const proxyUrl = `/api/proxy/${slug}/${filePath}`;
+    return (
+      <div className="flex flex-col bg-[#0A0A0A]" style={{ minHeight: "100vh" }}>
+        <Breadcrumb
+          projectName={project.name}
+          projectSlug={slug}
+          pageTitle={pageTitle}
+        />
+        <iframe
+          src={proxyUrl}
+          title={pageTitle}
+          referrerPolicy="no-referrer"
+          style={{
+            width: "100%",
+            height: "calc(100vh - 108px)",
+            border: "none",
+            flex: 1,
+          }}
+        />
+      </div>
+    );
+  }
+
   const result = await fetchPage(project.vpsPath, filePath);
 
   if ("error" in result) {
@@ -74,7 +99,7 @@ export default async function ProjectContentPage({ params }: Props) {
 
   const { content } = result;
 
-  if (page?.fileType === "html") {
+  if (page.fileType === "html") {
     return (
       <div className="flex flex-col bg-[#0A0A0A]" style={{ minHeight: "100vh" }}>
         <Breadcrumb
@@ -89,7 +114,7 @@ export default async function ProjectContentPage({ params }: Props) {
           referrerPolicy="no-referrer"
           style={{
             width: "100%",
-            height: "calc(100vh - 64px)",
+            height: "calc(100vh - 108px)",
             border: "none",
             flex: 1,
           }}
@@ -98,7 +123,7 @@ export default async function ProjectContentPage({ params }: Props) {
     );
   }
 
-  if (page?.fileType === "json") {
+  if (page.fileType === "json") {
     let parsed: unknown;
     try {
       parsed = JSON.parse(content);

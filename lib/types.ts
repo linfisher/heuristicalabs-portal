@@ -27,5 +27,5 @@ export interface Project {
 export interface ProjectPage {
   path: string
   title: string
-  fileType: "html" | "json"
+  fileType: "html" | "json" | "pdf"
 }

@@ -6,6 +6,11 @@ import type { ProjectGrant } from "@/lib/types"
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? ""
 
+function isAdmin(email: string): boolean {
+  if (!email || !ADMIN_EMAIL) return false
+  return email.toLowerCase().split("@")[0] === ADMIN_EMAIL.toLowerCase().split("@")[0]
+}
+
 export default clerkMiddleware(async (auth, req: NextRequest) => {
   const { pathname } = req.nextUrl
 
@@ -42,7 +47,7 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
     if (pathname === "/portal/admin" || pathname.startsWith("/portal/admin/")) {
       const user = await clerkClient.users.getUser(userId)
       const email = user.primaryEmailAddress?.emailAddress ?? ""
-      if (email !== ADMIN_EMAIL) {
+      if (!isAdmin(email)) {
         const portalUrl = new URL("/portal", req.url)
         portalUrl.searchParams.set("error", "forbidden")
         return NextResponse.redirect(portalUrl)
@@ -55,7 +60,7 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
       return NextResponse.next()
     }
 
-    // /portal/projects/{slug}/** — grant check
+    // /portal/projects/{slug}/** — grant check (admin bypasses)
     // If already rendering the forbidden page (forbidden=1 param), pass through
     // to avoid an infinite redirect loop.
     const projectsMatch = pathname.match(/^\/portal\/projects\/([^/]+)/)
@@ -65,6 +70,13 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
         return NextResponse.next()
       }
       const user = await clerkClient.users.getUser(userId)
+      const email = user.primaryEmailAddress?.emailAddress ?? ""
+
+      // Admin has access to all projects
+      if (isAdmin(email)) {
+        return NextResponse.next()
+      }
+
       const grants = (user.publicMetadata?.projects ?? []) as ProjectGrant[]
       const validGrant = grants.find(
         (g) => g.slug === slug && g.expiresAt > Date.now()

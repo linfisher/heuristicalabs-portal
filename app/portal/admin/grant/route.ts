@@ -6,6 +6,7 @@ import { clerkClient } from "@/lib/clerk"
 import { signToken, storeGrantGroup, deleteGrantGroup } from "@/lib/tokens"
 import { sendEmail } from "@/lib/email"
 import { getProject } from "@/lib/projects"
+import { isAdminEmail } from "@/lib/auth"
 import GrantInviteEmail, { subject } from "@/emails/grant-invite"
 import React from "react"
 
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   const adminUser = await clerkClient.users.getUser(userId)
-  if (adminUser.primaryEmailAddress?.emailAddress !== process.env.ADMIN_EMAIL) {
+  if (!isAdminEmail(adminUser.primaryEmailAddress?.emailAddress)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
