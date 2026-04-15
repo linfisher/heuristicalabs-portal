@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-pink: #E8147F;
+  --brand-yellow: #F5C418;
+  --brand-dark: #0A0A0A;
+  --brand-cream: #FAF7F0;
+}
+
+html, body {
+  background: var(--brand-dark);
+  color: #e5e7eb;
+  min-height: 100vh;
+}
+
+/* Portal shell scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
