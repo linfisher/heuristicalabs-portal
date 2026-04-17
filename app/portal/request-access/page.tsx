@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { PROJECTS } from "@/lib/projects"
 
+export const dynamic = "force-dynamic"
+
 const MAX_CHARS = 500
 
 type Status = "idle" | "submitting" | "success" | "error"
@@ -102,7 +104,7 @@ export default function RequestAccessPage() {
           Select a project and optionally include a note. Access is granted manually.
         </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} aria-busy={status === "submitting"} className="flex flex-col gap-5">
           {/* Project selector */}
           <div className="flex flex-col gap-1.5">
             <label style={{ color: "#aaa" }} className="text-xs font-medium uppercase tracking-widest">
@@ -143,6 +145,7 @@ export default function RequestAccessPage() {
               onChange={(e) => {
                 if (e.target.value.length <= MAX_CHARS) setMessage(e.target.value)
               }}
+              maxLength={MAX_CHARS}
               placeholder="Tell us why you need access..."
               rows={5}
               style={{
@@ -159,7 +162,7 @@ export default function RequestAccessPage() {
 
           {/* Error */}
           {status === "error" && (
-            <p style={{ color: "#E8147F" }} className="text-sm">
+            <p role="alert" style={{ color: "#E8147F" }} className="text-sm">
               {errorMsg}
             </p>
           )}

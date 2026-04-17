@@ -9,6 +9,9 @@ interface Props {
 
 export function PDFThumbnail({ proxyUrl, title }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const loadingTaskRef = useRef<{ destroy: () => Promise<void> } | null>(null)
+  const pdfRef = useRef<{ destroy: () => Promise<void> } | null>(null)
+  const renderTaskRef = useRef<{ cancel: () => void; promise: Promise<void> } | null>(null)
   const [state, setState] = useState<"loading" | "ready" | "error">("loading")
 
   useEffect(() => {
@@ -25,7 +28,10 @@ export function PDFThumbnail({ proxyUrl, title }: Props) {
         const buffer = await response.arrayBuffer()
         if (cancelled) return
 
-        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise
+        const loadingTask = pdfjsLib.getDocument({ data: buffer })
+        loadingTaskRef.current = loadingTask
+        const pdf = await loadingTask.promise
+        pdfRef.current = pdf
         if (cancelled) return
 
         const page = await pdf.getPage(1)
@@ -46,7 +52,9 @@ export function PDFThumbnail({ proxyUrl, title }: Props) {
         const ctx = canvas.getContext("2d")
         if (!ctx) return
 
-        await page.render({ canvasContext: ctx, viewport: scaled, canvas }).promise
+        const renderTask = page.render({ canvasContext: ctx, viewport: scaled, canvas })
+        renderTaskRef.current = renderTask
+        await renderTask.promise
         if (cancelled) return
 
         setState("ready")
@@ -56,7 +64,15 @@ export function PDFThumbnail({ proxyUrl, title }: Props) {
     }
 
     render()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      renderTaskRef.current?.cancel()
+      renderTaskRef.current = null
+      loadingTaskRef.current?.destroy()
+      loadingTaskRef.current = null
+      pdfRef.current?.destroy()
+      pdfRef.current = null
+    }
   }, [proxyUrl])
 
   return (
@@ -110,6 +126,8 @@ export function PDFThumbnail({ proxyUrl, title }: Props) {
 
       <canvas
         ref={canvasRef}
+        role="img"
+        aria-label={`Preview of ${title}`}
         style={{
           width: "100%",
           height: "100%",

@@ -2,14 +2,8 @@ import { clerkMiddleware } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { clerkClient } from "@/lib/clerk"
+import { isAdminEmail } from "@/lib/auth"
 import type { ProjectGrant } from "@/lib/types"
-
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? ""
-
-function isAdmin(email: string): boolean {
-  if (!email || !ADMIN_EMAIL) return false
-  return email.toLowerCase().split("@")[0] === ADMIN_EMAIL.toLowerCase().split("@")[0]
-}
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
   const { pathname } = req.nextUrl
@@ -47,7 +41,7 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
     if (pathname === "/portal/admin" || pathname.startsWith("/portal/admin/")) {
       const user = await clerkClient.users.getUser(userId)
       const email = user.primaryEmailAddress?.emailAddress ?? ""
-      if (!isAdmin(email)) {
+      if (!isAdminEmail(email)) {
         const portalUrl = new URL("/portal", req.url)
         portalUrl.searchParams.set("error", "forbidden")
         return NextResponse.redirect(portalUrl)
@@ -73,11 +67,13 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
       const email = user.primaryEmailAddress?.emailAddress ?? ""
 
       // Admin has access to all projects
-      if (isAdmin(email)) {
+      if (isAdminEmail(email)) {
         return NextResponse.next()
       }
 
-      const grants = (user.publicMetadata?.projects ?? []) as ProjectGrant[]
+      const grants = Array.isArray(user.publicMetadata?.projects)
+        ? (user.publicMetadata.projects as ProjectGrant[])
+        : []
       const validGrant = grants.find(
         (g) => g.slug === slug && g.expiresAt > Date.now()
       )
@@ -98,7 +94,7 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
 
 export const config = {
   matcher: [
-    // Run on all routes except Next.js internals and static files
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
   ],
 }

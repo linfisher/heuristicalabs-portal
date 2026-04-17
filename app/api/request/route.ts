@@ -6,18 +6,17 @@ import { clerkClient } from "@/lib/clerk"
 import { sendEmail } from "@/lib/email"
 import { getProject } from "@/lib/projects"
 import { signToken, storeGrantGroup } from "@/lib/tokens"
+import { DURATIONS, RATE_LIMIT_WINDOW_S, TOKEN_LINK_TTL_MS } from "@/lib/durations"
 import AccessRequestEmail from "@/emails/access-request"
 
 export const dynamic = "force-dynamic"
-
-const DURATIONS = [
-  { label: "24 hrs", ms: 86400000 },
-  { label: "3 days", ms: 259200000 },
-  { label: "7 days", ms: 604800000 },
-  { label: "30 days", ms: 2592000000 },
-]
+export const runtime = "nodejs"
 
 export async function POST(request: Request): Promise<NextResponse> {
+  if (!process.env.ADMIN_EMAIL) {
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 })
+  }
+
   const { userId } = await auth()
 
   if (!userId) {
@@ -43,8 +42,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid project." }, { status: 400 })
   }
 
-  const user = await clerkClient.users.getUser(userId)
-  const userEmail = user.emailAddresses[0]?.emailAddress
+  let user
+  try {
+    user = await clerkClient.users.getUser(userId)
+  } catch (err) {
+    console.error("[request] clerk getUser failed", err)
+    return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 })
+  }
+  const userEmail = user.primaryEmailAddress?.emailAddress
   if (!userEmail) {
     return NextResponse.json({ error: "No email address found for user." }, { status: 400 })
   }
@@ -54,8 +59,31 @@ export async function POST(request: Request): Promise<NextResponse> {
     url: process.env.UPSTASH_REDIS_REST_URL!,
     token: process.env.UPSTASH_REDIS_REST_TOKEN!,
   })
+
+  // Global per-user rate limit: max 5 access requests per hour across all projects
+  try {
+    const globalKey = `req-global:${userId}`
+    const count = await redis.incr(globalKey)
+    if (count === 1) await redis.expire(globalKey, 3600)
+    if (count > 5) {
+      return NextResponse.json(
+        { error: "Too many access requests. Please wait." },
+        { status: 429 }
+      )
+    }
+  } catch (err) {
+    console.error("[request] redis global rate-limit failed", err)
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 })
+  }
+
   const reqKey = `req:${userId}:${projectSlug}`
-  const acquired = await redis.set(reqKey, "1", { ex: 86400, nx: true })
+  let acquired
+  try {
+    acquired = await redis.set(reqKey, "1", { ex: RATE_LIMIT_WINDOW_S, nx: true })
+  } catch (err) {
+    console.error("[request] redis set failed", err)
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 })
+  }
   if (acquired === null) {
     return NextResponse.json(
       { error: "You have already requested access to this project. Please wait before requesting again." },
@@ -73,29 +101,27 @@ export async function POST(request: Request): Promise<NextResponse> {
             type: "accept",
             userId,
             projectSlug,
-            email: userEmail,
             accessDurationMs: d.ms,
           },
-          259200000
+          TOKEN_LINK_TTL_MS
         )
       )
-    )
+    ) as [string, string, string, string]
 
     const denyToken = await signToken(
       {
         type: "deny",
         userId,
         projectSlug,
-        email: userEmail,
         accessDurationMs: 0,
       },
-      259200000
+      TOKEN_LINK_TTL_MS
     )
 
     const allJtis = [t24, t3d, t7d, t30d, denyToken].map(
       (tok) => decodeJwt(tok).jti as string
     )
-    await storeGrantGroup(userId, projectSlug, allJtis, 259200)
+    await storeGrantGroup(userId, projectSlug, allJtis, TOKEN_LINK_TTL_MS / 1000)
 
     const projectName = getProject(projectSlug)?.name ?? projectSlug
 

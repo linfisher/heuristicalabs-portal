@@ -1,7 +1,11 @@
+import { VPS_SECRET_HEADER } from "@/lib/constants"
+
 type FetchPageResult =
   | { content: string; error?: never }
   | { content?: never; error: string }
 
+// DEAD CODE: all pages in the registry use fileType: "pdf" which bypasses this function.
+// If you add html/json pages, add Clerk auth + grant check here before calling this.
 export async function fetchPage(
   vpsPath: string,
   filePath: string
@@ -10,12 +14,15 @@ export async function fetchPage(
     return { error: "Invalid page path" }
   }
 
+  const secret = (process.env.VPS_SECRET ?? "").trim()
+  if (!secret) console.error("[vps] VPS_SECRET is not configured — content server will reject requests")
+
   const url = `${process.env.VPS_ORIGIN}${vpsPath}/${filePath}`
 
   try {
     const response = await fetch(url, {
       headers: {
-        "X-Portal-Secret": (process.env.VPS_SECRET ?? "").trim(),
+        [VPS_SECRET_HEADER]: secret,
       },
       signal: AbortSignal.timeout(8000),
     })

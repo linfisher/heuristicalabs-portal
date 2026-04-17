@@ -3,6 +3,8 @@ import { notFound } from "next/navigation"
 import { getProject } from "@/lib/projects"
 import { PDFThumbnail } from "@/components/PDFThumbnail"
 
+export const dynamic = "force-dynamic"
+
 interface Props {
   params: { slug: string }
   searchParams: { forbidden?: string; welcome?: string }
@@ -12,15 +14,12 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   const { slug } = params
 
   if (searchParams.forbidden === "1") {
-    const project = getProject(slug)
-    const projectName = project?.name ?? slug
-
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <div className="text-center max-w-md px-6">
           <h1 className="text-3xl font-bold text-white mb-4">Access Required</h1>
           <p className="text-gray-400 mb-8">
-            You don&apos;t have access to {projectName}.
+            You don&apos;t have access to this project. Request access below.
           </p>
           <Link
             href={`/portal/request-access?project=${slug}`}
@@ -85,6 +84,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                   key={page.path}
                   href={`/portal/projects/${slug}/${page.path}`}
                   style={{ textDecoration: "none" }}
+                  className="group"
                 >
                   <div
                     style={{
@@ -95,16 +95,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                       transition: "border-color 0.2s, transform 0.15s",
                       cursor: "pointer",
                     }}
-                    onMouseOver={(e) => {
-                      const el = e.currentTarget as HTMLDivElement
-                      el.style.borderColor = "#E8147F44"
-                      el.style.transform = "translateY(-2px)"
-                    }}
-                    onMouseOut={(e) => {
-                      const el = e.currentTarget as HTMLDivElement
-                      el.style.borderColor = "#1f1f1f"
-                      el.style.transform = "translateY(0)"
-                    }}
+                    className="group-hover:!border-[#E8147F44] group-hover:-translate-y-0.5"
                   >
                     {page.fileType === "pdf" ? (
                       <PDFThumbnail proxyUrl={proxyUrl} title={page.title} />

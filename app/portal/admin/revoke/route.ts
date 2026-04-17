@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/lib/auth"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   // Admin auth check
@@ -22,13 +23,18 @@ export async function POST(request: Request) {
 
   // CSRF: verify request originates from our app
   const origin = request.headers.get("origin")
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
-  if (origin && appUrl && !origin.startsWith(appUrl)) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!origin || !appUrl || origin.replace(/\/$/, "") !== appUrl.replace(/\/$/, "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   // Parse form data
-  const formData = await request.formData()
+  let formData: FormData
+  try {
+    formData = await request.formData()
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
   const targetUserId = formData.get("userId") as string | null
   const projectSlug = formData.get("projectSlug") as string | null
 
@@ -55,6 +61,14 @@ export async function POST(request: Request) {
 
   // Invalidate any outstanding invite tokens for this user+project
   await deleteGrantGroup(targetUserId, projectSlug)
+
+  console.info("[admin]", {
+    action: "revoke",
+    adminUserId: userId,
+    targetUserId,
+    projectSlug,
+    timestamp: new Date().toISOString(),
+  })
 
   redirect("/portal/admin")
 }

@@ -1,5 +1,6 @@
 import type React from "react"
 import { clerkClient } from "@/lib/clerk"
+import { readGrants } from "@/lib/auth"
 import { PROJECTS, getProject } from "@/lib/projects"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -11,15 +12,14 @@ const DURATIONS = [
   { label: "90 days",  ms: 7776000000 },
 ]
 
-function grantStatus(grant: ProjectGrant): "active" | "expiring" | "expired" {
-  const now = Date.now()
+function grantStatus(grant: ProjectGrant, now: number): "active" | "expiring" | "expired" {
   if (grant.expiresAt <= now) return "expired"
   if (grant.expiresAt <= now + 7 * 24 * 60 * 60 * 1000) return "expiring"
   return "active"
 }
 
-function daysRemaining(expiresAt: number): number {
-  return Math.max(0, Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)))
+function daysRemaining(expiresAt: number, now: number): number {
+  return Math.max(0, Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)))
 }
 
 function formatExpiry(expiresAt: number): string {
@@ -53,7 +53,7 @@ export default async function AdminPage({
   let noAccessCount = 0
 
   for (const user of users) {
-    const grants = (user.publicMetadata?.projects as ProjectGrant[] | undefined) ?? []
+    const grants = readGrants(user)
     const liveGrants = grants.filter((g) => g.expiresAt > now)
     if (liveGrants.length === 0) {
       noAccessCount++
@@ -66,7 +66,7 @@ export default async function AdminPage({
   }
 
   return (
-    <div style={{ backgroundColor: "#0A0A0A", minHeight: "100vh", padding: "48px 32px", fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ backgroundColor: "#0A0A0A", minHeight: "100vh", padding: "48px 32px", fontFamily: "var(--font-exo2)" }}>
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
 
         {/* Header */}
@@ -154,8 +154,7 @@ export default async function AdminPage({
               const email = user.primaryEmailAddress?.emailAddress ?? "(no email)"
               const name =
                 [user.firstName, user.lastName].filter(Boolean).join(" ") || email
-              const grants =
-                (user.publicMetadata?.projects as ProjectGrant[] | undefined) ?? []
+              const grants = readGrants(user)
               const hasAnyLiveGrant = grants.some((g) => g.expiresAt > now)
 
               return (
@@ -177,10 +176,10 @@ export default async function AdminPage({
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {grants.map((grant) => {
-                          const status = grantStatus(grant)
+                          const status = grantStatus(grant, now)
                           const colors = STATUS_COLORS[status]
                           const projectName = getProject(grant.slug)?.name ?? grant.slug
-                          const days = daysRemaining(grant.expiresAt)
+                          const days = daysRemaining(grant.expiresAt, now)
                           const expiry = formatExpiry(grant.expiresAt)
 
                           return (

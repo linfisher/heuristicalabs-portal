@@ -1,6 +1,11 @@
 import { SignIn } from "@clerk/nextjs"
 
-export default function SignInPage() {
+interface Props {
+  searchParams: { redirect_url?: string }
+}
+
+export default function SignInPage({ searchParams }: Props) {
+  const redirectUrl = searchParams.redirect_url ?? "/portal"
   return (
     <div
       style={{
@@ -19,7 +24,7 @@ export default function SignInPage() {
       >
         HEURISTICA LABS
       </p>
-      <SignIn />
+      <SignIn forceRedirectUrl={redirectUrl} />
     </div>
   )
 }

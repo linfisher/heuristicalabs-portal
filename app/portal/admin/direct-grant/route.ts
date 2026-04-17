@@ -5,17 +5,11 @@ import { clerkClient } from "@/lib/clerk"
 import { getProject } from "@/lib/projects"
 import { deleteGrantGroup } from "@/lib/tokens"
 import { isAdminEmail } from "@/lib/auth"
+import { VALID_DURATIONS_MS } from "@/lib/durations"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
-
-const VALID_DURATIONS_MS = new Set([
-  86400000,   // 24h
-  259200000,  // 3d
-  604800000,  // 7d
-  2592000000, // 30d
-  7776000000, // 90d
-])
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -29,12 +23,17 @@ export async function POST(request: Request) {
   }
 
   const origin = request.headers.get("origin")
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
-  if (origin && appUrl && !origin.startsWith(appUrl)) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!origin || !appUrl || origin.replace(/\/$/, "") !== appUrl.replace(/\/$/, "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const formData = await request.formData()
+  let formData: FormData
+  try {
+    formData = await request.formData()
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
   const targetUserId = formData.get("userId") as string | null
   const projectSlug = formData.get("projectSlug") as string | null
   const durationMsRaw = formData.get("durationMs") as string | null
@@ -76,6 +75,15 @@ export async function POST(request: Request) {
   } catch {
     redirect("/portal/admin?error=grant_failed")
   }
+
+  console.info("[admin]", {
+    action: "direct-grant",
+    adminUserId: userId,
+    targetUserId,
+    projectSlug,
+    durationMs,
+    timestamp: new Date().toISOString(),
+  })
 
   redirect("/portal/admin?granted=1")
 }

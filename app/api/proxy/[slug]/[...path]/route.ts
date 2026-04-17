@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { clerkClient } from "@/lib/clerk"
 import { getProject, getProjectPage } from "@/lib/projects"
 import { isAdminEmail } from "@/lib/auth"
+import { VPS_SECRET_HEADER } from "@/lib/constants"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -36,7 +37,12 @@ export async function GET(
   }
 
   // Auth check: admin bypasses grant check; regular users need a valid grant
-  const user = await clerkClient.users.getUser(userId)
+  let user
+  try {
+    user = await clerkClient.users.getUser(userId)
+  } catch {
+    return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 })
+  }
   const email = user.primaryEmailAddress?.emailAddress ?? ""
 
   if (!isAdminEmail(email)) {
@@ -48,14 +54,18 @@ export async function GET(
   }
 
   // Fetch raw bytes from VPS
-  const origin = (process.env.VPS_ORIGIN ?? "").trim()
+  if (!process.env.VPS_ORIGIN) {
+    console.error("[proxy] VPS_ORIGIN is not configured")
+    return NextResponse.json({ error: "Content server not configured" }, { status: 503 })
+  }
+  const origin = process.env.VPS_ORIGIN.trim()
   const secret = (process.env.VPS_SECRET ?? "").trim()
   const url = `${origin}${project.vpsPath}/${filePath}`
 
   let vpsResponse: Response
   try {
     vpsResponse = await fetch(url, {
-      headers: { "X-Portal-Secret": secret },
+      headers: { [VPS_SECRET_HEADER]: secret },
       signal: AbortSignal.timeout(15000),
     })
   } catch {

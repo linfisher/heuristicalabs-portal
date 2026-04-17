@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server"
-import { verifyToken, deleteToken, deleteGrantGroup } from "@/lib/tokens"
+import { verifyToken, deleteGrantGroup } from "@/lib/tokens"
 import { clerkClient } from "@/lib/clerk"
 import { sendEmail } from "@/lib/email"
 import { getProject } from "@/lib/projects"
+import { DURATIONS, VALID_DURATIONS_MS } from "@/lib/durations"
 import type { ProjectGrant } from "@/lib/types"
 import GrantConfirmationEmail from "@/emails/grant-confirmation"
 
 export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
-const DURATIONS = [
-  { label: "24 hrs", ms: 86400000 },
-  { label: "3 days", ms: 259200000 },
-  { label: "7 days", ms: 604800000 },
-  { label: "30 days", ms: 2592000000 },
-]
-
-function htmlPage(body: string): NextResponse {
+function htmlPage(body: string, status: number = 200): NextResponse {
   return new NextResponse(`<html><body style="font-family: sans-serif; padding: 40px; background: #0a0a0a; color: #e5e7eb;">${body}</body></html>`, {
+    status,
     headers: { "Content-Type": "text/html" },
   })
 }
@@ -30,7 +26,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   const token = url.searchParams.get("token")
 
   if (!token) {
-    return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Missing token.</p>")
+    return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Missing token.</p>", 400)
   }
 
   let payload: Awaited<ReturnType<typeof verifyToken>>
@@ -38,14 +34,26 @@ export async function GET(request: Request): Promise<NextResponse> {
     payload = await verifyToken(token)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    return htmlPage(`<h1 style="color: #E8147F;">Error</h1><p>${escHtml(msg)}</p>`)
+    const status = msg.includes("already been used") || msg.includes("expired") ? 410 : 400
+    return htmlPage(`<h1 style="color: #E8147F;">Error</h1><p>${escHtml(msg)}</p>`, status)
   }
 
   if (payload.type !== "accept") {
-    return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Invalid token type.</p>")
+    return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Invalid token type.</p>", 400)
   }
 
-  const user = await clerkClient.users.getUser(payload.userId)
+  if (!VALID_DURATIONS_MS.has(payload.accessDurationMs)) {
+    return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Invalid duration.</p>", 400)
+  }
+
+  let user: Awaited<ReturnType<typeof clerkClient.users.getUser>>
+  try {
+    user = await clerkClient.users.getUser(payload.userId)
+  } catch (err) {
+    console.error("[accept] failed to load user from Clerk", err)
+    return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Failed to load user. Please try again later or contact support.</p>", 500)
+  }
+
   const existingGrants = (user.publicMetadata?.projects ?? []) as ProjectGrant[]
   const filtered = existingGrants.filter((g) => g.slug !== payload.projectSlug)
   const expiresAt = Date.now() + payload.accessDurationMs
@@ -56,32 +64,41 @@ export async function GET(request: Request): Promise<NextResponse> {
       publicMetadata: { projects: updatedGrants },
     })
   } catch {
-    return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Failed to apply access grant. Please try again later or contact support.</p>")
+    return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Failed to apply access grant. Please try again later or contact support.</p>", 500)
   }
 
-  await deleteToken(payload.jti)
   await deleteGrantGroup(payload.userId, payload.projectSlug)
 
   const projectName = getProject(payload.projectSlug)?.name ?? payload.projectSlug
   const projectUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/projects/${payload.projectSlug}?welcome=1`
+  const userEmail = user.primaryEmailAddress?.emailAddress
 
-  await sendEmail({
-    to: payload.email,
-    subject: `You now have access to ${projectName}`,
-    react: GrantConfirmationEmail({
-      userName: user.firstName ?? payload.email,
-      projectName,
-      expiresAt,
-      projectUrl,
-    }),
-  })
+  if (userEmail) {
+    try {
+      await sendEmail({
+        to: userEmail,
+        subject: `You now have access to ${projectName}`,
+        react: GrantConfirmationEmail({
+          userName: user.firstName ?? userEmail,
+          projectName,
+          expiresAt,
+          projectUrl,
+        }),
+      })
+    } catch (err) {
+      console.error("[accept] failed to send confirmation email", err)
+    }
+  } else {
+    console.error("[accept] user has no primary email; skipping confirmation email", payload.userId)
+  }
 
   const durationLabel = DURATIONS.find((d) => d.ms === payload.accessDurationMs)?.label ?? `${payload.accessDurationMs}ms`
   const expiresAtStr = new Date(expiresAt).toLocaleString()
+  const recipientLabel = userEmail ?? payload.userId
 
   return htmlPage(`
     <h1 style="color: #E8147F;">Access Granted</h1>
-    <p>${escHtml(payload.email)} now has access to ${escHtml(projectName)}.</p>
+    <p>${escHtml(recipientLabel)} now has access to ${escHtml(projectName)}.</p>
     <p>Duration: ${durationLabel}</p>
     <p>Expires: ${expiresAtStr}</p>
     <p style="color: #9ca3af;">A confirmation email has been sent to the user.</p>

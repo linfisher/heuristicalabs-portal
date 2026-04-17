@@ -65,6 +65,73 @@ Two flows, same token primitives:
 | `grant-group:{userId}:{slug}` | List of all jtis in a batch; DEL'd to invalidate siblings |
 | `req:{userId}:{slug}` | Rate-limit key; 24h TTL; set AFTER successful email send |
 
+## Deploy
+- **Production URL**: `https://heuristicalabs-portal.vercel.app` (also aliased to `https://portal.heuristicalabs.com` once DNS is configured)
+- **Vercel project**: `prj_T5ygb9NCxS6fps0bNcpSO79tyla4`, org `team_FIncNAODrsR9mRTLcUs1z68W`
+- **Deploy command**: `cd heuristicalabs-portal && vercel deploy --prod --yes`
+- **Critical**: All 11 env vars must be set in Vercel dashboard before the site works — missing Clerk keys cause `MIDDLEWARE_INVOCATION_FAILED` 500 on every request
+
+## Admin System
+- **Admin detection**: local-part email match — `email.split("@")[0] === ADMIN_EMAIL.split("@")[0]`
+  - This means `linfisher@gmail.com` and `linfisher@icloud.com` both match `ADMIN_EMAIL=linfisher@gmail.com`
+  - Implemented in `lib/auth.ts` (`isAdminEmail`) and inline in `middleware.ts`
+- **Admin bypass**: Middleware skips grant check for admins on all `/portal/projects/**` routes
+- **Admin nav link**: Barely visible `Admin` text link in portal nav — only renders for admin users (color `#444444`)
+- **Direct grant**: `POST /portal/admin/direct-grant` — grants access without sending email
+- **Extend/restore**: `POST /portal/admin/extend` — updates `expiresAt` on existing grant (works on expired too)
+
+## PDF Proxy Architecture
+All content is served as PDFs through an auth-gated proxy route:
+- **Proxy route**: `GET /api/proxy/[slug]/[...path]` — verifies Clerk auth + grant, then fetches from VPS
+- **VPS request**: `fetch(VPS_ORIGIN + vpsPath + "/" + filePath, { headers: { "X-Portal-Secret": VPS_SECRET } })`
+- **File paths**: No `.pdf` extension — VPS serves files by exact path name
+- **Viewer**: PDF rendered in `<iframe>` on `/portal/projects/[slug]/[...path]/page.tsx`
+- **Thumbnails**: `components/PDFThumbnail.tsx` — client component, uses pdfjs-dist v5 to render page 1 to canvas
+  - Worker: copied to `public/pdf.worker.min.mjs`, served as static file
+  - v5 API: `page.render({ canvasContext, viewport, canvas })` — `canvas` property is required in v5
+
+## VPS Content Setup
+Content origin: VPS at `VPS_ORIGIN` env var, protected with `X-Portal-Secret` header.
+
+Directory structure on VPS:
+```
+/var/www/portal-content/
+  projects/
+    hivibe-temple/          # 10 files, no extensions
+      kit-the-model
+      floor-tile-bom
+      floor-tile-schematic-1 through -8
+    bridgebox/              # 7 files, no extensions
+      comparison
+      schematic-offer-a/b/c
+      parts-offer-a/b/c
+```
+
+nginx config (e.g. `/etc/nginx/sites-available/portal-content`):
+```nginx
+server {
+    listen 80;
+    server_name files.heuristicalabs.com;
+    root /var/www/portal-content;
+    location /projects/ {
+        if ($http_x_portal_secret != "YOUR_VPS_SECRET") { return 403; }
+        add_header Content-Disposition "inline";
+        add_header Cache-Control "private, no-store";
+        try_files $uri =404;
+    }
+}
+```
+
+Upload files with no extension:
+```bash
+scp ~/Downloads/kit-the-model.pdf heuristica-vps:/var/www/portal-content/projects/hivibe-temple/kit-the-model
+```
+
+## Projects Registry
+Defined in `lib/projects.ts`. Current projects:
+- `hivibe-temple` — HiVibe Kit model + VibroMag Floor Tile BOM + 8 schematics (10 pages)
+- `bridgebox` — Offer comparison + 3 schematics + 3 parts lists (7 pages)
+
 ## Adding a New Project
 Edit `lib/projects.ts` — add an entry to the `PROJECTS` array. Each entry needs `slug`, `name`, `description`, `vpsPath`, and `pages[]`. Pages are served at `/portal/projects/{slug}/{path}`. The `path` value must match exactly what's available on the VPS. Middleware grant-check uses the slug.
 

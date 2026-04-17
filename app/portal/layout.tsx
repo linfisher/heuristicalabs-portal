@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { auth } from "@clerk/nextjs/server"
 import { UserButton } from "@clerk/nextjs"
 import { clerkClient } from "@/lib/clerk"
@@ -35,7 +36,7 @@ export default async function PortalLayout({
 
         <div className="flex items-center gap-5">
           {adminUser && (
-            <a
+            <Link
               href="/portal/admin"
               style={{
                 color: "#444444",
@@ -45,13 +46,11 @@ export default async function PortalLayout({
                 fontFamily: "var(--font-exo2)",
                 textDecoration: "none",
               }}
-              onMouseOver={(e) => ((e.target as HTMLElement).style.color = "#888888")}
-              onMouseOut={(e) => ((e.target as HTMLElement).style.color = "#444444")}
             >
               Admin
-            </a>
+            </Link>
           )}
-          <UserButton afterSignOutUrl="/portal/sign-in" />
+          <UserButton />
         </div>
       </nav>
       <main className="pt-16">{children}</main>

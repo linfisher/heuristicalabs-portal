@@ -9,7 +9,6 @@ export interface AccessToken {
   type: "accept" | "deny"
   userId: string
   projectSlug: string
-  email: string
   accessDurationMs: number
   iat: number // Unix seconds (jose convention)
   exp: number // Unix seconds (jose convention)

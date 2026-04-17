@@ -7,17 +7,12 @@ import { signToken, storeGrantGroup, deleteGrantGroup } from "@/lib/tokens"
 import { sendEmail } from "@/lib/email"
 import { getProject } from "@/lib/projects"
 import { isAdminEmail } from "@/lib/auth"
+import { DURATIONS, TOKEN_LINK_TTL_MS } from "@/lib/durations"
 import GrantInviteEmail, { subject } from "@/emails/grant-invite"
 import React from "react"
 
 export const dynamic = 'force-dynamic'
-
-const DURATIONS = [
-  { label: "24 hrs", ms: 86400000 },
-  { label: "3 days", ms: 259200000 },
-  { label: "7 days", ms: 604800000 },
-  { label: "30 days", ms: 2592000000 },
-]
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   // Admin auth check
@@ -33,13 +28,18 @@ export async function POST(request: Request) {
 
   // CSRF: verify request originates from our app
   const origin = request.headers.get("origin")
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
-  if (origin && appUrl && !origin.startsWith(appUrl)) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!origin || !appUrl || origin.replace(/\/$/, "") !== appUrl.replace(/\/$/, "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   // Parse form data
-  const formData = await request.formData()
+  let formData: FormData
+  try {
+    formData = await request.formData()
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
   const targetUserId = formData.get("userId") as string | null
   const projectSlug = formData.get("projectSlug") as string | null
 
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
   // Look up target user
   const targetUser = await clerkClient.users.getUser(targetUserId)
-  const targetUserEmail = targetUser.emailAddresses[0]?.emailAddress
+  const targetUserEmail = targetUser.primaryEmailAddress?.emailAddress
   if (!targetUserEmail) {
     return NextResponse.json({ error: "Target user has no email address" }, { status: 400 })
   }
@@ -71,10 +71,9 @@ export async function POST(request: Request) {
           type: "accept",
           userId: targetUserId,
           projectSlug,
-          email: targetUserEmail,
           accessDurationMs: d.ms,
         },
-        259200000
+        TOKEN_LINK_TTL_MS
       )
     )
   )
@@ -85,10 +84,9 @@ export async function POST(request: Request) {
       type: "deny",
       userId: targetUserId,
       projectSlug,
-      email: targetUserEmail,
       accessDurationMs: 0,
     },
-    259200000
+    TOKEN_LINK_TTL_MS
   )
 
   // Extract jtis from all tokens
@@ -97,7 +95,7 @@ export async function POST(request: Request) {
   const allJtis = [...acceptJtis, denyJti]
 
   // Store grant group for single-use invalidation of the whole group
-  await storeGrantGroup(targetUserId, projectSlug, allJtis, 259200)
+  await storeGrantGroup(targetUserId, projectSlug, allJtis, TOKEN_LINK_TTL_MS / 1000)
 
   // Build accept URLs
   const [h24Token, d3Token, d7Token, d30Token] = tokenStrings
@@ -127,6 +125,14 @@ export async function POST(request: Request) {
     await deleteGrantGroup(targetUserId, projectSlug)
     redirect("/portal/admin?error=email_failed")
   }
+
+  console.info("[admin]", {
+    action: "grant",
+    adminUserId: userId,
+    targetUserId,
+    projectSlug,
+    timestamp: new Date().toISOString(),
+  })
 
   redirect("/portal/admin?sent=1")
 }

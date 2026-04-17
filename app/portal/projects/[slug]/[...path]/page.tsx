@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getProject, getProjectPage } from "@/lib/projects";
 import { fetchPage } from "@/lib/vps";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   params: { slug: string; path: string[] };
 }
@@ -40,11 +42,7 @@ export default async function ProjectContentPage({ params }: Props) {
   const project = getProject(slug);
 
   if (!project) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <p className="text-gray-400">Project not found.</p>
-      </div>
-    );
+    notFound();
   }
 
   const filePath = pathSegments.join("/");
@@ -69,10 +67,10 @@ export default async function ProjectContentPage({ params }: Props) {
         <iframe
           src={proxyUrl}
           title={pageTitle}
+          sandbox="allow-scripts"
           referrerPolicy="no-referrer"
           style={{
             width: "100%",
-            height: "calc(100vh - 108px)",
             border: "none",
             flex: 1,
           }}
