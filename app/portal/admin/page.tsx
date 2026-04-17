@@ -1,7 +1,9 @@
 import type React from "react"
 import { clerkClient } from "@/lib/clerk"
 import { readGrants } from "@/lib/auth"
-import { PROJECTS, getProject } from "@/lib/projects"
+import { getProject } from "@/lib/projects"
+import { getActiveProjects, getArchivedProjects } from "@/lib/projects-registry"
+import { AdminProjectsPanel } from "@/components/AdminProjectsPanel"
 import type { ProjectGrant } from "@/lib/types"
 
 const DURATIONS = [
@@ -42,7 +44,11 @@ export default async function AdminPage({
 }: {
   searchParams: { sent?: string; granted?: string; extended?: string; error?: string }
 }) {
-  const { data: users, totalCount } = await clerkClient.users.getUserList({ limit: 200 })
+  const [{ data: users, totalCount }, activeProjects, archivedProjects] = await Promise.all([
+    clerkClient.users.getUserList({ limit: 200 }),
+    getActiveProjects(),
+    getArchivedProjects(),
+  ])
 
   // Compute stats
   const now = Date.now()
@@ -138,6 +144,9 @@ export default async function AdminPage({
         >
           <strong style={{ color: "#888888" }}>Pending requests</strong> — received via email. Use Direct Grant below to skip the email flow and grant access instantly.
         </div>
+
+        {/* Projects management */}
+        <AdminProjectsPanel active={activeProjects} archived={archivedProjects} />
 
         {/* Users table */}
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
@@ -243,7 +252,7 @@ export default async function AdminPage({
                     >
                       <input type="hidden" name="userId" value={user.id} />
                       <select name="projectSlug" style={selectStyle}>
-                        {PROJECTS.map((p) => (
+                        {activeProjects.map((p) => (
                           <option key={p.slug} value={p.slug}>{p.name}</option>
                         ))}
                       </select>
@@ -267,7 +276,7 @@ export default async function AdminPage({
                     >
                       <input type="hidden" name="userId" value={user.id} />
                       <select name="projectSlug" style={selectStyle}>
-                        {PROJECTS.map((p) => (
+                        {activeProjects.map((p) => (
                           <option key={p.slug} value={p.slug}>{p.name}</option>
                         ))}
                       </select>
