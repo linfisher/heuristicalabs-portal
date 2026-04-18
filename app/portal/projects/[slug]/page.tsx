@@ -1,7 +1,12 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { auth } from "@clerk/nextjs/server"
+import { clerkClient } from "@/lib/clerk"
+import { isAdminEmail } from "@/lib/auth"
 import { getProject } from "@/lib/projects"
+import { getProjectBySlug } from "@/lib/registry"
 import { PDFThumbnail } from "@/components/PDFThumbnail"
+import ProjectAdminActions from "@/components/ProjectAdminActions"
 
 export const dynamic = "force-dynamic"
 
@@ -32,8 +37,18 @@ export default async function ProjectPage({ params, searchParams }: Props) {
     )
   }
 
-  const project = getProject(slug)
+  // Admins see both active and archived projects; regular users only see active.
+  const { userId } = await auth()
+  let adminUser = false
+  if (userId) {
+    const user = await clerkClient.users.getUser(userId)
+    adminUser = isAdminEmail(user.primaryEmailAddress?.emailAddress)
+  }
+
+  const stored = adminUser ? getProjectBySlug(slug) : undefined
+  const project = stored ? { slug: stored.slug, name: stored.name, description: stored.description ?? "", vpsPath: stored.vpsPath, pages: stored.pages } : getProject(slug)
   if (!project) notFound()
+  const projectStatus: "active" | "archived" = stored?.status ?? "active"
 
   return (
     <div style={{ background: "#0A0A0A", minHeight: "100vh" }} className="px-6 py-10">
@@ -57,15 +72,34 @@ export default async function ProjectPage({ params, searchParams }: Props) {
           <span style={{ color: "#888" }}>{project.name}</span>
         </nav>
 
-        <h1
-          style={{ color: "#E8147F", fontFamily: "var(--font-exo2)" }}
-          className="text-3xl font-bold mb-2"
-        >
-          {project.name}
-        </h1>
-        <p style={{ color: "#555" }} className="text-sm mb-10">
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px", flexWrap: "wrap" }}>
+          <h1
+            style={{ color: "#E8147F", fontFamily: "var(--font-exo2)", margin: 0 }}
+            className="text-3xl font-bold"
+          >
+            {project.name}
+          </h1>
+          {projectStatus === "archived" && (
+            <span style={{
+              background: "#2d2200",
+              border: "1px solid #F5C418",
+              color: "#F5C418",
+              padding: "3px 10px",
+              borderRadius: "999px",
+              fontSize: "0.7rem",
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}>Archived</span>
+          )}
+        </div>
+        <p style={{ color: "#555" }} className="text-sm mb-6">
           {project.pages.length} document{project.pages.length !== 1 ? "s" : ""}
         </p>
+
+        {adminUser && (
+          <ProjectAdminActions slug={project.slug} name={project.name} status={projectStatus} />
+        )}
 
         {project.pages.length === 0 ? (
           <p style={{ color: "#444" }}>No documents available.</p>
