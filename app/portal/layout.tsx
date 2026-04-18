@@ -1,8 +1,14 @@
 import Link from "next/link"
+import type { Metadata } from "next"
 import { auth } from "@clerk/nextjs/server"
 import { UserButton } from "@clerk/nextjs"
 import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
+
+export const metadata: Metadata = {
+  title: "Portal",
+  robots: "noindex, nofollow",
+}
 
 export default async function PortalLayout({
   children,
@@ -17,10 +23,6 @@ export default async function PortalLayout({
     adminUser = isAdminEmail(user.primaryEmailAddress?.emailAddress)
   }
 
-  // In dev, the logo stays on the current host so clicking it doesn't
-  // bounce you to production. In prod, it goes to the main site.
-  const mainSiteUrl = process.env.NODE_ENV === "development" ? "/portal" : "https://heuristicalabs.com"
-
   return (
     <>
       <nav
@@ -31,13 +33,13 @@ export default async function PortalLayout({
         className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-6"
       >
         <div className="flex items-center gap-5">
-          <a
-            href={mainSiteUrl}
+          <Link
+            href="/"
             style={{ color: "#E8147F", fontFamily: "var(--font-exo2)" }}
             className="text-sm font-bold tracking-widest uppercase"
           >
             HEURISTICA LABS
-          </a>
+          </Link>
           <Link
             href="/portal"
             style={{

@@ -10,9 +10,11 @@ const exo2 = Exo_2({
 });
 
 export const metadata: Metadata = {
-  title: "Heuristica Labs — Portal",
-  description: "Private project access portal",
-  robots: "noindex, nofollow",
+  title: {
+    default: "Heuristica Labs",
+    template: "%s — Heuristica Labs",
+  },
+  description: "Heuristica Labs is an independent venture studio building bold, original technology companies from the ground up.",
 };
 
 export const viewport: Viewport = {
