@@ -20,7 +20,7 @@ const nextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' https://clerk.com https://*.clerk.accounts.dev https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; frame-src 'self'; connect-src 'self' https://*.clerk.accounts.dev https://*.upstash.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: https://img.clerk.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self';",
+              "default-src 'self'; script-src 'self' 'unsafe-inline' https://clerk.com https://*.clerk.com https://*.clerk.accounts.dev https://*.heuristicalabs.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; frame-src 'self' https://*.clerk.accounts.dev https://*.heuristicalabs.com; connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://*.heuristicalabs.com https://*.upstash.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: https://img.clerk.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self';",
           },
         ],
       },
