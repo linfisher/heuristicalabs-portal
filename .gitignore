@@ -28,6 +28,7 @@ yarn-error.log*
 # VPS deploy scripts contain secrets — never commit
 vps-deploy.sh
 vps-deploy-portal.sh
+vps-setup-content.sh
 
 # TypeScript build info
 *.tsbuildinfo
