@@ -62,17 +62,17 @@ export default async function PortalPage() {
                 style={{ background: "#111", border: "1px solid #222" }}
                 className="rounded-lg p-6 flex flex-col gap-4"
               >
-                <div>
-                  <h2 style={{ color: "#E8147F" }} className="text-xl font-semibold tracking-wide mb-2">
+                <div className="flex-1 flex flex-col gap-2">
+                  <h2 style={{ color: "#E8147F" }} className="text-xl font-semibold tracking-wide">
                     {project.name}
                   </h2>
                   <p style={{ color: "#888" }} className="text-sm leading-relaxed">
                     {project.description || <span style={{ color: "#444" }}>No description</span>}
                   </p>
+                  <p style={{ color: "#444" }} className="text-xs mt-2">
+                    {project.pages.length} document{project.pages.length !== 1 ? "s" : ""}
+                  </p>
                 </div>
-                <p style={{ color: "#444" }} className="text-xs">
-                  {project.pages.length} document{project.pages.length !== 1 ? "s" : ""}
-                </p>
 
                 <ProjectAdminActions slug={project.slug} name={project.name} status="active" />
 

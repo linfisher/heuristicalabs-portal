@@ -171,7 +171,6 @@ const adminBarStyle: React.CSSProperties = {
   border: "1px solid #1f1f1f",
   borderRadius: "8px",
   padding: "12px 14px",
-  marginBottom: "24px",
   display: "flex",
   alignItems: "center",
   gap: "14px",

@@ -18,7 +18,16 @@ interface Props {
 export default async function ProjectPage({ params, searchParams }: Props) {
   const { slug } = params
 
-  if (searchParams.forbidden === "1") {
+  // Admins see both active and archived projects, and always bypass the
+  // forbidden gate — ?forbidden=1 is only meaningful for regular users.
+  const { userId } = await auth()
+  let adminUser = false
+  if (userId) {
+    const user = await clerkClient.users.getUser(userId)
+    adminUser = isAdminEmail(user.primaryEmailAddress?.emailAddress)
+  }
+
+  if (!adminUser && searchParams.forbidden === "1") {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <div className="text-center max-w-md px-6">
@@ -35,14 +44,6 @@ export default async function ProjectPage({ params, searchParams }: Props) {
         </div>
       </div>
     )
-  }
-
-  // Admins see both active and archived projects; regular users only see active.
-  const { userId } = await auth()
-  let adminUser = false
-  if (userId) {
-    const user = await clerkClient.users.getUser(userId)
-    adminUser = isAdminEmail(user.primaryEmailAddress?.emailAddress)
   }
 
   const stored = adminUser ? getProjectBySlug(slug) : undefined
@@ -98,7 +99,9 @@ export default async function ProjectPage({ params, searchParams }: Props) {
         </p>
 
         {adminUser && (
-          <ProjectAdminActions slug={project.slug} name={project.name} status={projectStatus} />
+          <div style={{ marginBottom: "24px" }}>
+            <ProjectAdminActions slug={project.slug} name={project.name} status={projectStatus} />
+          </div>
         )}
 
         {project.pages.length === 0 ? (
