@@ -37,7 +37,7 @@ export default function RequestAccessForm({ projects }: { projects: ProjectOptio
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data?.error ?? `Request failed (${res.status})`)
+        throw new Error((data as { error?: string })?.error ?? `Request failed (${res.status})`)
       }
 
       setStatus("success")
@@ -47,38 +47,102 @@ export default function RequestAccessForm({ projects }: { projects: ProjectOptio
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    background: "#111",
-    border: "1px solid #2a2a2a",
-    color: "#FAF7F0",
-    borderRadius: "6px",
-    padding: "10px 12px",
-    fontSize: "14px",
-    width: "100%",
-    outline: "none",
-    fontFamily: "var(--font-exo2)",
-  }
-
   if (status === "success") {
     return (
-      <div
-        style={{
-          background: "#0A0A0A",
-          minHeight: "calc(100vh - 4rem)",
-          fontFamily: "var(--font-exo2)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "2rem",
-        }}
-      >
-        <p style={{ color: "#FAF7F0" }} className="text-center text-base max-w-sm">
-          Request sent. You will receive an email when access is granted.
+      <Wrapper>
+        <p style={{ color: "#FAF7F0", fontSize: "1rem", textAlign: "center", maxWidth: "28rem", margin: "0 auto", lineHeight: 1.5 }}>
+          Request sent. You'll receive an email when access is granted.
         </p>
-      </div>
+      </Wrapper>
     )
   }
 
+  const canSend = !!projectSlug && status !== "submitting"
+
+  return (
+    <Wrapper>
+      <div style={{ width: "100%", maxWidth: "32rem" }}>
+        <h1 style={{ color: "#FAF7F0", fontSize: "1.75rem", fontWeight: 600, letterSpacing: "0.02em", margin: "0 0 8px" }}>
+          Request Access
+        </h1>
+        <p style={{ color: "#666", fontSize: "0.9rem", margin: "0 0 32px", lineHeight: 1.5 }}>
+          Pick a project. Add a note if it helps. Access is granted manually.
+        </p>
+
+        <form onSubmit={handleSubmit} aria-busy={status === "submitting"} className="flex flex-col gap-8">
+          <div>
+            <FieldLabel>Project</FieldLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {projects.map((p) => (
+                <Chip key={p.slug} selected={projectSlug === p.slug} onClick={() => setProjectSlug(p.slug)}>
+                  {p.name}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>
+              Message{" "}
+              <span style={{ color: "#555", fontWeight: 400, textTransform: "none", letterSpacing: "normal" }}>
+                (optional)
+              </span>
+            </FieldLabel>
+            <textarea
+              value={message}
+              onChange={(e) => { if (e.target.value.length <= MAX_CHARS) setMessage(e.target.value) }}
+              maxLength={MAX_CHARS}
+              placeholder="Tell us why you need access..."
+              rows={5}
+              style={{
+                width: "100%",
+                background: "#111",
+                border: "1px solid #2a2a2a",
+                color: "#FAF7F0",
+                borderRadius: "6px",
+                padding: "10px 12px",
+                fontSize: "14px",
+                outline: "none",
+                fontFamily: "var(--font-exo2)",
+                resize: "vertical",
+                minHeight: "120px",
+              }}
+            />
+            <div style={{ color: "#444", fontSize: "0.7rem", textAlign: "right", marginTop: "4px" }}>
+              {message.length} / {MAX_CHARS}
+            </div>
+          </div>
+
+          {status === "error" && (
+            <p role="alert" style={{ color: "#ef4444", fontSize: "0.85rem", margin: 0 }}>{errorMsg}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={!canSend}
+            style={{
+              background: canSend ? "#E8147F" : "#2a2a2a",
+              color: canSend ? "#FAF7F0" : "#555",
+              border: "none",
+              borderRadius: "6px",
+              padding: "12px 24px",
+              fontSize: "14px",
+              fontWeight: 600,
+              fontFamily: "var(--font-exo2)",
+              cursor: canSend ? "pointer" : "not-allowed",
+              letterSpacing: "0.05em",
+              transition: "opacity 0.15s",
+            }}
+          >
+            {status === "submitting" ? "Sending..." : "Send Request"}
+          </button>
+        </form>
+      </div>
+    </Wrapper>
+  )
+}
+
+function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
@@ -91,88 +155,46 @@ export default function RequestAccessForm({ projects }: { projects: ProjectOptio
         padding: "3rem 1.5rem",
       }}
     >
-      <div style={{ width: "100%", maxWidth: "32rem" }}>
-        <h1 style={{ color: "#FAF7F0" }} className="text-2xl font-semibold tracking-wide mb-2">
-          Request Access
-        </h1>
-        <p style={{ color: "#666" }} className="text-sm mb-8">
-          Select a project and optionally include a note. Access is granted manually.
-        </p>
-
-        <form onSubmit={handleSubmit} aria-busy={status === "submitting"} className="flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
-            <label style={{ color: "#aaa" }} className="text-xs font-medium uppercase tracking-widest">
-              Project
-            </label>
-            <select
-              value={projectSlug}
-              onChange={(e) => setProjectSlug(e.target.value)}
-              required
-              style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
-              className="focus:ring-2 focus:ring-[#E8147F] focus:border-[#E8147F] transition-colors"
-            >
-              <option value="" disabled style={{ color: "#666" }}>
-                Select a project...
-              </option>
-              {projects.map((p) => (
-                <option key={p.slug} value={p.slug} style={{ background: "#111", color: "#FAF7F0" }}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label style={{ color: "#aaa" }} className="text-xs font-medium uppercase tracking-widest">
-              Message{" "}
-              <span style={{ color: "#555" }} className="normal-case tracking-normal font-normal">
-                (optional)
-              </span>
-            </label>
-            <textarea
-              value={message}
-              onChange={(e) => {
-                if (e.target.value.length <= MAX_CHARS) setMessage(e.target.value)
-              }}
-              maxLength={MAX_CHARS}
-              placeholder="Tell us why you need access..."
-              rows={5}
-              style={{ ...inputStyle, resize: "vertical", minHeight: "120px" }}
-              className="focus:ring-2 focus:ring-[#E8147F] focus:border-[#E8147F] transition-colors"
-            />
-            <span style={{ color: "#444" }} className="text-xs text-right">
-              {message.length} / {MAX_CHARS}
-            </span>
-          </div>
-
-          {status === "error" && (
-            <p role="alert" style={{ color: "#E8147F" }} className="text-sm">
-              {errorMsg}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={status === "submitting" || !projectSlug}
-            style={{
-              background: status === "submitting" || !projectSlug ? "#2a2a2a" : "#E8147F",
-              color: status === "submitting" || !projectSlug ? "#555" : "#FAF7F0",
-              border: "none",
-              borderRadius: "6px",
-              padding: "12px 24px",
-              fontSize: "14px",
-              fontWeight: 600,
-              fontFamily: "var(--font-exo2)",
-              cursor: status === "submitting" || !projectSlug ? "not-allowed" : "pointer",
-              letterSpacing: "0.05em",
-              transition: "opacity 0.15s",
-            }}
-            className="hover:opacity-90"
-          >
-            {status === "submitting" ? "Sending..." : "Send Request"}
-          </button>
-        </form>
-      </div>
+      {children}
     </div>
+  )
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label style={{ display: "block", color: "#aaa", fontSize: "0.72rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>
+      {children}
+    </label>
+  )
+}
+
+function Chip({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        background: selected ? "#E8147F" : "transparent",
+        color: selected ? "#FAF7F0" : "#aaa",
+        border: `1px solid ${selected ? "#E8147F" : "#333"}`,
+        borderRadius: "999px",
+        padding: "8px 14px",
+        fontSize: "0.8rem",
+        fontFamily: "var(--font-exo2)",
+        cursor: "pointer",
+        transition: "all 0.12s",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </button>
   )
 }
