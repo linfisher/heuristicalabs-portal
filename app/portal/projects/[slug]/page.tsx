@@ -99,6 +99,13 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                   >
                     {page.fileType === "pdf" ? (
                       <PDFThumbnail proxyUrl={proxyUrl} title={page.title} />
+                    ) : page.fileType === "viewer" && page.thumbnailSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={page.thumbnailSrc}
+                        alt={page.title}
+                        style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block" }}
+                      />
                     ) : page.fileType === "viewer" ? (
                       <div
                         style={{

@@ -30,6 +30,7 @@ export const PROJECTS: Project[] = [
         title: "Floor Tile v19 — Interactive 3D Viewer",
         fileType: "viewer",
         viewerSrc: "/viewers/floor_tile_viewer.html",
+        thumbnailSrc: "/thumbnails/floor-tile-viewer.svg",
       },
     ],
   },

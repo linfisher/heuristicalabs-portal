@@ -27,5 +27,6 @@ export interface ProjectPage {
   path: string
   title: string
   fileType: "html" | "json" | "pdf" | "viewer"
-  viewerSrc?: string  // local public path for "viewer" type, e.g. "/viewers/foo.html"
+  viewerSrc?: string   // local public path for "viewer" type, e.g. "/viewers/foo.html"
+  thumbnailSrc?: string // static preview image for the project page card
 }
