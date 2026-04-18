@@ -40,59 +40,65 @@ export default async function PortalLayout({
           >
             HEURISTICA LABS
           </Link>
-          <Link
-            href="/portal"
-            style={{
-              color: "#888888",
-              fontSize: "0.72rem",
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              fontFamily: "var(--font-exo2)",
-              textDecoration: "none",
-            }}
-            className="hover:text-white transition-colors"
-          >
-            Portal
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-5">
-          <Link
-            href="/portal/support"
-            style={{
-              color: "#888888",
-              fontSize: "0.72rem",
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              fontFamily: "var(--font-exo2)",
-              textDecoration: "none",
-            }}
-            className="hover:text-white transition-colors"
-          >
-            Support
-          </Link>
-          {adminUser && (
+          {userId && (
             <Link
-              href="/portal/admin"
+              href="/portal"
               style={{
-                color: "#444444",
-                fontSize: "0.7rem",
+                color: "#888888",
+                fontSize: "0.72rem",
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
                 fontFamily: "var(--font-exo2)",
                 textDecoration: "none",
               }}
+              className="hover:text-white transition-colors"
             >
-              Admin
+              Portal
             </Link>
           )}
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: { width: "32px", height: "32px" },
-              },
-            }}
-          />
+        </div>
+
+        <div className="flex items-center gap-5">
+          {userId && (
+            <>
+              <Link
+                href="/portal/support"
+                style={{
+                  color: "#888888",
+                  fontSize: "0.72rem",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  fontFamily: "var(--font-exo2)",
+                  textDecoration: "none",
+                }}
+                className="hover:text-white transition-colors"
+              >
+                Support
+              </Link>
+              {adminUser && (
+                <Link
+                  href="/portal/admin"
+                  style={{
+                    color: "#444444",
+                    fontSize: "0.7rem",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    fontFamily: "var(--font-exo2)",
+                    textDecoration: "none",
+                  }}
+                >
+                  Admin
+                </Link>
+              )}
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: { width: "32px", height: "32px" },
+                  },
+                }}
+              />
+            </>
+          )}
         </div>
       </nav>
       <main className="pt-16">{children}</main>
