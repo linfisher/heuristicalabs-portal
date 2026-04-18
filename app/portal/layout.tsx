@@ -26,15 +26,45 @@ export default async function PortalLayout({
         }}
         className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-6"
       >
-        <a
-          href="https://heuristicalabs.com"
-          style={{ color: "#E8147F", fontFamily: "var(--font-exo2)" }}
-          className="text-sm font-700 tracking-widest uppercase"
-        >
-          HEURISTICA LABS
-        </a>
+        <div className="flex items-center gap-5">
+          <a
+            href="https://heuristicalabs.com"
+            style={{ color: "#E8147F", fontFamily: "var(--font-exo2)" }}
+            className="text-sm font-bold tracking-widest uppercase"
+          >
+            HEURISTICA LABS
+          </a>
+          <Link
+            href="/portal"
+            style={{
+              color: "#888888",
+              fontSize: "0.72rem",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              fontFamily: "var(--font-exo2)",
+              textDecoration: "none",
+            }}
+            className="hover:text-white transition-colors"
+          >
+            Portal
+          </Link>
+        </div>
 
         <div className="flex items-center gap-5">
+          <Link
+            href="/portal/support"
+            style={{
+              color: "#888888",
+              fontSize: "0.72rem",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              fontFamily: "var(--font-exo2)",
+              textDecoration: "none",
+            }}
+            className="hover:text-white transition-colors"
+          >
+            Support
+          </Link>
           {adminUser && (
             <Link
               href="/portal/admin"
@@ -50,7 +80,13 @@ export default async function PortalLayout({
               Admin
             </Link>
           )}
-          <UserButton />
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: { width: "32px", height: "32px" },
+              },
+            }}
+          />
         </div>
       </nav>
       <main className="pt-16">{children}</main>

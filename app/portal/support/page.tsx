@@ -1,9 +1,9 @@
 import { getAllActiveProjects } from "@/lib/projects"
-import RequestAccessForm from "@/components/RequestAccessForm"
+import SupportForm from "@/components/SupportForm"
 
 export const dynamic = "force-dynamic"
 
-export default function RequestAccessPage() {
+export default function SupportPage() {
   const projects = getAllActiveProjects().map((p) => ({ slug: p.slug, name: p.name }))
-  return <RequestAccessForm projects={projects} />
+  return <SupportForm projects={projects} />
 }

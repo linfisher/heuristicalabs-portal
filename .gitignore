@@ -31,3 +31,7 @@ vps-deploy-portal.sh
 
 # TypeScript build info
 *.tsbuildinfo
+
+# Local project registry (dev fallback when /var/www/portal-content is unwritable)
+.registry.json
+.registry.json.tmp-*

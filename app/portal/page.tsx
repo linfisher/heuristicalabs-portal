@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import Link from "next/link"
 import { clerkClient } from "@/lib/clerk"
-import { PROJECTS, getProject } from "@/lib/projects"
+import { getAllActiveProjects, getProject } from "@/lib/projects"
 import { isAdminEmail } from "@/lib/auth"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -26,7 +26,8 @@ export default async function PortalPage() {
   const admin = isAdminEmail(user.primaryEmailAddress?.emailAddress)
 
   if (admin) {
-    // Admin sees all registered projects
+    // Admin sees all active projects
+    const PROJECTS = getAllActiveProjects()
     return (
       <div
         style={{ background: "#0A0A0A", minHeight: "calc(100vh - 4rem)", fontFamily: "var(--font-exo2)" }}
