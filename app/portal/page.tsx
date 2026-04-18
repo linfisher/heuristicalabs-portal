@@ -2,7 +2,10 @@ import { auth } from "@clerk/nextjs/server"
 import Link from "next/link"
 import { clerkClient } from "@/lib/clerk"
 import { getAllActiveProjects, getProject } from "@/lib/projects"
+import { getAllProjects } from "@/lib/registry"
 import { isAdminEmail } from "@/lib/auth"
+import AddProjectButton from "@/components/AddProjectButton"
+import ProjectAdminActions from "@/components/ProjectAdminActions"
 import type { ProjectGrant } from "@/lib/types"
 
 const MS_72H = 72 * 60 * 60 * 1000
@@ -26,55 +29,53 @@ export default async function PortalPage() {
   const admin = isAdminEmail(user.primaryEmailAddress?.emailAddress)
 
   if (admin) {
-    // Admin sees all active projects
-    const PROJECTS = getAllActiveProjects()
+    const allProjects = getAllProjects()
+    const active = allProjects.filter((p) => p.status === "active")
+    const archived = allProjects.filter((p) => p.status === "archived")
+
     return (
       <div
         style={{ background: "#0A0A0A", minHeight: "calc(100vh - 4rem)", fontFamily: "var(--font-exo2)" }}
         className="px-6 py-12"
       >
         <div className="max-w-4xl mx-auto">
-          <h1
-            style={{ color: "#FAF7F0" }}
-            className="text-3xl font-semibold tracking-wide mb-10"
-          >
-            All Projects
-          </h1>
+          <div className="flex items-center justify-between mb-10">
+            <h1 style={{ color: "#FAF7F0" }} className="text-3xl font-semibold tracking-wide">
+              All Projects
+            </h1>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/portal/admin"
+                style={{ color: "#888", border: "1px solid #333" }}
+                className="text-xs uppercase tracking-widest px-3 py-2 rounded hover:text-white hover:border-[#555] transition-colors"
+              >
+                Admin Dashboard
+              </Link>
+              <AddProjectButton />
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {PROJECTS.map((project) => (
+            {active.map((project) => (
               <div
                 key={project.slug}
                 style={{ background: "#111", border: "1px solid #222" }}
                 className="rounded-lg p-6 flex flex-col gap-4"
               >
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h2
-                      style={{ color: "#E8147F" }}
-                      className="text-xl font-semibold tracking-wide"
-                    >
-                      {project.name}
-                    </h2>
-                    <span
-                      style={{
-                        background: "#1a1a2e",
-                        color: "#E8147F",
-                        border: "1px solid #E8147F44",
-                        fontSize: "0.65rem",
-                        letterSpacing: "0.08em",
-                      }}
-                      className="px-2 py-0.5 rounded-full uppercase font-semibold"
-                    >
-                      Admin
-                    </span>
-                  </div>
+                  <h2 style={{ color: "#E8147F" }} className="text-xl font-semibold tracking-wide mb-2">
+                    {project.name}
+                  </h2>
                   <p style={{ color: "#888" }} className="text-sm leading-relaxed">
-                    {project.description}
+                    {project.description || <span style={{ color: "#444" }}>No description</span>}
                   </p>
                 </div>
-                <p style={{ color: "#444" }} className="text-xs mt-auto">
+                <p style={{ color: "#444" }} className="text-xs">
                   {project.pages.length} document{project.pages.length !== 1 ? "s" : ""}
                 </p>
+
+                <ProjectAdminActions slug={project.slug} name={project.name} status="active" />
+
                 <Link
                   href={`/portal/projects/${project.slug}`}
                   style={{ background: "#E8147F", color: "#FAF7F0" }}
@@ -85,6 +86,49 @@ export default async function PortalPage() {
               </div>
             ))}
           </div>
+
+          {archived.length > 0 && (
+            <details style={{ marginTop: "32px" }}>
+              <summary style={{ color: "#555", fontSize: "0.75rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", padding: "8px 0" }}>
+                {archived.length} archived project{archived.length !== 1 ? "s" : ""}
+              </summary>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4">
+                {archived.map((project) => (
+                  <div
+                    key={project.slug}
+                    style={{ background: "#0d0d0d", border: "1px solid #1a1a1a", opacity: 0.8 }}
+                    className="rounded-lg p-6 flex flex-col gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h2 style={{ color: "#666" }} className="text-xl font-semibold tracking-wide">
+                          {project.name}
+                        </h2>
+                        <span style={{
+                          background: "#2d2200",
+                          border: "1px solid #F5C418",
+                          color: "#F5C418",
+                          fontSize: "0.6rem",
+                          letterSpacing: "0.1em",
+                          padding: "2px 8px",
+                        }} className="rounded-full uppercase font-semibold">
+                          Archived
+                        </span>
+                      </div>
+                      <p style={{ color: "#555" }} className="text-sm leading-relaxed">
+                        {project.description || <span style={{ color: "#333" }}>No description</span>}
+                      </p>
+                    </div>
+                    <p style={{ color: "#333" }} className="text-xs">
+                      {project.pages.length} document{project.pages.length !== 1 ? "s" : ""}
+                    </p>
+
+                    <ProjectAdminActions slug={project.slug} name={project.name} status="archived" />
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
         </div>
       </div>
     )
