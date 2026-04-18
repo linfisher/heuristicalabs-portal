@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { readFile } from "fs/promises";
+import path from "path";
 import { getProject, getProjectPage } from "@/lib/projects";
 import { fetchPage } from "@/lib/vps";
 
@@ -54,12 +56,23 @@ export default async function ProjectContentPage({ params }: Props) {
 
   const pageTitle = page.title;
 
-  // Local viewer — self-contained HTML served from public/viewers/
+  // Local viewer — read HTML server-side and inject as srcDoc to avoid X-Frame-Options blocking
   if (page.fileType === "viewer" && page.viewerSrc) {
+    let viewerHtml = ""
+    try {
+      const filePath = path.join(process.cwd(), "public", page.viewerSrc)
+      viewerHtml = await readFile(filePath, "utf-8")
+    } catch {
+      return (
+        <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+          <p className="text-gray-400">Viewer unavailable.</p>
+        </div>
+      )
+    }
     return (
       <div style={{ position: "fixed", top: "64px", left: 0, right: 0, bottom: 0 }}>
         <iframe
-          src={page.viewerSrc}
+          srcDoc={viewerHtml}
           title={pageTitle}
           sandbox="allow-scripts allow-same-origin"
           style={{ width: "100%", height: "100%", border: "none", display: "block" }}
