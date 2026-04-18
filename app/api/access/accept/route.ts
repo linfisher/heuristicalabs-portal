@@ -59,6 +59,8 @@ export async function GET(request: Request): Promise<NextResponse> {
   const expiresAt = Date.now() + payload.accessDurationMs
   const updatedGrants: ProjectGrant[] = [...filtered, { slug: payload.projectSlug, expiresAt }]
 
+  await deleteGrantGroup(payload.userId, payload.projectSlug)
+
   try {
     await clerkClient.users.updateUserMetadata(payload.userId, {
       publicMetadata: { projects: updatedGrants },
@@ -66,8 +68,6 @@ export async function GET(request: Request): Promise<NextResponse> {
   } catch {
     return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Failed to apply access grant. Please try again later or contact support.</p>", 500)
   }
-
-  await deleteGrantGroup(payload.userId, payload.projectSlug)
 
   const projectName = getProject(payload.projectSlug)?.name ?? payload.projectSlug
   const projectUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/projects/${payload.projectSlug}?welcome=1`

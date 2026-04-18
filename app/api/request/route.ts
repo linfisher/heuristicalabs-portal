@@ -5,7 +5,7 @@ import { decodeJwt } from "jose"
 import { clerkClient } from "@/lib/clerk"
 import { sendEmail } from "@/lib/email"
 import { getProject } from "@/lib/projects"
-import { signToken, storeGrantGroup } from "@/lib/tokens"
+import { signToken, storeGrantGroup, deleteGrantGroup } from "@/lib/tokens"
 import { DURATIONS, RATE_LIMIT_WINDOW_S, TOKEN_LINK_TTL_MS } from "@/lib/durations"
 import AccessRequestEmail from "@/emails/access-request"
 
@@ -145,6 +145,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     })
   } catch (err) {
     await redis.del(reqKey)
+    try { await deleteGrantGroup(userId, projectSlug) } catch { /* best-effort */ }
     console.error("[request] failed after acquiring rate-limit key", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

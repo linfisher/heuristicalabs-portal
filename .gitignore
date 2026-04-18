@@ -25,5 +25,9 @@ yarn-error.log*
 # Vercel
 .vercel
 
+# VPS deploy scripts contain secrets — never commit
+vps-deploy.sh
+vps-deploy-portal.sh
+
 # TypeScript build info
 *.tsbuildinfo
