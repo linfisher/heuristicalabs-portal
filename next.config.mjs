@@ -20,7 +20,7 @@ const nextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' https://clerk.com https://*.clerk.com https://*.clerk.accounts.dev https://*.heuristicalabs.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; worker-src blob:; frame-src 'self' https://*.clerk.accounts.dev https://*.heuristicalabs.com; connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://*.heuristicalabs.com https://*.upstash.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: https://img.clerk.com https://*.heuristicalabs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.heuristicalabs.com https://*.clerk.com; font-src https://fonts.gstatic.com https://*.heuristicalabs.com https://*.clerk.com; object-src 'none'; base-uri 'self'; form-action 'self';",
+              "default-src 'self'; script-src 'self' 'unsafe-inline' https://clerk.com https://*.clerk.com https://*.clerk.accounts.dev https://*.heuristicalabs.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; worker-src blob:; frame-src 'self' blob: https://*.clerk.accounts.dev https://*.heuristicalabs.com; connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://*.heuristicalabs.com https://*.upstash.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: https://img.clerk.com https://*.heuristicalabs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.heuristicalabs.com https://*.clerk.com; font-src https://fonts.gstatic.com https://*.heuristicalabs.com https://*.clerk.com; object-src 'none'; base-uri 'self'; form-action 'self';",
           },
         ],
       },

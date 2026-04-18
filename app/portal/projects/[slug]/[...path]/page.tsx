@@ -4,6 +4,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { getProject, getProjectPage } from "@/lib/projects";
 import { fetchPage } from "@/lib/vps";
+import PDFProxyIframe from "@/components/PDFProxyIframe";
 
 export const dynamic = "force-dynamic";
 
@@ -85,22 +86,13 @@ export default async function ProjectContentPage({ params }: Props) {
   if (page.fileType === "pdf") {
     const proxyUrl = `/api/proxy/${slug}/${filePath}`;
     return (
-      <div className="flex flex-col bg-[#0A0A0A]" style={{ minHeight: "100vh" }}>
+      <div className="flex flex-col bg-[#0A0A0A]" style={{ height: "100vh" }}>
         <Breadcrumb
           projectName={project.name}
           projectSlug={slug}
           pageTitle={pageTitle}
         />
-        <iframe
-          src={proxyUrl}
-          title={pageTitle}
-          style={{
-            width: "100%",
-            border: "none",
-            flex: 1,
-            minHeight: "calc(100vh - 52px)",
-          }}
-        />
+        <PDFProxyIframe proxyUrl={proxyUrl} title={pageTitle} />
       </div>
     );
   }
