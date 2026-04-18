@@ -7,6 +7,24 @@ interface Props {
   title: string
 }
 
+// pdfjs-dist has a long-standing webpack ESM interop issue on Next 14; load
+// the module + worker from a CDN so webpack stays out of the path. Version
+// must match what we load to keep worker/main compatible.
+const PDFJS_VERSION = "5.6.205"
+const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.min.mjs`
+const PDFJS_WORKER_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`
+
+// Global loader — all thumbnails share one pdfjs module
+let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null
+function loadPdfjs(): Promise<typeof import("pdfjs-dist")> {
+  if (pdfjsPromise) return pdfjsPromise
+  pdfjsPromise = import(/* webpackIgnore: true */ /* @vite-ignore */ PDFJS_CDN).then((mod) => {
+    mod.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN
+    return mod as typeof import("pdfjs-dist")
+  })
+  return pdfjsPromise
+}
+
 export function PDFThumbnail({ proxyUrl, title }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const loadingTaskRef = useRef<{ destroy: () => Promise<void> } | null>(null)
@@ -19,8 +37,7 @@ export function PDFThumbnail({ proxyUrl, title }: Props) {
 
     async function render() {
       try {
-        const pdfjsLib = await import("pdfjs-dist")
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"
+        const pdfjsLib = await loadPdfjs()
 
         const response = await fetch(proxyUrl)
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -58,7 +75,8 @@ export function PDFThumbnail({ proxyUrl, title }: Props) {
         if (cancelled) return
 
         setState("ready")
-      } catch {
+      } catch (err) {
+        if (typeof console !== "undefined") console.error("[PDFThumbnail]", proxyUrl, err)
         if (!cancelled) setState("error")
       }
     }
