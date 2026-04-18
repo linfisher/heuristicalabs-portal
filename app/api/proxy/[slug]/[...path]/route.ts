@@ -80,7 +80,7 @@ export async function GET(
     return NextResponse.json({ error: "Content unavailable" }, { status: 502 })
   }
 
-  const contentType = vpsResponse.headers.get("Content-Type") ?? "application/pdf"
+  const contentType = page.fileType === "pdf" ? "application/pdf" : (vpsResponse.headers.get("Content-Type") ?? "application/octet-stream")
 
   return new Response(vpsResponse.body, {
     status: 200,

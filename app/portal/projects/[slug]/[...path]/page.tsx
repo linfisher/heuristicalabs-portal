@@ -94,12 +94,11 @@ export default async function ProjectContentPage({ params }: Props) {
         <iframe
           src={proxyUrl}
           title={pageTitle}
-          sandbox="allow-scripts"
-          referrerPolicy="no-referrer"
           style={{
             width: "100%",
             border: "none",
             flex: 1,
+            minHeight: "calc(100vh - 52px)",
           }}
         />
       </div>
