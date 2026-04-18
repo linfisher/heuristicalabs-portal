@@ -17,6 +17,13 @@ export default async function PortalLayout({
     adminUser = isAdminEmail(user.primaryEmailAddress?.emailAddress)
   }
 
+  // In dev, link to the local main-site dev server (port 4444) so clicking
+  // "HEURISTICA LABS" doesn't bounce you to production. Override via
+  // NEXT_PUBLIC_MAIN_SITE_URL if your setup differs.
+  const mainSiteUrl =
+    process.env.NEXT_PUBLIC_MAIN_SITE_URL ??
+    (process.env.NODE_ENV === "development" ? "http://localhost:4444" : "https://heuristicalabs.com")
+
   return (
     <>
       <nav
@@ -28,7 +35,7 @@ export default async function PortalLayout({
       >
         <div className="flex items-center gap-5">
           <a
-            href="https://heuristicalabs.com"
+            href={mainSiteUrl}
             style={{ color: "#E8147F", fontFamily: "var(--font-exo2)" }}
             className="text-sm font-bold tracking-widest uppercase"
           >
