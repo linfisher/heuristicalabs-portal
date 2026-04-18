@@ -99,6 +99,26 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                   >
                     {page.fileType === "pdf" ? (
                       <PDFThumbnail proxyUrl={proxyUrl} title={page.title} />
+                    ) : page.fileType === "viewer" ? (
+                      <div
+                        style={{
+                          width: "100%",
+                          aspectRatio: "8.5 / 11",
+                          background: "#141414",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c99b3a" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                          <path d="M2 17l10 5 10-5" />
+                          <path d="M2 12l10 5 10-5" />
+                        </svg>
+                        <span style={{ color: "#555", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>Interactive 3D</span>
+                      </div>
                     ) : (
                       <div
                         style={{
@@ -117,7 +137,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                       </div>
                     )}
 
-                    <div style={{ padding: "12px 14px 14px" }}>
+                    <div style={{ padding: "10px 14px 13px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
                       <p
                         style={{
                           color: "#cccccc",
@@ -125,10 +145,28 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                           lineHeight: "1.35",
                           fontWeight: 500,
                           margin: 0,
+                          flex: 1,
                         }}
                       >
                         {page.title}
                       </p>
+                      <span
+                        style={{
+                          backgroundColor: "#1a1a1a",
+                          border: "1px solid #2a2a2a",
+                          borderRadius: "3px",
+                          color: "#555555",
+                          fontSize: "0.6rem",
+                          fontWeight: 700,
+                          letterSpacing: "0.07em",
+                          padding: "2px 5px",
+                          flexShrink: 0,
+                          marginTop: "1px",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {page.fileType ?? "pdf"}
+                      </span>
                     </div>
                   </div>
                 </Link>

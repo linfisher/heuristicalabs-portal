@@ -54,6 +54,20 @@ export default async function ProjectContentPage({ params }: Props) {
 
   const pageTitle = page.title;
 
+  // Local viewer — self-contained HTML served from public/viewers/
+  if (page.fileType === "viewer" && page.viewerSrc) {
+    return (
+      <div style={{ position: "fixed", top: "64px", left: 0, right: 0, bottom: 0 }}>
+        <iframe
+          src={page.viewerSrc}
+          title={pageTitle}
+          sandbox="allow-scripts allow-same-origin"
+          style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+        />
+      </div>
+    )
+  }
+
   // PDF — proxy route handles auth + byte streaming; no server-side fetch needed
   if (page.fileType === "pdf") {
     const proxyUrl = `/api/proxy/${slug}/${filePath}`;

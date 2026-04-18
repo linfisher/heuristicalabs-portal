@@ -26,5 +26,6 @@ export interface Project {
 export interface ProjectPage {
   path: string
   title: string
-  fileType: "html" | "json" | "pdf"
+  fileType: "html" | "json" | "pdf" | "viewer"
+  viewerSrc?: string  // local public path for "viewer" type, e.g. "/viewers/foo.html"
 }

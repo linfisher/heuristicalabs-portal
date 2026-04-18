@@ -20,6 +20,20 @@ export const PROJECTS: Project[] = [
     ],
   },
   {
+    slug: "hivibe-magtiles",
+    name: "HiVibe MagTiles",
+    description: "HiVibe Floor Tile v19 interactive 3D viewer — full assembly with clamshell, Four-Star Plenum, wiring, and hardware details.",
+    vpsPath: "/projects/hivibe-magtiles",
+    pages: [
+      {
+        path: "floor-tile-viewer",
+        title: "Floor Tile v19 — Interactive 3D Viewer",
+        fileType: "viewer",
+        viewerSrc: "/viewers/floor_tile_viewer.html",
+      },
+    ],
+  },
+  {
     slug: "bridgebox",
     name: "BridgeBox",
     description: "System schematics, parts specifications, and pricing for all three BridgeBox offer tiers — Value ($10K), Standard ($12.5K), and Premium ($17.5K).",
