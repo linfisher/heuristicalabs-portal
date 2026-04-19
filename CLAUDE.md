@@ -1,7 +1,7 @@
 # Heuristica Labs — Claude Code Guide
 
 ## What this is
-The entire Heuristica Labs web presence, in one Next.js 14 app. Serves the public marketing site at `/` and the invitation-only password-walled portal at `/portal/**`. Previously split across two apps/repos; unified on 2026-04-18.
+The entire Heuristica Labs web presence, in one Next.js 14 app, on one domain (`heuristicalabs.com`). Serves the public marketing site at `/` and the invitation-only password-walled portal at `/portal/**`. Unified on 2026-04-18; domain cutover (apex → this app, subdomain → 301) completed 2026-04-19.
 
 ## Stack
 - **Framework**: Next.js 14 App Router, TypeScript (strict)
@@ -57,7 +57,7 @@ All required — `.env.local` is gitignored. See `.env.local.example` for shape.
 | `FROM_EMAIL` | Verified sender address in Resend |
 | `VPS_ORIGIN` | e.g. `https://files.heuristicalabs.com` |
 | `VPS_SECRET` | Shared secret between portal and VPS nginx |
-| `NEXT_PUBLIC_APP_URL` | `http://localhost:8888` in dev, `https://portal.heuristicalabs.com` (or apex after cutover) in prod |
+| `NEXT_PUBLIC_APP_URL` | `http://localhost:8888` in dev, `https://heuristicalabs.com` in prod (post-cutover; never the old subdomain) |
 
 ## Auth Model
 - Clerk handles identity (session cookies, OAuth)
@@ -83,10 +83,13 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 | `req:{userId}:{slug}` | Rate-limit key; 24h TTL; set AFTER successful email send |
 
 ## Deploy
-- **Production URL**: `https://portal.heuristicalabs.com` (VPS PM2, port 3001). After nginx cutover, `heuristicalabs.com` will point here too.
-- **Vercel**: `https://heuristicalabs-portal.vercel.app` — kept as a secondary/preview deploy
+- **Primary production URL**: `https://heuristicalabs.com` (VPS PM2, port 3001; nginx reverse-proxies from apex). `www.heuristicalabs.com` also serves here.
+- **Old subdomain**: `https://portal.heuristicalabs.com/*` 301-redirects to `https://heuristicalabs.com/*`. Kept for ~24h as safety net; will be removed.
+- **Vercel (secondary)**: `https://heuristicalabs-portal.vercel.app` — kept as a preview deploy.
 - **VPS deploy**: `ssh heuristica-vps "cd /var/www/portal && git pull && npm ci --prefer-offline && npm run build && pm2 restart portal --update-env && pm2 status"`
-- **Critical**: All 11 env vars must be set in both Vercel and VPS `.env.local` — missing Clerk keys cause `MIDDLEWARE_INVOCATION_FAILED` 500 on every request
+- **Vercel deploy**: use Vercel MCP. When editing env vars via CLI, use `printf` (not `echo`) to avoid trailing `\n` in values.
+- **Critical**: All env vars must be set in both Vercel and VPS `.env.local` — missing Clerk keys cause `MIDDLEWARE_INVOCATION_FAILED` 500 on every request.
+- **Clerk Allowed Origins** (prod instance): set via `PATCH https://api.clerk.com/v1/instance` with `allowed_origins`. Current list includes apex, www, portal subdomain, Vercel URL, `localhost:8888`. Run from VPS so prod key never transits to chat.
 
 ## Registry (project data)
 - `registry.json` on disk — single source of truth for projects
