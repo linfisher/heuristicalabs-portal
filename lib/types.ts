@@ -21,6 +21,7 @@ export interface Project {
   description: string
   vpsPath: string
   pages: ProjectPage[]
+  sectionOrder?: string[]
 }
 
 export type EmbedSource = "youtube" | "drive" | "dropbox" | "vimeo" | "generic"
@@ -42,4 +43,5 @@ export interface ProjectPage {
   embedUrl?: string               // for "embed" type — ready-to-iframe URL
   mimeType?: string               // captured at upload for correct proxy Content-Type
   originalName?: string           // original filename (with extension) for download
+  section?: string                // optional section name; empty/missing = unsectioned
 }

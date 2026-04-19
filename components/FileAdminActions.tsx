@@ -7,16 +7,26 @@ interface Props {
   slug: string
   pagePath: string
   title: string
+  sections?: string[]
+  currentSection?: string
 }
 
-export default function FileAdminActions({ slug, pagePath, title }: Props) {
+export default function FileAdminActions({ slug, pagePath, title, sections = [], currentSection }: Props) {
   const router = useRouter()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [newTitle, setNewTitle] = useState(title)
   const [busy, setBusy] = useState(false)
 
-  async function post(path: string, body: Record<string, string>) {
+  async function assignSection(section: string | null, e?: React.SyntheticEvent) {
+    if (e) { e.preventDefault(); e.stopPropagation() }
+    setBusy(true)
+    await post("/portal/admin/projects/page-assign-section", { slug, pagePath, section })
+    setBusy(false)
+    router.refresh()
+  }
+
+  async function post(path: string, body: Record<string, unknown>) {
     return fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -80,6 +90,26 @@ export default function FileAdminActions({ slug, pagePath, title }: Props) {
       >
         Delete
       </button>
+
+      {sections.length > 0 && (
+        <select
+          value={currentSection ?? ""}
+          onChange={(e) => {
+            const val = e.target.value
+            assignSection(val === "" ? null : val)
+          }}
+          onClick={stopProp}
+          disabled={busy}
+          title="Move to section"
+          aria-label="Move to section"
+          style={selectStyle}
+        >
+          <option value="">— no section —</option>
+          {sections.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      )}
 
       {renaming && (
         <Modal onClose={() => setRenaming(false)}>
@@ -219,4 +249,15 @@ const btnDangerPrimary: React.CSSProperties = {
   fontWeight: 600,
   padding: "9px 18px",
   fontFamily: "var(--font-exo2)",
+}
+const selectStyle: React.CSSProperties = {
+  background: "#1a1a1a",
+  border: "1px solid #2a2a2a",
+  borderRadius: "4px",
+  color: "#aaa",
+  fontSize: "0.65rem",
+  padding: "3px 6px",
+  fontFamily: "var(--font-exo2)",
+  cursor: "pointer",
+  maxWidth: "110px",
 }

@@ -10,6 +10,7 @@ import { PDFThumbnail } from "@/components/PDFThumbnail"
 import ProjectAdminActions from "@/components/ProjectAdminActions"
 import ProjectFileActions from "@/components/ProjectFileActions"
 import FileAdminActions from "@/components/FileAdminActions"
+import { AddSectionButton, SectionHeaderAdmin } from "@/components/SectionControls"
 import type { ProjectPage } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -68,13 +69,30 @@ export default async function ProjectPage({ params, searchParams }: Props) {
     )
   }
 
-  const stored = adminUser ? getProjectBySlug(slug) : undefined
-  const project = stored ? { slug: stored.slug, name: stored.name, description: stored.description ?? "", vpsPath: stored.vpsPath, pages: stored.pages } : getProject(slug)
+  const storedAdmin = adminUser ? getProjectBySlug(slug) : undefined
+  const storedAny = getProjectBySlug(slug)
+  const project = storedAdmin
+    ? { slug: storedAdmin.slug, name: storedAdmin.name, description: storedAdmin.description ?? "", vpsPath: storedAdmin.vpsPath, pages: storedAdmin.pages, sectionOrder: storedAdmin.sectionOrder ?? [] }
+    : getProject(slug)
   if (!project) notFound()
-  const projectStatus: "active" | "archived" = stored?.status ?? "active"
+  const projectStatus: "active" | "archived" = storedAdmin?.status ?? "active"
+  const sectionOrder: string[] = storedAdmin?.sectionOrder ?? storedAny?.sectionOrder ?? []
 
   // Sort pages: newest createdAt first, unknowns to the bottom.
   const sortedPages = [...project.pages].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+
+  // Group pages by section. Empty section name = "unsectioned".
+  const pagesBySection = new Map<string, ProjectPage[]>()
+  for (const page of sortedPages) {
+    const key = page.section && sectionOrder.includes(page.section) ? page.section : ""
+    const list = pagesBySection.get(key) ?? []
+    list.push(page)
+    pagesBySection.set(key, list)
+  }
+  const unsectioned = pagesBySection.get("") ?? []
+  const visibleSections = adminUser
+    ? sectionOrder
+    : sectionOrder.filter((s) => (pagesBySection.get(s)?.length ?? 0) > 0)
 
   return (
     <div style={{ background: "#0A0A0A", minHeight: "100vh" }} className="px-6 py-10">
@@ -130,116 +148,184 @@ export default async function ProjectPage({ params, searchParams }: Props) {
 
         {adminUser && <ProjectFileActions slug={project.slug} />}
 
-        {project.pages.length === 0 ? (
+        {adminUser && (
+          <div style={{ margin: "16px 0 24px" }}>
+            <AddSectionButton slug={project.slug} />
+          </div>
+        )}
+
+        {project.pages.length === 0 && visibleSections.length === 0 ? (
           <p style={{ color: "#444" }}>No documents available.</p>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: "24px",
-            }}
-          >
-            {sortedPages.map((page) => {
-              const chip = chipFor(page)
-              const proxyUrl = `/api/proxy/${slug}/${page.path}`
+          <>
+            {visibleSections.map((sectionName, idx) => {
+              const pages = pagesBySection.get(sectionName) ?? []
+              // Hide empty sections from non-admins
+              if (!adminUser && pages.length === 0) return null
               return (
-                <div key={page.path} style={{ position: "relative" }}>
-                  <Link
-                    href={`/portal/projects/${slug}/${page.path}`}
-                    style={{ textDecoration: "none" }}
-                    className="group"
-                  >
-                    <div
-                      style={{
-                        background: "#111",
-                        border: "1px solid #1f1f1f",
-                        borderRadius: "8px",
-                        overflow: "hidden",
-                        transition: "border-color 0.2s, transform 0.15s",
-                        cursor: "pointer",
-                      }}
-                      className="group-hover:!border-[#E8147F44] group-hover:-translate-y-0.5"
-                    >
-                      {page.fileType === "pdf" ? (
-                        <PDFThumbnail proxyUrl={proxyUrl} title={page.title} />
-                      ) : page.fileType === "md" ? (
-                        <ThumbPlaceholder icon="md" />
-                      ) : page.fileType === "image" ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={proxyUrl}
-                          alt={page.title}
-                          style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block", background: "#141414" }}
-                        />
-                      ) : page.fileType === "video" ? (
-                        <ThumbPlaceholder icon="video" />
-                      ) : page.fileType === "audio" ? (
-                        <ThumbPlaceholder icon="audio" />
-                      ) : page.fileType === "file" ? (
-                        <ThumbPlaceholder icon="generic" />
-                      ) : page.fileType === "embed" || page.fileType === "link" ? (
-                        <ThumbPlaceholder icon="link" />
-                      ) : page.fileType === "viewer" && page.thumbnailSrc ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={page.thumbnailSrc}
-                          alt={page.title}
-                          style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block" }}
-                        />
-                      ) : page.fileType === "viewer" ? (
-                        <ThumbPlaceholder icon="viewer" />
-                      ) : (
-                        <ThumbPlaceholder icon="generic" />
-                      )}
-
-                      <div style={{ padding: "10px 14px 13px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
-                        <p
-                          style={{
-                            color: "#cccccc",
-                            fontSize: "0.8rem",
-                            lineHeight: "1.35",
-                            fontWeight: 500,
-                            margin: 0,
-                            flex: 1,
-                          }}
-                        >
-                          {page.title}
-                        </p>
-                        <span
-                          style={{
-                            backgroundColor: chip.bg,
-                            border: `1px solid ${chip.border}`,
-                            borderRadius: "3px",
-                            color: chip.text,
-                            fontSize: "0.6rem",
-                            fontWeight: 700,
-                            letterSpacing: "0.07em",
-                            padding: "2px 6px",
-                            flexShrink: 0,
-                            marginTop: "1px",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {chip.label}
-                        </span>
-                      </div>
-
-                      {adminUser && (
-                        <div style={{ padding: "0 14px 12px", display: "flex", justifyContent: "flex-end" }}>
-                          <FileAdminActions slug={project.slug} pagePath={page.path} title={page.title} />
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                </div>
+                <section key={sectionName} data-section-name={sectionName} style={{ marginBottom: "32px" }}>
+                  {adminUser ? (
+                    <SectionHeaderAdmin
+                      slug={project.slug}
+                      name={sectionName}
+                      index={idx}
+                      total={visibleSections.length}
+                      pageCount={pages.length}
+                    />
+                  ) : (
+                    <h2 style={publicSectionTitle}>{sectionName}</h2>
+                  )}
+                  {pages.length === 0 ? (
+                    <p style={{ color: "#555", fontSize: "0.8rem", fontStyle: "italic" }}>
+                      Empty section — assign files via the card dropdown or upload new ones.
+                    </p>
+                  ) : (
+                    <CardGrid pages={pages} slug={project.slug} adminUser={adminUser} sections={sectionOrder} />
+                  )}
+                </section>
               )
             })}
-          </div>
+
+            {unsectioned.length > 0 && (
+              <section style={{ marginBottom: "32px" }}>
+                {visibleSections.length > 0 && (
+                  <h2 style={adminUser ? publicSectionTitle : publicSectionTitle}>
+                    {visibleSections.length > 0 ? "Unsectioned" : ""}
+                  </h2>
+                )}
+                <CardGrid pages={unsectioned} slug={project.slug} adminUser={adminUser} sections={sectionOrder} />
+              </section>
+            )}
+          </>
         )}
       </div>
     </div>
   )
+}
+
+function CardGrid({ pages, slug, adminUser, sections }: { pages: ProjectPage[]; slug: string; adminUser: boolean; sections: string[] }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+        gap: "24px",
+      }}
+    >
+      {pages.map((page) => {
+        const chip = chipFor(page)
+        const proxyUrl = `/api/proxy/${slug}/${page.path}`
+        return (
+          <div key={page.path} style={{ position: "relative" }}>
+            <Link
+              href={`/portal/projects/${slug}/${page.path}`}
+              style={{ textDecoration: "none" }}
+              className="group"
+            >
+              <div
+                style={{
+                  background: "#111",
+                  border: "1px solid #1f1f1f",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  transition: "border-color 0.2s, transform 0.15s",
+                  cursor: "pointer",
+                }}
+                className="group-hover:!border-[#E8147F44] group-hover:-translate-y-0.5"
+              >
+                {page.fileType === "pdf" ? (
+                  <PDFThumbnail proxyUrl={proxyUrl} title={page.title} />
+                ) : page.fileType === "md" ? (
+                  <ThumbPlaceholder icon="md" />
+                ) : page.fileType === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={proxyUrl}
+                    alt={page.title}
+                    style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block", background: "#141414" }}
+                  />
+                ) : page.fileType === "video" ? (
+                  <ThumbPlaceholder icon="video" />
+                ) : page.fileType === "audio" ? (
+                  <ThumbPlaceholder icon="audio" />
+                ) : page.fileType === "file" ? (
+                  <ThumbPlaceholder icon="generic" />
+                ) : page.fileType === "embed" || page.fileType === "link" ? (
+                  <ThumbPlaceholder icon="link" />
+                ) : page.fileType === "viewer" && page.thumbnailSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={page.thumbnailSrc}
+                    alt={page.title}
+                    style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block" }}
+                  />
+                ) : page.fileType === "viewer" ? (
+                  <ThumbPlaceholder icon="viewer" />
+                ) : (
+                  <ThumbPlaceholder icon="generic" />
+                )}
+
+                <div style={{ padding: "10px 14px 13px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+                  <p
+                    style={{
+                      color: "#cccccc",
+                      fontSize: "0.8rem",
+                      lineHeight: "1.35",
+                      fontWeight: 500,
+                      margin: 0,
+                      flex: 1,
+                    }}
+                  >
+                    {page.title}
+                  </p>
+                  <span
+                    style={{
+                      backgroundColor: chip.bg,
+                      border: `1px solid ${chip.border}`,
+                      borderRadius: "3px",
+                      color: chip.text,
+                      fontSize: "0.6rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.07em",
+                      padding: "2px 6px",
+                      flexShrink: 0,
+                      marginTop: "1px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {chip.label}
+                  </span>
+                </div>
+
+                {adminUser && (
+                  <div style={{ padding: "0 14px 12px", display: "flex", justifyContent: "flex-end" }}>
+                    <FileAdminActions
+                      slug={slug}
+                      pagePath={page.path}
+                      title={page.title}
+                      sections={sections}
+                      currentSection={page.section}
+                    />
+                  </div>
+                )}
+              </div>
+            </Link>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+const publicSectionTitle: React.CSSProperties = {
+  color: "#F5C418",
+  fontFamily: "var(--font-exo2)",
+  fontSize: "1.05rem",
+  fontWeight: 700,
+  margin: "0 0 18px",
+  letterSpacing: "0.02em",
+  paddingBottom: "10px",
+  borderBottom: "1px solid #1f1f1f",
 }
 
 function ThumbPlaceholder({ icon }: { icon: "md" | "link" | "viewer" | "generic" | "video" | "audio" }) {

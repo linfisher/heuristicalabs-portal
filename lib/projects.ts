@@ -1,13 +1,14 @@
 import type { Project, ProjectPage } from "./types"
 import { getActiveProjects as getActiveStored, getProjectBySlug } from "./registry"
 
-function toProject(stored: { slug: string; name: string; description?: string; vpsPath: string; pages: ProjectPage[] }): Project {
+function toProject(stored: { slug: string; name: string; description?: string; vpsPath: string; pages: ProjectPage[]; sectionOrder?: string[] }): Project {
   return {
     slug: stored.slug,
     name: stored.name,
     description: stored.description ?? "",
     vpsPath: stored.vpsPath,
     pages: stored.pages,
+    sectionOrder: stored.sectionOrder,
   }
 }
 

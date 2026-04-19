@@ -15,6 +15,7 @@ export interface StoredProject {
   updatedAt: number
   archivedAt?: number | null
   pages: ProjectPage[]
+  sectionOrder?: string[]
 }
 
 interface Registry {
@@ -303,6 +304,86 @@ export async function renamePage(slug: string, pagePath: string, newTitle: strin
     const page = project.pages.find((p) => p.path === pagePath)
     if (!page) throw new Error("Page not found")
     page.title = title
+    project.updatedAt = Date.now()
+  })
+}
+
+// ── Section-level CRUD ────────────────────────────────────────────────────
+
+export async function addSection(slug: string, name: string): Promise<void> {
+  const trimmed = name.trim()
+  if (!trimmed) throw new Error("Section name cannot be empty")
+  await mutate((r) => {
+    const project = r.projects.find((p) => p.slug === slug)
+    if (!project) throw new Error("Project not found")
+    const order = project.sectionOrder ?? []
+    if (order.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
+      throw new Error("A section with that name already exists")
+    }
+    project.sectionOrder = [...order, trimmed]
+    project.updatedAt = Date.now()
+  })
+}
+
+export async function renameSection(slug: string, oldName: string, newName: string): Promise<void> {
+  const trimmed = newName.trim()
+  if (!trimmed) throw new Error("Section name cannot be empty")
+  if (trimmed === oldName) return
+  await mutate((r) => {
+    const project = r.projects.find((p) => p.slug === slug)
+    if (!project) throw new Error("Project not found")
+    const order = project.sectionOrder ?? []
+    if (!order.includes(oldName)) throw new Error("Section not found")
+    if (order.some((s) => s.toLowerCase() === trimmed.toLowerCase() && s !== oldName)) {
+      throw new Error("A section with that name already exists")
+    }
+    project.sectionOrder = order.map((s) => (s === oldName ? trimmed : s))
+    for (const page of project.pages) {
+      if (page.section === oldName) page.section = trimmed
+    }
+    project.updatedAt = Date.now()
+  })
+}
+
+export async function deleteSection(slug: string, name: string): Promise<void> {
+  await mutate((r) => {
+    const project = r.projects.find((p) => p.slug === slug)
+    if (!project) throw new Error("Project not found")
+    project.sectionOrder = (project.sectionOrder ?? []).filter((s) => s !== name)
+    for (const page of project.pages) {
+      if (page.section === name) delete page.section
+    }
+    project.updatedAt = Date.now()
+  })
+}
+
+export async function reorderSections(slug: string, order: string[]): Promise<void> {
+  await mutate((r) => {
+    const project = r.projects.find((p) => p.slug === slug)
+    if (!project) throw new Error("Project not found")
+    const existing = new Set(project.sectionOrder ?? [])
+    const next = order.filter((s) => existing.has(s))
+    for (const s of project.sectionOrder ?? []) {
+      if (!next.includes(s)) next.push(s)
+    }
+    project.sectionOrder = next
+    project.updatedAt = Date.now()
+  })
+}
+
+export async function setPageSection(slug: string, pagePath: string, section: string | null): Promise<void> {
+  await mutate((r) => {
+    const project = r.projects.find((p) => p.slug === slug)
+    if (!project) throw new Error("Project not found")
+    const page = project.pages.find((p) => p.path === pagePath)
+    if (!page) throw new Error("Page not found")
+    if (!section) {
+      delete page.section
+    } else {
+      const order = project.sectionOrder ?? []
+      if (!order.includes(section)) throw new Error("Section does not exist")
+      page.section = section
+    }
     project.updatedAt = Date.now()
   })
 }
