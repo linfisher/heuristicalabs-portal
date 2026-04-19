@@ -39,6 +39,7 @@ const csp = [
   `frame-src 'self' blob: https://*.clerk.accounts.dev https://*.heuristicalabs.com ${embedFrameSrc}`,
   "connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://*.heuristicalabs.com https://*.upstash.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
   `img-src 'self' data: blob: https://img.clerk.com https://*.heuristicalabs.com ${embedImgSrc}`,
+  "media-src 'self' blob:",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.heuristicalabs.com https://*.clerk.com",
   "font-src 'self' data: https://fonts.gstatic.com https://*.heuristicalabs.com https://*.clerk.com",
   "object-src 'none'",

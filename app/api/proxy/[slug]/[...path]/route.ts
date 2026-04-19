@@ -61,7 +61,9 @@ export async function GET(
     }
   }
 
-  const contentType = page.fileType === "pdf" ? "application/pdf"
+  const contentType = page.mimeType
+    ? page.mimeType
+    : page.fileType === "pdf" ? "application/pdf"
     : page.fileType === "md" ? "text/markdown; charset=utf-8"
     : "application/octet-stream"
 

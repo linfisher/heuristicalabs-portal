@@ -22,6 +22,10 @@ interface Props {
 function chipFor(page: ProjectPage): { label: string; bg: string; border: string; text: string } {
   if (page.fileType === "pdf") return { label: "PDF", bg: "#2a0b1a", border: "#E8147F", text: "#E8147F" }
   if (page.fileType === "md") return { label: "MD", bg: "#2d2200", border: "#F5C418", text: "#F5C418" }
+  if (page.fileType === "image") return { label: "IMAGE", bg: "#0a2a2d", border: "#14b8a6", text: "#14b8a6" }
+  if (page.fileType === "video") return { label: "VIDEO", bg: "#1e0a2d", border: "#a855f7", text: "#a855f7" }
+  if (page.fileType === "audio") return { label: "AUDIO", bg: "#2d1a00", border: "#fb923c", text: "#fb923c" }
+  if (page.fileType === "file") return { label: "FILE", bg: "#1a1a1a", border: "#555", text: "#aaa" }
   if (page.fileType === "viewer") return { label: "3D", bg: "#2a1f00", border: "#c99b3a", text: "#c99b3a" }
   if (page.fileType === "embed" || page.fileType === "link") {
     const c = embedSourceColor(page.embedSource ?? "generic")
@@ -161,6 +165,19 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                         <PDFThumbnail proxyUrl={proxyUrl} title={page.title} />
                       ) : page.fileType === "md" ? (
                         <ThumbPlaceholder icon="md" />
+                      ) : page.fileType === "image" ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={proxyUrl}
+                          alt={page.title}
+                          style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block", background: "#141414" }}
+                        />
+                      ) : page.fileType === "video" ? (
+                        <ThumbPlaceholder icon="video" />
+                      ) : page.fileType === "audio" ? (
+                        <ThumbPlaceholder icon="audio" />
+                      ) : page.fileType === "file" ? (
+                        <ThumbPlaceholder icon="generic" />
                       ) : page.fileType === "embed" || page.fileType === "link" ? (
                         <ThumbPlaceholder icon="link" />
                       ) : page.fileType === "viewer" && page.thumbnailSrc ? (
@@ -225,7 +242,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   )
 }
 
-function ThumbPlaceholder({ icon }: { icon: "md" | "link" | "viewer" | "generic" }) {
+function ThumbPlaceholder({ icon }: { icon: "md" | "link" | "viewer" | "generic" | "video" | "audio" }) {
   const content = icon === "md" ? (
     <>
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#F5C418" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
@@ -242,6 +259,23 @@ function ThumbPlaceholder({ icon }: { icon: "md" | "link" | "viewer" | "generic"
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
       </svg>
       <span style={{ color: "#555", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>Link</span>
+    </>
+  ) : icon === "video" ? (
+    <>
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="23 7 16 12 23 17 23 7" />
+        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+      </svg>
+      <span style={{ color: "#555", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>Video</span>
+    </>
+  ) : icon === "audio" ? (
+    <>
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 18V5l12-2v13" />
+        <circle cx="6" cy="18" r="3" />
+        <circle cx="18" cy="16" r="3" />
+      </svg>
+      <span style={{ color: "#555", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>Audio</span>
     </>
   ) : icon === "viewer" ? (
     <>

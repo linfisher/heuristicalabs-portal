@@ -1,27 +1,18 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
+import { revalidatePath } from "next/cache"
 import fs from "node:fs/promises"
 import path from "node:path"
 import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
-import { addPage, resolveContentRoot, slugify, getProjectBySlug } from "@/lib/registry"
+import { addPage, removePage, resolveContentRoot, slugify, getProjectBySlug } from "@/lib/registry"
+import { fileTypeFromName, mimeTypeFromName, stripExtension } from "@/lib/file-type"
 import type { ProjectPage } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
 const MAX_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
-
-function fileTypeFromName(name: string): "pdf" | "md" | null {
-  const lower = name.toLowerCase()
-  if (lower.endsWith(".pdf")) return "pdf"
-  if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "md"
-  return null
-}
-
-function stripExtension(name: string): string {
-  return name.replace(/\.(pdf|md|markdown)$/i, "")
-}
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -48,6 +39,7 @@ export async function POST(request: Request) {
   const slug = String(form.get("slug") ?? "")
   const file = form.get("file")
   const customTitle = String(form.get("title") ?? "").trim()
+  const overwrite = String(form.get("overwrite") ?? "") === "1"
 
   if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 })
   if (!(file instanceof File)) return NextResponse.json({ error: "file is required" }, { status: 400 })
@@ -60,20 +52,27 @@ export async function POST(request: Request) {
   }
 
   const fileType = fileTypeFromName(file.name)
-  if (!fileType) {
-    return NextResponse.json({ error: "Only PDF and Markdown (.md) files are supported" }, { status: 400 })
-  }
+  const mime = mimeTypeFromName(file.name)
 
   // Derive a URL-safe path from the filename (no extension on disk).
   const baseName = slugify(stripExtension(file.name)) || `file-${Date.now()}`
 
-  // Ensure uniqueness within the project — append -2, -3, ... if taken.
-  let pagePath = baseName
-  let i = 2
-  while (project.pages.some((p) => p.path === pagePath)) {
-    pagePath = `${baseName}-${i}`
-    i++
+  // Duplicate handling: if the baseName is already taken and overwrite isn't
+  // requested, respond 409 so the client can show the overwrite dialog.
+  const existing = project.pages.find((p) => p.path === baseName)
+  if (existing && !overwrite) {
+    return NextResponse.json(
+      { error: "duplicate", existingTitle: existing.title, existingPath: existing.path },
+      { status: 409 }
+    )
   }
+
+  // If overwriting, delete the old page (and its on-disk file) first.
+  if (existing && overwrite) {
+    await removePage(slug, existing.path)
+  }
+
+  const pagePath = baseName
 
   // Write to disk.
   const projectDir = path.join(resolveContentRoot(), "projects", slug)
@@ -88,15 +87,19 @@ export async function POST(request: Request) {
     title: customTitle || stripExtension(file.name),
     fileType,
     createdAt: Date.now(),
+    mimeType: mime,
+    originalName: file.name,
   }
   try {
     await addPage(slug, page)
   } catch (err) {
-    // Roll back the file if registry write fails.
     try { await fs.rm(filePath, { force: true }) } catch {}
     const message = err instanceof Error ? err.message : "Failed to add page"
     return NextResponse.json({ error: message }, { status: 400 })
   }
+
+  revalidatePath(`/portal/projects/${slug}`)
+  revalidatePath(`/portal`)
 
   return NextResponse.json({ ok: true, page })
 }

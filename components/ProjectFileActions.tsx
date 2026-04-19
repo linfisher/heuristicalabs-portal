@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 
-const ACCEPT = ".pdf,.md,.markdown"
 const MAX_SIZE = 50 * 1024 * 1024
 
 type Status =
@@ -12,31 +11,33 @@ type Status =
   | { kind: "success"; message: string }
   | { kind: "error"; message: string }
 
+type DuplicateIntent = {
+  file: File
+  existingTitle: string
+  existingPath: string
+  index: number
+  total: number
+}
+
 export default function ProjectFileActions({ slug }: { slug: string }) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<Status>({ kind: "idle" })
   const [dragOver, setDragOver] = useState(false)
   const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const [duplicate, setDuplicate] = useState<DuplicateIntent | null>(null)
+  const resumeRef = useRef<((overwrite: boolean | "cancel") => void) | null>(null)
 
-  async function uploadOne(file: File, index: number, total: number): Promise<{ ok: boolean; error?: string }> {
-    if (file.size > MAX_SIZE) {
-      return { ok: false, error: `"${file.name}" is larger than 50 MB` }
-    }
-    const name = file.name.toLowerCase()
-    if (!(name.endsWith(".pdf") || name.endsWith(".md") || name.endsWith(".markdown"))) {
-      return { ok: false, error: `"${file.name}" is not a PDF or Markdown file` }
-    }
+  function sendUpload(file: File, overwrite: boolean, index: number, total: number): Promise<{ ok: boolean; status: number; error?: string; existingTitle?: string; existingPath?: string }> {
+    return new Promise((resolve) => {
+      const prefix = total > 1 ? `(${index + 1}/${total}) ` : ""
+      setStatus({ kind: "uploading", name: `${prefix}${file.name}`, progress: 0 })
 
-    const prefix = total > 1 ? `(${index + 1}/${total}) ` : ""
-    setStatus({ kind: "uploading", name: `${prefix}${file.name}`, progress: 0 })
+      const form = new FormData()
+      form.set("slug", slug)
+      form.set("file", file)
+      if (overwrite) form.set("overwrite", "1")
 
-    const form = new FormData()
-    form.set("slug", slug)
-    form.set("file", file)
-
-    // XHR for progress reporting (fetch doesn't expose upload progress)
-    return await new Promise<{ ok: boolean; error?: string }>((resolve) => {
       const xhr = new XMLHttpRequest()
       xhr.open("POST", "/portal/admin/projects/upload")
       xhr.upload.onprogress = (e) => {
@@ -46,20 +47,56 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
         }
       }
       xhr.onload = () => {
+        let parsed: Record<string, unknown> = {}
+        try { parsed = JSON.parse(xhr.responseText) as Record<string, unknown> } catch {}
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve({ ok: true })
+          resolve({ ok: true, status: xhr.status })
         } else {
-          let msg = `Upload failed (${xhr.status})`
-          try {
-            const parsed = JSON.parse(xhr.responseText) as { error?: string }
-            if (parsed.error) msg = parsed.error
-          } catch {}
-          resolve({ ok: false, error: `"${file.name}": ${msg}` })
+          resolve({
+            ok: false,
+            status: xhr.status,
+            error: typeof parsed.error === "string" ? parsed.error : `HTTP ${xhr.status}`,
+            existingTitle: typeof parsed.existingTitle === "string" ? parsed.existingTitle : undefined,
+            existingPath: typeof parsed.existingPath === "string" ? parsed.existingPath : undefined,
+          })
         }
       }
-      xhr.onerror = () => resolve({ ok: false, error: `"${file.name}": network error` })
+      xhr.onerror = () => resolve({ ok: false, status: 0, error: "network error" })
       xhr.send(form)
     })
+  }
+
+  async function uploadOne(file: File, index: number, total: number): Promise<{ ok: boolean; error?: string }> {
+    if (file.size > MAX_SIZE) {
+      return { ok: false, error: `"${file.name}" is larger than 50 MB` }
+    }
+
+    // First attempt, no overwrite
+    let result = await sendUpload(file, false, index, total)
+
+    // Duplicate? Ask the admin via the shared confirm modal.
+    if (!result.ok && result.status === 409 && result.existingTitle) {
+      const decision = await new Promise<boolean | "cancel">((resolve) => {
+        resumeRef.current = resolve
+        setDuplicate({
+          file,
+          existingTitle: result.existingTitle ?? file.name,
+          existingPath: result.existingPath ?? "",
+          index,
+          total,
+        })
+      })
+      setDuplicate(null)
+      resumeRef.current = null
+
+      if (decision === "cancel") return { ok: false, error: `"${file.name}": skipped (duplicate)` }
+      if (decision === true) {
+        result = await sendUpload(file, true, index, total)
+      }
+    }
+
+    if (result.ok) return { ok: true }
+    return { ok: false, error: `"${file.name}": ${result.error ?? "upload failed"}` }
   }
 
   async function uploadMany(files: FileList | File[]) {
@@ -70,18 +107,17 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
     for (let i = 0; i < arr.length; i++) {
       const file = arr[i]
       if (!file) continue
-      const result = await uploadOne(file, i, arr.length)
-      if (result.ok) success++
-      else if (result.error) failures.push(result.error)
+      const r = await uploadOne(file, i, arr.length)
+      if (r.ok) success++
+      else if (r.error) failures.push(r.error)
     }
 
-    // Single refresh at the end so the server re-renders once with the full new list
     if (success > 0) router.refresh()
 
     if (failures.length === 0) {
       setStatus({ kind: "success", message: arr.length > 1 ? `Uploaded ${success} files` : `Uploaded ${arr[0]?.name ?? "file"}` })
     } else if (success > 0) {
-      setStatus({ kind: "error", message: `${success} uploaded, ${failures.length} failed — ${failures[0]}` })
+      setStatus({ kind: "error", message: `${success} uploaded, ${failures.length} skipped — ${failures[0]}` })
     } else {
       setStatus({ kind: "error", message: failures[0] ?? "Upload failed" })
     }
@@ -120,7 +156,7 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
             Drop files to upload
           </div>
           <div style={{ color: "#666", fontSize: "0.78rem" }}>
-            PDF or Markdown, max 50 MB each. Or paste a link to YouTube / Drive / Dropbox.
+            Any file up to 50 MB. PDFs and Markdown get an in-portal preview; images, video, and audio play inline; other files get a download link. Or paste a YouTube / Drive / Dropbox / Vimeo URL.
           </div>
         </div>
 
@@ -164,7 +200,6 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
         <input
           ref={fileInputRef}
           type="file"
-          accept={ACCEPT}
           multiple
           style={{ display: "none" }}
           onChange={(e) => {
@@ -182,6 +217,14 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
       {status.kind === "success" && <StatusLine color="#22c55e">{status.message}</StatusLine>}
       {status.kind === "error" && <StatusLine color="#ef4444">{status.message}</StatusLine>}
 
+      {duplicate && (
+        <DuplicateModal
+          fileName={duplicate.file.name}
+          existingTitle={duplicate.existingTitle}
+          onDecision={(d) => resumeRef.current?.(d)}
+        />
+      )}
+
       {linkModalOpen && (
         <AddLinkModal
           slug={slug}
@@ -198,6 +241,33 @@ function StatusLine({ color, children }: { color: string; children: React.ReactN
     <div style={{ color, fontSize: "0.8rem", marginTop: "10px", fontFamily: "var(--font-exo2)" }}>
       {children}
     </div>
+  )
+}
+
+function DuplicateModal({
+  fileName,
+  existingTitle,
+  onDecision,
+}: {
+  fileName: string
+  existingTitle: string
+  onDecision: (d: boolean | "cancel") => void
+}) {
+  return (
+    <Modal onClose={() => onDecision("cancel")}>
+      <h3 style={modalTitle}>File already exists</h3>
+      <p style={modalSub}>
+        A file named <strong style={{ color: "#fff" }}>&ldquo;{existingTitle}&rdquo;</strong> is already in this project.
+        Overwrite it with the new <strong style={{ color: "#fff" }}>{fileName}</strong>?
+      </p>
+      <p style={{ ...modalSub, fontSize: "0.78rem" }}>
+        The old file will be replaced on the server. This cannot be undone.
+      </p>
+      <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+        <button onClick={() => onDecision("cancel")} style={btnGhost}>Skip</button>
+        <button onClick={() => onDecision(true)} style={btnDangerPrimary}>Overwrite</button>
+      </div>
+    </Modal>
   )
 }
 
@@ -234,6 +304,44 @@ function AddLinkModal({
   }
 
   return (
+    <Modal onClose={onClose}>
+      <h3 style={modalTitle}>Add Link</h3>
+      <p style={modalSub}>
+        Paste a YouTube, Google Drive, Dropbox, or Vimeo URL to embed it. Other links open externally.
+      </p>
+
+      <label style={label}>Title</label>
+      <input
+        autoFocus
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="e.g. Warehouse walkthrough video"
+        style={modalInputStyle}
+      />
+
+      <label style={{ ...label, marginTop: "16px" }}>URL</label>
+      <input
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") submit() }}
+        placeholder="https://..."
+        style={modalInputStyle}
+      />
+
+      {error && <p style={{ color: "#ef4444", fontSize: "0.8rem", margin: "12px 0 0" }}>{error}</p>}
+
+      <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "24px" }}>
+        <button onClick={onClose} style={btnGhost}>Cancel</button>
+        <button disabled={busy || !url.trim() || !title.trim()} onClick={submit} style={{ ...btnPrimary, opacity: busy || !url.trim() || !title.trim() ? 0.5 : 1 }}>
+          {busy ? "Adding…" : "Add"}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
     <div
       style={{
         position: "fixed",
@@ -257,74 +365,15 @@ function AddLinkModal({
           fontFamily: "var(--font-exo2)",
         }}
       >
-        <h3 style={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, margin: "0 0 8px" }}>Add Link</h3>
-        <p style={{ color: "#888", fontSize: "0.85rem", margin: "0 0 20px", lineHeight: 1.5 }}>
-          Paste a YouTube, Google Drive, Dropbox, or Vimeo URL to embed it. Other links open externally.
-        </p>
-
-        <label style={{ display: "block", color: "#aaa", fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>
-          Title
-        </label>
-        <input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Warehouse walkthrough video"
-          style={modalInputStyle}
-        />
-
-        <label style={{ display: "block", color: "#aaa", fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.08em", margin: "16px 0 6px" }}>
-          URL
-        </label>
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") submit() }}
-          placeholder="https://..."
-          style={modalInputStyle}
-        />
-
-        {error && <p style={{ color: "#ef4444", fontSize: "0.8rem", margin: "12px 0 0" }}>{error}</p>}
-
-        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "24px" }}>
-          <button
-            onClick={onClose}
-            style={{
-              background: "transparent",
-              border: "1px solid #333",
-              borderRadius: "6px",
-              color: "#888",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-              padding: "9px 18px",
-              fontFamily: "inherit",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            disabled={busy || !url.trim() || !title.trim()}
-            onClick={submit}
-            style={{
-              background: busy || !url.trim() || !title.trim() ? "#7a0a43" : "#E8147F",
-              border: "none",
-              borderRadius: "6px",
-              color: "#fff",
-              cursor: busy || !url.trim() || !title.trim() ? "not-allowed" : "pointer",
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              padding: "9px 18px",
-              fontFamily: "inherit",
-            }}
-          >
-            {busy ? "Adding…" : "Add"}
-          </button>
-        </div>
+        {children}
       </div>
     </div>
   )
 }
 
+const modalTitle: React.CSSProperties = { color: "#fff", fontSize: "1.1rem", fontWeight: 700, margin: "0 0 8px" }
+const modalSub: React.CSSProperties = { color: "#888", fontSize: "0.85rem", margin: "0 0 16px", lineHeight: 1.5 }
+const label: React.CSSProperties = { display: "block", color: "#aaa", fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }
 const modalInputStyle: React.CSSProperties = {
   width: "100%",
   background: "#1a1a1a",
@@ -335,5 +384,37 @@ const modalInputStyle: React.CSSProperties = {
   padding: "10px 12px",
   outline: "none",
   boxSizing: "border-box",
-  fontFamily: "inherit",
+  fontFamily: "var(--font-exo2)",
+}
+const btnGhost: React.CSSProperties = {
+  background: "transparent",
+  border: "1px solid #333",
+  borderRadius: "6px",
+  color: "#888",
+  cursor: "pointer",
+  fontSize: "0.85rem",
+  padding: "9px 18px",
+  fontFamily: "var(--font-exo2)",
+}
+const btnPrimary: React.CSSProperties = {
+  background: "#E8147F",
+  border: "none",
+  borderRadius: "6px",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: "0.85rem",
+  fontWeight: 600,
+  padding: "9px 18px",
+  fontFamily: "var(--font-exo2)",
+}
+const btnDangerPrimary: React.CSSProperties = {
+  background: "#dc2626",
+  border: "none",
+  borderRadius: "6px",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: "0.85rem",
+  fontWeight: 600,
+  padding: "9px 18px",
+  fontFamily: "var(--font-exo2)",
 }

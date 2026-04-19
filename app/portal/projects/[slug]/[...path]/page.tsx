@@ -192,6 +192,71 @@ export default async function ProjectContentPage({ params }: Props) {
     );
   }
 
+  // Image
+  if (page.fileType === "image") {
+    const proxyUrl = `/api/proxy/${slug}/${filePath}`
+    return (
+      <div className="bg-[#0A0A0A]" style={{ minHeight: "100vh" }}>
+        <Breadcrumb projectName={project.name} projectSlug={slug} pageTitle={pageTitle} />
+        <div style={{ padding: "24px 32px 60px", display: "flex", justifyContent: "center" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={proxyUrl} alt={pageTitle} style={{ maxWidth: "100%", maxHeight: "calc(100vh - 120px)", borderRadius: "6px" }} />
+        </div>
+      </div>
+    )
+  }
+
+  // Video
+  if (page.fileType === "video") {
+    const proxyUrl = `/api/proxy/${slug}/${filePath}`
+    return (
+      <div className="bg-[#0A0A0A]" style={{ minHeight: "100vh" }}>
+        <Breadcrumb projectName={project.name} projectSlug={slug} pageTitle={pageTitle} />
+        <div style={{ padding: "24px 32px 60px", display: "flex", justifyContent: "center" }}>
+          <video src={proxyUrl} controls style={{ maxWidth: "100%", maxHeight: "calc(100vh - 120px)", borderRadius: "6px", background: "#000" }} />
+        </div>
+      </div>
+    )
+  }
+
+  // Audio
+  if (page.fileType === "audio") {
+    const proxyUrl = `/api/proxy/${slug}/${filePath}`
+    return (
+      <div className="bg-[#0A0A0A]" style={{ minHeight: "100vh" }}>
+        <Breadcrumb projectName={project.name} projectSlug={slug} pageTitle={pageTitle} />
+        <div style={{ padding: "40px 32px", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
+          <h1 className="text-xl font-semibold text-white">{pageTitle}</h1>
+          <audio src={proxyUrl} controls style={{ width: "min(100%, 640px)" }} />
+        </div>
+      </div>
+    )
+  }
+
+  // Generic file — offer download
+  if (page.fileType === "file") {
+    const proxyUrl = `/api/proxy/${slug}/${filePath}`
+    const fileName = page.originalName ?? filePath
+    return (
+      <div className="flex flex-col bg-[#0A0A0A]" style={{ minHeight: "100vh" }}>
+        <Breadcrumb projectName={project.name} projectSlug={slug} pageTitle={pageTitle} />
+        <div className="flex-1 flex items-center justify-center px-6 py-16">
+          <div className="text-center max-w-md">
+            <h1 className="text-2xl font-semibold text-white mb-3">{pageTitle}</h1>
+            <p className="text-sm text-gray-500 mb-6">No in-portal preview for this file type. Download to open it in its native app.</p>
+            <a
+              href={proxyUrl}
+              download={fileName}
+              className="inline-block bg-[#E8147F] text-white font-semibold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              Download {fileName}
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const result = await fetchPage(project.vpsPath, filePath);
 
   if ("error" in result) {
