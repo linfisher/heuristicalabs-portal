@@ -79,6 +79,8 @@ export default function FileAdminActions({ slug, pagePath, title, sections = [],
         display: "flex",
         gap: "6px",
         alignItems: "center",
+        flexWrap: "wrap",
+        justifyContent: "flex-end",
         fontFamily: "var(--font-exo2)",
       }}
     >
@@ -302,5 +304,7 @@ const selectStyle: React.CSSProperties = {
   padding: "3px 6px",
   fontFamily: "var(--font-exo2)",
   cursor: "pointer",
-  maxWidth: "110px",
+  maxWidth: "100px",
+  minWidth: 0,
+  flexShrink: 1,
 }
