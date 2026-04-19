@@ -185,44 +185,61 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
 
 /* ─── Manifesto ─────────────────────────────────────────────── */
 #manifesto {
-  background: #0A0A0A;
-  padding: 160px 48px;
+  padding: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
-.manifesto-inner {
-  max-width: 1000px;
-  margin: 0 auto;
+.manifesto-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
 }
-.manifesto-eyebrow {
-  font-size: clamp(20px, 2.6vw, 38px);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.32);
-  font-style: normal;
-  letter-spacing: 0.01em;
-  margin: 0 0 28px;
+.manifesto-panel {
+  padding: clamp(72px, 10vw, 140px) clamp(32px, 5vw, 80px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.manifesto-dark {
+  background: #0A0A0A;
+  color: #fff;
+}
+.manifesto-light {
+  background: #FAF7F0;
+  color: #0A0A0A;
 }
 .manifesto-statement {
-  font-size: clamp(64px, 9.5vw, 128px);
+  font-size: clamp(44px, 6.5vw, 96px);
   font-weight: 900;
-  color: #fff;
   letter-spacing: -0.04em;
   line-height: 0.95;
-  margin: 0 0 48px;
+  margin: 0 0 28px;
 }
+.manifesto-eyebrow {
+  font-size: clamp(14px, 1.4vw, 20px);
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: 0.01em;
+  margin: 0 0 22px;
+}
+.manifesto-dark .manifesto-eyebrow { color: rgba(255, 255, 255, 0.4); }
+.manifesto-light .manifesto-eyebrow { color: rgba(10, 10, 10, 0.5); }
 .manifesto-definition {
-  font-size: clamp(22px, 2.8vw, 36px);
+  font-size: clamp(17px, 1.9vw, 24px);
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.85);
-  line-height: 1.4;
-  max-width: 720px;
-  margin: 0 0 32px;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 460px;
 }
-.manifesto-body {
-  font-size: clamp(17px, 2vw, 22px);
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.42);
-  line-height: 1.75;
-  max-width: 580px;
+.manifesto-dark .manifesto-definition { color: rgba(255, 255, 255, 0.85); }
+.manifesto-light .manifesto-definition { color: rgba(10, 10, 10, 0.82); }
+.manifesto-light .manifesto-definition strong {
+  color: #E8147F;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 768px) {
+  .manifesto-split { grid-template-columns: 1fr; }
+  .manifesto-panel { padding: 64px 24px; }
 }
 
 /* ─── SPLINTR Feature ───────────────────────────────────────── */

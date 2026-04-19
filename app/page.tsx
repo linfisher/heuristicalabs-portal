@@ -44,11 +44,17 @@ export default function HomePage() {
 
       {/* MANIFESTO */}
       <section id="manifesto">
-        <div className="manifesto-inner" data-reveal>
-          <p className="manifesto-statement">HEURISTIC</p>
-          <p className="manifesto-eyebrow">/ hjʊˈrɪstɪk / — adjective</p>
-          <p className="manifesto-definition">Enabling a person to discover or learn<br />something for themselves.</p>
-          <p className="manifesto-body">We build answers the world didn&apos;t know it needed.</p>
+        <div className="manifesto-split" data-reveal>
+          <div className="manifesto-panel manifesto-dark">
+            <p className="manifesto-statement">HEURISTIC</p>
+            <p className="manifesto-eyebrow">/ hjʊˈrɪstɪk / — adjective</p>
+            <p className="manifesto-definition">Enabling a person to discover or learn something for themselves.</p>
+          </div>
+          <div className="manifesto-panel manifesto-light">
+            <p className="manifesto-statement">HEURISTICA</p>
+            <p className="manifesto-eyebrow">/ hjʊˈrɪstɪkə / — noun</p>
+            <p className="manifesto-definition">Enabling everyone to discover or learn something for themselves by having <strong>FUN</strong>.</p>
+          </div>
         </div>
       </section>
 
