@@ -13,6 +13,8 @@ interface Props {
 const PDFJS_VERSION = "5.6.205"
 const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.min.mjs`
 const PDFJS_WORKER_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`
+const PDFJS_CMAP_URL = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/cmaps/`
+const PDFJS_STANDARD_FONTS = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/standard_fonts/`
 
 // Global loader — all thumbnails share one pdfjs module
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null
@@ -45,7 +47,12 @@ export function PDFThumbnail({ proxyUrl, title }: Props) {
         const buffer = await response.arrayBuffer()
         if (cancelled) return
 
-        const loadingTask = pdfjsLib.getDocument({ data: buffer })
+        const loadingTask = pdfjsLib.getDocument({
+          data: buffer,
+          cMapUrl: PDFJS_CMAP_URL,
+          cMapPacked: true,
+          standardFontDataUrl: PDFJS_STANDARD_FONTS,
+        })
         loadingTaskRef.current = loadingTask
         const pdf = await loadingTask.promise
         pdfRef.current = pdf

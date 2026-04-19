@@ -1,10 +1,14 @@
 /** @type {import('next').NextConfig} */
 const isDev = process.env.NODE_ENV !== "production"
 
-// Next.js dev HMR + React Refresh need `unsafe-eval`. Production stays strict.
+// Next.js dev HMR + React Refresh need `unsafe-eval`. Production stays strict
+// except for 'wasm-unsafe-eval' which pdfjs-dist 5.x requires for its WASM
+// image decoder. This is much narrower than 'unsafe-eval' — only allows WASM
+// module compilation/instantiation, not arbitrary string-to-code evaluation.
 const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
+  "'wasm-unsafe-eval'",
   isDev && "'unsafe-eval'",
   "https://clerk.com",
   "https://*.clerk.com",

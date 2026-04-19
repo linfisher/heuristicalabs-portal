@@ -216,100 +216,98 @@ function CardGrid({ pages, slug, adminUser, sections }: { pages: ProjectPage[]; 
         const chip = chipFor(page)
         const proxyUrl = `/api/proxy/${slug}/${page.path}`
         return (
-          <div key={page.path} style={{ position: "relative" }}>
+          <div
+            key={page.path}
+            style={{
+              position: "relative",
+              background: "#111",
+              border: "1px solid #1f1f1f",
+              borderRadius: "8px",
+              overflow: "hidden",
+              transition: "border-color 0.2s, transform 0.15s",
+            }}
+            className="group hover:!border-[#E8147F44] hover:-translate-y-0.5"
+          >
             <Link
               href={`/portal/projects/${slug}/${page.path}`}
-              style={{ textDecoration: "none" }}
-              className="group"
+              style={{ textDecoration: "none", display: "block", cursor: "pointer" }}
             >
-              <div
-                style={{
-                  background: "#111",
-                  border: "1px solid #1f1f1f",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  transition: "border-color 0.2s, transform 0.15s",
-                  cursor: "pointer",
-                }}
-                className="group-hover:!border-[#E8147F44] group-hover:-translate-y-0.5"
-              >
-                {page.fileType === "pdf" ? (
-                  <PDFThumbnail proxyUrl={proxyUrl} title={page.title} />
-                ) : page.fileType === "md" ? (
-                  <ThumbPlaceholder icon="md" />
-                ) : page.fileType === "image" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={proxyUrl}
-                    alt={page.title}
-                    style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block", background: "#141414" }}
-                  />
-                ) : page.fileType === "video" ? (
-                  <ThumbPlaceholder icon="video" />
-                ) : page.fileType === "audio" ? (
-                  <ThumbPlaceholder icon="audio" />
-                ) : page.fileType === "file" ? (
-                  <ThumbPlaceholder icon="generic" />
-                ) : page.fileType === "embed" || page.fileType === "link" ? (
-                  <ThumbPlaceholder icon="link" />
-                ) : page.fileType === "viewer" && page.thumbnailSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={page.thumbnailSrc}
-                    alt={page.title}
-                    style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block" }}
-                  />
-                ) : page.fileType === "viewer" ? (
-                  <ThumbPlaceholder icon="viewer" />
-                ) : (
-                  <ThumbPlaceholder icon="generic" />
-                )}
+              {page.fileType === "pdf" ? (
+                <PDFThumbnail proxyUrl={proxyUrl} title={page.title} />
+              ) : page.fileType === "md" ? (
+                <ThumbPlaceholder icon="md" />
+              ) : page.fileType === "image" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={proxyUrl}
+                  alt={page.title}
+                  style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block", background: "#141414" }}
+                />
+              ) : page.fileType === "video" ? (
+                <ThumbPlaceholder icon="video" />
+              ) : page.fileType === "audio" ? (
+                <ThumbPlaceholder icon="audio" />
+              ) : page.fileType === "file" ? (
+                <ThumbPlaceholder icon="generic" />
+              ) : page.fileType === "embed" || page.fileType === "link" ? (
+                <ThumbPlaceholder icon="link" />
+              ) : page.fileType === "viewer" && page.thumbnailSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={page.thumbnailSrc}
+                  alt={page.title}
+                  style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block" }}
+                />
+              ) : page.fileType === "viewer" ? (
+                <ThumbPlaceholder icon="viewer" />
+              ) : (
+                <ThumbPlaceholder icon="generic" />
+              )}
 
-                <div style={{ padding: "10px 14px 13px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
-                  <p
-                    style={{
-                      color: "#cccccc",
-                      fontSize: "0.8rem",
-                      lineHeight: "1.35",
-                      fontWeight: 500,
-                      margin: 0,
-                      flex: 1,
-                    }}
-                  >
-                    {page.title}
-                  </p>
-                  <span
-                    style={{
-                      backgroundColor: chip.bg,
-                      border: `1px solid ${chip.border}`,
-                      borderRadius: "3px",
-                      color: chip.text,
-                      fontSize: "0.6rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.07em",
-                      padding: "2px 6px",
-                      flexShrink: 0,
-                      marginTop: "1px",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {chip.label}
-                  </span>
-                </div>
-
-                {adminUser && (
-                  <div style={{ padding: "0 14px 12px", display: "flex", justifyContent: "flex-end" }}>
-                    <FileAdminActions
-                      slug={slug}
-                      pagePath={page.path}
-                      title={page.title}
-                      sections={sections}
-                      currentSection={page.section}
-                    />
-                  </div>
-                )}
+              <div style={{ padding: "10px 14px 13px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+                <p
+                  style={{
+                    color: "#cccccc",
+                    fontSize: "0.8rem",
+                    lineHeight: "1.35",
+                    fontWeight: 500,
+                    margin: 0,
+                    flex: 1,
+                  }}
+                >
+                  {page.title}
+                </p>
+                <span
+                  style={{
+                    backgroundColor: chip.bg,
+                    border: `1px solid ${chip.border}`,
+                    borderRadius: "3px",
+                    color: chip.text,
+                    fontSize: "0.6rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.07em",
+                    padding: "2px 6px",
+                    flexShrink: 0,
+                    marginTop: "1px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {chip.label}
+                </span>
               </div>
             </Link>
+
+            {adminUser && (
+              <div style={{ padding: "0 14px 12px", display: "flex", justifyContent: "flex-end" }}>
+                <FileAdminActions
+                  slug={slug}
+                  pagePath={page.path}
+                  title={page.title}
+                  sections={sections}
+                  currentSection={page.section}
+                />
+              </div>
+            )}
           </div>
         )
       })}
