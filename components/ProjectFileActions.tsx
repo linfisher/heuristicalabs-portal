@@ -19,62 +19,74 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
   const [dragOver, setDragOver] = useState(false)
   const [linkModalOpen, setLinkModalOpen] = useState(false)
 
-  async function uploadOne(file: File) {
+  async function uploadOne(file: File, index: number, total: number): Promise<{ ok: boolean; error?: string }> {
     if (file.size > MAX_SIZE) {
-      setStatus({ kind: "error", message: `"${file.name}" is larger than 50 MB` })
-      return
+      return { ok: false, error: `"${file.name}" is larger than 50 MB` }
     }
     const name = file.name.toLowerCase()
     if (!(name.endsWith(".pdf") || name.endsWith(".md") || name.endsWith(".markdown"))) {
-      setStatus({ kind: "error", message: `"${file.name}" is not a PDF or Markdown file` })
-      return
+      return { ok: false, error: `"${file.name}" is not a PDF or Markdown file` }
     }
 
-    setStatus({ kind: "uploading", name: file.name, progress: 0 })
+    const prefix = total > 1 ? `(${index + 1}/${total}) ` : ""
+    setStatus({ kind: "uploading", name: `${prefix}${file.name}`, progress: 0 })
 
     const form = new FormData()
     form.set("slug", slug)
     form.set("file", file)
 
     // XHR for progress reporting (fetch doesn't expose upload progress)
-    await new Promise<void>((resolve) => {
+    return await new Promise<{ ok: boolean; error?: string }>((resolve) => {
       const xhr = new XMLHttpRequest()
       xhr.open("POST", "/portal/admin/projects/upload")
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
           const progress = Math.round((e.loaded / e.total) * 100)
-          setStatus({ kind: "uploading", name: file.name, progress })
+          setStatus({ kind: "uploading", name: `${prefix}${file.name}`, progress })
         }
       }
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          setStatus({ kind: "success", message: `Uploaded ${file.name}` })
+          resolve({ ok: true })
         } else {
           let msg = `Upload failed (${xhr.status})`
           try {
             const parsed = JSON.parse(xhr.responseText) as { error?: string }
             if (parsed.error) msg = parsed.error
           } catch {}
-          setStatus({ kind: "error", message: msg })
+          resolve({ ok: false, error: `"${file.name}": ${msg}` })
         }
-        resolve()
       }
-      xhr.onerror = () => {
-        setStatus({ kind: "error", message: "Upload failed (network)" })
-        resolve()
-      }
+      xhr.onerror = () => resolve({ ok: false, error: `"${file.name}": network error` })
       xhr.send(form)
     })
-
-    router.refresh()
   }
 
   async function uploadMany(files: FileList | File[]) {
-    for (const file of Array.from(files)) {
-      await uploadOne(file)
+    const arr = Array.from(files)
+    let success = 0
+    const failures: string[] = []
+
+    for (let i = 0; i < arr.length; i++) {
+      const file = arr[i]
+      if (!file) continue
+      const result = await uploadOne(file, i, arr.length)
+      if (result.ok) success++
+      else if (result.error) failures.push(result.error)
     }
-    // Clear status after a moment
-    setTimeout(() => setStatus({ kind: "idle" }), 2500)
+
+    // Single refresh at the end so the server re-renders once with the full new list
+    if (success > 0) router.refresh()
+
+    if (failures.length === 0) {
+      setStatus({ kind: "success", message: arr.length > 1 ? `Uploaded ${success} files` : `Uploaded ${arr[0]?.name ?? "file"}` })
+    } else if (success > 0) {
+      setStatus({ kind: "error", message: `${success} uploaded, ${failures.length} failed — ${failures[0]}` })
+    } else {
+      setStatus({ kind: "error", message: failures[0] ?? "Upload failed" })
+    }
+
+    setTimeout(() => setStatus({ kind: "idle" }), 3500)
   }
 
   function onDrop(e: React.DragEvent) {
