@@ -52,8 +52,8 @@ export default function HomePage() {
           </div>
           <div className="manifesto-panel manifesto-heuristica">
             <p className="manifesto-statement">HEURISTICA</p>
-            <p className="manifesto-eyebrow">/ hjʊˈrɪstɪkə / — noun</p>
-            <p className="manifesto-definition">Enabling everyone to discover or learn something for themselves by having <strong>FUN</strong>.</p>
+            <p className="manifesto-eyebrow">/ hjʊˈrɪstɪkə / — verb</p>
+            <p className="manifesto-definition">Activating everyone to discover or learn something for themselves by having <strong>FUN</strong>.</p>
           </div>
         </div>
       </section>
@@ -62,7 +62,7 @@ export default function HomePage() {
       <section id="projects">
         <div className="section-header" data-reveal>
           <p className="section-label">What We&apos;re Building</p>
-          <h2>4 Investments into the Future</h2>
+          <h2>6 Active Projects</h2>
         </div>
 
         {/* SPLINTR — FEATURED LIVE PRODUCT */}
@@ -85,6 +85,43 @@ export default function HomePage() {
             <a href="https://asksplintr.com" target="_blank" rel="noopener noreferrer" className="splintr-cta">Visit asksplintr.com <span aria-hidden="true">→</span></a>
             <div className="project-links" style={{ marginTop: "28px" }}>
               <a href="/contact.html?project=SPLINTR&nda=true" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+        </div>
+
+        {/* MID-TIER FEATURE: Extreme Video Factory */}
+        <div className="mid-feature" data-reveal>
+          <div className="mid-feature-media">
+            <div className="mid-feature-placeholder mid-feature-mcam">
+              <span className="mid-feature-kicker">Horizon · Speech · G-Force</span>
+              <span className="mid-feature-brand">EXTREME<br />VIDEO<br />FACTORY</span>
+            </div>
+          </div>
+          <div className="mid-feature-content">
+            <span className="project-tag">AI + Live Video</span>
+            <h3 className="mid-feature-title">Extreme Video Factory</h3>
+            <p className="mid-feature-desc">The AI editor senses shifts in horizon, speech patterns, keywords, and G-forces — taking the pain and hours out of syncing up to 18 camera feeds, plus telemetry and geolocation, into one master timeline. Cut straight to the action!</p>
+            <div className="project-links">
+              <a href="/contact.html?project=Extreme+Video+Factory&nda=true" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+        </div>
+
+        {/* MID-TIER FEATURE: HiVibe Temple */}
+        <div className="mid-feature mid-feature-reverse" data-reveal>
+          <div className="mid-feature-media">
+            <div className="mid-feature-placeholder mid-feature-hivibe">
+              <span className="mid-feature-kicker">Tech-Assisted Wellness · Set &amp; Setting<br />Hardware &amp; Protocols</span>
+              <span className="mid-feature-brand">HIVIBE<br />TEMPLE</span>
+              <span className="mid-feature-sub">Modular Frequency Venue</span>
+            </div>
+          </div>
+          <div className="mid-feature-content">
+            <span className="project-tag">Wellness Tech</span>
+            <h3 className="mid-feature-title">HiVibe Temple</h3>
+            <p className="mid-feature-desc">Immersive light, sound, and full-body vibration. Modular Infinity MagTile floor snaps into any footprint — fixed studio or mobile road case, same vibe anywhere.</p>
+            <div className="project-links">
+              <a href="/contact.html?project=HiVibe+Temple&nda=true" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
             </div>
           </div>
         </div>
@@ -150,7 +187,7 @@ export default function HomePage() {
             <h2>Built<br />Different</h2>
             <div className="stat-stack">
               <div className="stat-item">
-                <span className="stat-number" data-count="4">4</span>
+                <span className="stat-number" data-count="6">6</span>
                 <span className="stat-label">Active Products</span>
               </div>
               <div className="stat-item">
