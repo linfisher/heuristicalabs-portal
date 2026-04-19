@@ -112,14 +112,19 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
       else if (r.error) failures.push(r.error)
     }
 
-    if (success > 0) router.refresh()
-
     if (failures.length === 0) {
       setStatus({ kind: "success", message: arr.length > 1 ? `Uploaded ${success} files` : `Uploaded ${arr[0]?.name ?? "file"}` })
     } else if (success > 0) {
       setStatus({ kind: "error", message: `${success} uploaded, ${failures.length} skipped — ${failures[0]}` })
     } else {
       setStatus({ kind: "error", message: failures[0] ?? "Upload failed" })
+    }
+
+    // Hard reload so the new files reliably appear. router.refresh() is flaky
+    // when fired from an XHR callback chain — pages often keep stale RSC data.
+    if (success > 0) {
+      setTimeout(() => window.location.reload(), 600)
+      return
     }
 
     setTimeout(() => setStatus({ kind: "idle" }), 3500)
