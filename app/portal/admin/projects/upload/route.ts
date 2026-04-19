@@ -54,7 +54,6 @@ export async function POST(request: Request) {
   const fileType = fileTypeFromName(file.name)
   const mime = mimeTypeFromName(file.name)
 
-  // Derive a URL-safe path from the filename (no extension on disk).
   const baseName = slugify(stripExtension(file.name)) || `file-${Date.now()}`
 
   // Duplicate handling: if the baseName is already taken and overwrite isn't
@@ -67,21 +66,18 @@ export async function POST(request: Request) {
     )
   }
 
-  // If overwriting, delete the old page (and its on-disk file) first.
   if (existing && overwrite) {
     await removePage(slug, existing.path)
   }
 
   const pagePath = baseName
 
-  // Write to disk.
   const projectDir = path.join(resolveContentRoot(), "projects", slug)
   await fs.mkdir(projectDir, { recursive: true })
   const filePath = path.join(projectDir, pagePath)
   const buffer = Buffer.from(await file.arrayBuffer())
   await fs.writeFile(filePath, buffer)
 
-  // Append to registry.
   const page: ProjectPage = {
     path: pagePath,
     title: customTitle || stripExtension(file.name),

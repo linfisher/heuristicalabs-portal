@@ -31,7 +31,8 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
   function sendUpload(file: File, overwrite: boolean, index: number, total: number): Promise<{ ok: boolean; status: number; error?: string; existingTitle?: string; existingPath?: string }> {
     return new Promise((resolve) => {
       const prefix = total > 1 ? `(${index + 1}/${total}) ` : ""
-      setStatus({ kind: "uploading", name: `${prefix}${file.name}`, progress: 0 })
+      const displayName = `${prefix}${file.name}`
+      setStatus({ kind: "uploading", name: displayName, progress: 0 })
 
       const form = new FormData()
       form.set("slug", slug)
@@ -43,7 +44,7 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
           const progress = Math.round((e.loaded / e.total) * 100)
-          setStatus({ kind: "uploading", name: `${prefix}${file.name}`, progress })
+          setStatus({ kind: "uploading", name: displayName, progress })
         }
       }
       xhr.onload = () => {

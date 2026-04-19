@@ -40,7 +40,6 @@ export async function POST(request: Request) {
   if (!url) return NextResponse.json({ error: "url is required" }, { status: 400 })
   if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 })
 
-  // Validate URL
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {

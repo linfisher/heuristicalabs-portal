@@ -61,11 +61,16 @@ export async function GET(
     }
   }
 
-  const contentType = page.mimeType
-    ? page.mimeType
-    : page.fileType === "pdf" ? "application/pdf"
-    : page.fileType === "md" ? "text/markdown; charset=utf-8"
-    : "application/octet-stream"
+  let contentType: string
+  if (page.mimeType) {
+    contentType = page.mimeType
+  } else if (page.fileType === "pdf") {
+    contentType = "application/pdf"
+  } else if (page.fileType === "md") {
+    contentType = "text/markdown; charset=utf-8"
+  } else {
+    contentType = "application/octet-stream"
+  }
 
   // Try local content root first — covers newly uploaded files (dev + VPS)
   try {
