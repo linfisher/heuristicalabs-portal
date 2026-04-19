@@ -9,9 +9,11 @@ interface Props {
   title: string
   sections?: string[]
   currentSection?: string
+  canMoveLeft?: boolean
+  canMoveRight?: boolean
 }
 
-export default function FileAdminActions({ slug, pagePath, title, sections = [], currentSection }: Props) {
+export default function FileAdminActions({ slug, pagePath, title, sections = [], currentSection, canMoveLeft = false, canMoveRight = false }: Props) {
   const router = useRouter()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -22,6 +24,14 @@ export default function FileAdminActions({ slug, pagePath, title, sections = [],
     if (e) { e.preventDefault(); e.stopPropagation() }
     setBusy(true)
     await post("/portal/admin/projects/page-assign-section", { slug, pagePath, section })
+    setBusy(false)
+    router.refresh()
+  }
+
+  async function move(direction: -1 | 1, e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation()
+    setBusy(true)
+    await post("/portal/admin/projects/page-reorder", { slug, pagePath, direction })
     setBusy(false)
     router.refresh()
   }
@@ -72,6 +82,26 @@ export default function FileAdminActions({ slug, pagePath, title, sections = [],
         fontFamily: "var(--font-exo2)",
       }}
     >
+      <button
+        type="button"
+        onClick={(e) => move(-1, e)}
+        disabled={busy || !canMoveLeft}
+        style={btnArrow}
+        title="Move left"
+        aria-label="Move left"
+      >
+        ←
+      </button>
+      <button
+        type="button"
+        onClick={(e) => move(1, e)}
+        disabled={busy || !canMoveRight}
+        style={btnArrow}
+        title="Move right"
+        aria-label="Move right"
+      >
+        →
+      </button>
       <button
         type="button"
         onClick={(e) => { stopProp(e); setNewTitle(title); setRenaming(true) }}
@@ -190,6 +220,19 @@ const btnSubtle: React.CSSProperties = {
   padding: "3px 8px",
   fontFamily: "var(--font-exo2)",
   letterSpacing: "0.04em",
+}
+
+const btnArrow: React.CSSProperties = {
+  background: "transparent",
+  border: "1px solid #2a2a2a",
+  borderRadius: "4px",
+  color: "#aaa",
+  cursor: "pointer",
+  fontSize: "0.8rem",
+  padding: "1px 7px",
+  fontFamily: "var(--font-exo2)",
+  minWidth: "22px",
+  lineHeight: 1,
 }
 
 const btnDanger: React.CSSProperties = {

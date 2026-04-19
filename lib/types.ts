@@ -44,4 +44,5 @@ export interface ProjectPage {
   mimeType?: string               // captured at upload for correct proxy Content-Type
   originalName?: string           // original filename (with extension) for download
   section?: string                // optional section name; empty/missing = unsectioned
+  manualSort?: number             // set when admin manually reorders; undefined falls back to createdAt desc
 }

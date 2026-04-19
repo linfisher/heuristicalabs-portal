@@ -371,6 +371,43 @@ export async function reorderSections(slug: string, order: string[]): Promise<vo
   })
 }
 
+// Move a page one slot left (-1) or right (+1) within its current section.
+// Assigns manualSort to every page in that section so the result persists
+// regardless of any future createdAt-based sort.
+export async function movePageInSection(slug: string, pagePath: string, direction: -1 | 1): Promise<void> {
+  await mutate((r) => {
+    const project = r.projects.find((p) => p.slug === slug)
+    if (!project) throw new Error("Project not found")
+    const target = project.pages.find((p) => p.path === pagePath)
+    if (!target) throw new Error("Page not found")
+    const section = target.section ?? ""
+
+    const displaySort = (a: ProjectPage, b: ProjectPage): number => {
+      if (a.manualSort !== undefined && b.manualSort !== undefined) return a.manualSort - b.manualSort
+      if (a.manualSort !== undefined) return -1
+      if (b.manualSort !== undefined) return 1
+      return (b.createdAt ?? 0) - (a.createdAt ?? 0)
+    }
+
+    const peers = project.pages
+      .filter((p) => (p.section ?? "") === section)
+      .sort(displaySort)
+
+    const fromIdx = peers.findIndex((p) => p.path === pagePath)
+    const toIdx = fromIdx + direction
+    if (fromIdx < 0 || toIdx < 0 || toIdx >= peers.length) return
+
+    const moved = peers[fromIdx]
+    const swap = peers[toIdx]
+    if (!moved || !swap) return
+    peers[fromIdx] = swap
+    peers[toIdx] = moved
+
+    peers.forEach((p, i) => { p.manualSort = i })
+    project.updatedAt = Date.now()
+  })
+}
+
 export async function setPageSection(slug: string, pagePath: string, section: string | null): Promise<void> {
   await mutate((r) => {
     const project = r.projects.find((p) => p.slug === slug)

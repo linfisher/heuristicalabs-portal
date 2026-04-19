@@ -105,8 +105,14 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   const projectStatus: "active" | "archived" = storedAdmin?.status ?? "active"
   const sectionOrder: string[] = storedAdmin?.sectionOrder ?? storedAny?.sectionOrder ?? []
 
-  // Sort pages: newest createdAt first, unknowns to the bottom.
-  const sortedPages = [...project.pages].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+  // Sort pages: manualSort (from admin reorder) wins if set; otherwise newest
+  // createdAt first, unknowns to the bottom.
+  const sortedPages = [...project.pages].sort((a, b) => {
+    if (a.manualSort !== undefined && b.manualSort !== undefined) return a.manualSort - b.manualSort
+    if (a.manualSort !== undefined) return -1
+    if (b.manualSort !== undefined) return 1
+    return (b.createdAt ?? 0) - (a.createdAt ?? 0)
+  })
 
   // Group pages by section. Empty section name = "unsectioned".
   const pagesBySection = new Map<string, ProjectPage[]>()
@@ -250,7 +256,7 @@ function CardGrid({ pages, slug, adminUser, sections }: { pages: ProjectPage[]; 
         gap: "24px",
       }}
     >
-      {pages.map((page) => {
+      {pages.map((page, idx) => {
         const chip = chipFor(page)
         const proxyUrl = `/api/proxy/${slug}/${page.path}`
         return (
@@ -344,6 +350,8 @@ function CardGrid({ pages, slug, adminUser, sections }: { pages: ProjectPage[]; 
                   title={page.title}
                   sections={sections}
                   currentSection={page.section}
+                  canMoveLeft={idx > 0}
+                  canMoveRight={idx < pages.length - 1}
                 />
               </div>
             )}
