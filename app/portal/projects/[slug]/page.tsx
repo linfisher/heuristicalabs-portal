@@ -13,6 +13,7 @@ import FileAdminActions from "@/components/FileAdminActions"
 import { AddSectionButton } from "@/components/SectionControls"
 import { SectionBlock } from "@/components/SectionBlock"
 import { AccessDrawer, type AccessGrantRow } from "@/components/AccessDrawer"
+import { BulkSelectionProvider, BulkActionBar, BulkSelectCheckbox } from "@/components/BulkSelection"
 import type { ProjectPage } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -186,6 +187,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
           </div>
         )}
 
+        <BulkSelectionProvider>
         {project.pages.length === 0 && visibleSections.length === 0 ? (
           <p style={{ color: "#444" }}>No documents available.</p>
         ) : (
@@ -232,6 +234,8 @@ export default async function ProjectPage({ params, searchParams }: Props) {
             )}
           </>
         )}
+        {adminUser && <BulkActionBar slug={project.slug} sections={sectionOrder} />}
+        </BulkSelectionProvider>
       </div>
     </div>
   )
@@ -262,6 +266,7 @@ function CardGrid({ pages, slug, adminUser, sections }: { pages: ProjectPage[]; 
             }}
             className="group hover:!border-[#E8147F44] hover:-translate-y-0.5"
           >
+            {adminUser && <BulkSelectCheckbox pagePath={page.path} />}
             <Link
               href={`/portal/projects/${slug}/${page.path}`}
               style={{ textDecoration: "none", display: "block", cursor: "pointer" }}
