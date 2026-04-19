@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
+import { revalidatePath } from "next/cache"
 import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
 import { renameProject } from "@/lib/projects-registry"
@@ -39,6 +40,9 @@ export async function POST(request: Request) {
 
   try {
     await renameProject(slug, name)
+    revalidatePath("/portal")
+    revalidatePath("/portal/admin")
+    revalidatePath(`/portal/projects/${slug}`)
     return NextResponse.json({ ok: true })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to rename project"
