@@ -2,7 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { readFile } from "fs/promises";
 import path from "path";
+import { marked } from "marked";
+import DOMPurify from "isomorphic-dompurify";
+import { auth } from "@clerk/nextjs/server";
+import { clerkClient } from "@/lib/clerk";
+import { isAdminEmail } from "@/lib/auth";
 import { getProject, getProjectPage } from "@/lib/projects";
+import { getProjectBySlug, resolveContentRoot } from "@/lib/registry";
 import { fetchPage } from "@/lib/vps";
 import PDFProxyIframe from "@/components/PDFProxyIframe";
 
@@ -42,20 +48,109 @@ function Breadcrumb({
 export default async function ProjectContentPage({ params }: Props) {
   const { slug, path: pathSegments } = params;
 
-  const project = getProject(slug);
+  // Admins see archived projects too; regular users only see active.
+  const { userId } = await auth();
+  let adminUser = false;
+  if (userId) {
+    const user = await clerkClient.users.getUser(userId);
+    adminUser = isAdminEmail(user.primaryEmailAddress?.emailAddress);
+  }
+
+  const stored = adminUser ? getProjectBySlug(slug) : undefined;
+  const project = stored
+    ? { slug: stored.slug, name: stored.name, description: stored.description ?? "", vpsPath: stored.vpsPath, pages: stored.pages }
+    : getProject(slug);
 
   if (!project) {
     notFound();
   }
 
   const filePath = pathSegments.join("/");
-  const page = getProjectPage(slug, filePath);
+  const page = adminUser
+    ? project.pages.find((p) => p.path === filePath)
+    : getProjectPage(slug, filePath);
 
   if (!page) {
     notFound();
   }
 
   const pageTitle = page.title;
+
+  // Markdown — read from disk, parse, sanitize, render
+  if (page.fileType === "md") {
+    const diskPath = path.join(resolveContentRoot(), "projects", slug, filePath);
+    let html = "";
+    try {
+      const raw = await readFile(diskPath, "utf-8");
+      const parsed = await marked.parse(raw, { gfm: true, breaks: true });
+      html = DOMPurify.sanitize(parsed);
+    } catch {
+      return (
+        <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+          <p className="text-gray-400">Document unavailable.</p>
+        </div>
+      )
+    }
+    return (
+      <div className="bg-[#0A0A0A]" style={{ minHeight: "100vh", color: "#e5e7eb" }}>
+        <Breadcrumb projectName={project.name} projectSlug={slug} pageTitle={pageTitle} />
+        <article
+          style={{
+            maxWidth: "820px",
+            margin: "0 auto",
+            padding: "24px 32px 80px",
+            fontFamily: "var(--font-exo2), system-ui, sans-serif",
+            lineHeight: 1.7,
+            fontSize: "1.05rem",
+          }}
+          className="markdown-body"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      </div>
+    );
+  }
+
+  // Embed (YouTube, Drive, Dropbox, Vimeo) — render the embed URL in an iframe
+  if (page.fileType === "embed" && page.embedUrl) {
+    return (
+      <div className="flex flex-col bg-[#0A0A0A]" style={{ height: "100vh" }}>
+        <Breadcrumb projectName={project.name} projectSlug={slug} pageTitle={pageTitle} />
+        <iframe
+          src={page.embedUrl}
+          title={pageTitle}
+          style={{ width: "100%", flex: 1, border: "none", display: "block" }}
+          allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  // Plain external link — we don't embed, just show a card to open externally
+  if (page.fileType === "link" && page.externalUrl) {
+    return (
+      <div className="flex flex-col bg-[#0A0A0A]" style={{ minHeight: "100vh" }}>
+        <Breadcrumb projectName={project.name} projectSlug={slug} pageTitle={pageTitle} />
+        <div className="flex-1 flex items-center justify-center px-6 py-16">
+          <div className="text-center max-w-md">
+            <h1 className="text-2xl font-semibold text-white mb-3">{pageTitle}</h1>
+            <p className="text-sm text-gray-500 mb-6">
+              This link opens in a new tab.
+            </p>
+            <a
+              href={page.externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block bg-[#E8147F] text-white font-semibold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              Open externally
+            </a>
+            <p className="text-xs text-gray-600 mt-6 break-all">{page.externalUrl}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Local viewer — read HTML server-side and inject as srcDoc to avoid X-Frame-Options blocking
   if (page.fileType === "viewer" && page.viewerSrc) {

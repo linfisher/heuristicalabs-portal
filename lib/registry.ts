@@ -239,11 +239,70 @@ export async function deleteProject(slug: string): Promise<void> {
     r.projects = r.projects.filter((p) => p.slug !== slug)
   })
   // Best-effort: remove on-disk content folder. User confirmed delete means delete.
-  const contentRoot = process.env.CONTENT_ROOT ?? "/var/www/portal-content"
-  const projectDir = path.join(contentRoot, "projects", slug)
+  const projectDir = path.join(resolveContentRoot(), "projects", slug)
   try {
     await fsp.rm(projectDir, { recursive: true, force: true })
   } catch {
     // directory may not exist locally in dev; silently ignore
   }
+}
+
+// ── Content-root resolution ────────────────────────────────────────────────
+export function resolveContentRoot(): string {
+  if (process.env.CONTENT_ROOT) return process.env.CONTENT_ROOT
+  const prodDir = "/var/www/portal-content"
+  try {
+    fs.accessSync(prodDir, fs.constants.W_OK)
+    return prodDir
+  } catch {
+    return path.join(process.cwd(), ".content")
+  }
+}
+
+// ── Page-level CRUD ────────────────────────────────────────────────────────
+
+export async function addPage(slug: string, page: ProjectPage): Promise<void> {
+  await mutate((r) => {
+    const project = r.projects.find((p) => p.slug === slug)
+    if (!project) throw new Error("Project not found")
+    if (project.pages.some((p) => p.path === page.path)) {
+      throw new Error(`A file named "${page.path}" already exists in this project`)
+    }
+    project.pages.push({ createdAt: Date.now(), ...page })
+    project.updatedAt = Date.now()
+  })
+}
+
+export async function removePage(slug: string, pagePath: string): Promise<void> {
+  let removedPage: ProjectPage | undefined
+  await mutate((r) => {
+    const project = r.projects.find((p) => p.slug === slug)
+    if (!project) return
+    removedPage = project.pages.find((p) => p.path === pagePath)
+    project.pages = project.pages.filter((p) => p.path !== pagePath)
+    project.updatedAt = Date.now()
+  })
+
+  // If it was a real file (not a link/embed), remove it from disk too.
+  if (removedPage && (removedPage.fileType === "pdf" || removedPage.fileType === "md")) {
+    const filePath = path.join(resolveContentRoot(), "projects", slug, pagePath)
+    try {
+      await fsp.rm(filePath, { force: true })
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export async function renamePage(slug: string, pagePath: string, newTitle: string): Promise<void> {
+  const title = newTitle.trim()
+  if (!title) throw new Error("Title cannot be empty")
+  await mutate((r) => {
+    const project = r.projects.find((p) => p.slug === slug)
+    if (!project) throw new Error("Project not found")
+    const page = project.pages.find((p) => p.path === pagePath)
+    if (!page) throw new Error("Page not found")
+    page.title = title
+    project.updatedAt = Date.now()
+  })
 }

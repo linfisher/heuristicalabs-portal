@@ -1,7 +1,10 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
+import { readFile } from "node:fs/promises"
+import path from "node:path"
 import { clerkClient } from "@/lib/clerk"
 import { getProject, getProjectPage } from "@/lib/projects"
+import { getProjectBySlug, resolveContentRoot } from "@/lib/registry"
 import { isAdminEmail } from "@/lib/auth"
 import { VPS_SECRET_HEADER } from "@/lib/constants"
 import type { ProjectGrant } from "@/lib/types"
@@ -25,17 +28,6 @@ export async function GET(
     return NextResponse.json({ error: "Invalid path" }, { status: 400 })
   }
 
-  // Validate project and page exist in registry
-  const project = getProject(slug)
-  if (!project) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
-
-  const page = getProjectPage(slug, filePath)
-  if (!page) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
-
   // Auth check: admin bypasses grant check; regular users need a valid grant
   let user
   try {
@@ -44,8 +36,24 @@ export async function GET(
     return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 })
   }
   const email = user.primaryEmailAddress?.emailAddress ?? ""
+  const admin = isAdminEmail(email)
 
-  if (!isAdminEmail(email)) {
+  // Validate project and page exist in registry.
+  // Admin: lookup via registry (covers archived); Regular: via active-only helper.
+  const stored = admin ? getProjectBySlug(slug) : undefined
+  const project = stored
+    ? { slug: stored.slug, name: stored.name, description: stored.description ?? "", vpsPath: stored.vpsPath, pages: stored.pages }
+    : getProject(slug)
+  if (!project) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  const page = admin ? project.pages.find((p) => p.path === filePath) : getProjectPage(slug, filePath)
+  if (!page) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  if (!admin) {
     const grants = (user.publicMetadata?.projects ?? []) as ProjectGrant[]
     const validGrant = grants.find((g) => g.slug === slug && g.expiresAt > Date.now())
     if (!validGrant) {
@@ -53,10 +61,31 @@ export async function GET(
     }
   }
 
-  // Fetch raw bytes from VPS
+  const contentType = page.fileType === "pdf" ? "application/pdf"
+    : page.fileType === "md" ? "text/markdown; charset=utf-8"
+    : "application/octet-stream"
+
+  // Try local content root first — covers newly uploaded files (dev + VPS)
+  try {
+    const localPath = path.join(resolveContentRoot(), "projects", slug, filePath)
+    const buffer = await readFile(localPath)
+    return new Response(buffer, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": "inline",
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+      },
+    })
+  } catch {
+    // fall through to VPS fetch
+  }
+
+  // Fall back to VPS content origin
   if (!process.env.VPS_ORIGIN) {
-    console.error("[proxy] VPS_ORIGIN is not configured")
-    return NextResponse.json({ error: "Content server not configured" }, { status: 503 })
+    return NextResponse.json({ error: "File not found" }, { status: 404 })
   }
   const origin = process.env.VPS_ORIGIN.trim()
   const secret = (process.env.VPS_SECRET ?? "").trim()
@@ -73,19 +102,16 @@ export async function GET(
   }
 
   if (vpsResponse.status === 404) {
-    return NextResponse.json({ error: "File not found on server" }, { status: 404 })
+    return NextResponse.json({ error: "File not found" }, { status: 404 })
   }
-
   if (!vpsResponse.ok) {
     return NextResponse.json({ error: "Content unavailable" }, { status: 502 })
   }
 
-  const contentType = page.fileType === "pdf" ? "application/pdf" : (vpsResponse.headers.get("Content-Type") ?? "application/octet-stream")
-
   return new Response(vpsResponse.body, {
     status: 200,
     headers: {
-      "Content-Type": contentType,
+      "Content-Type": page.fileType === "pdf" ? "application/pdf" : (vpsResponse.headers.get("Content-Type") ?? "application/octet-stream"),
       "Content-Disposition": "inline",
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
