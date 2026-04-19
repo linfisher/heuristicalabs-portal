@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
 import { clerkClient } from "@/lib/clerk"
-import { isAdminEmail } from "@/lib/auth"
+import { isAdminEmail, readGrants } from "@/lib/auth"
 import { getProject } from "@/lib/projects"
 import { getProjectBySlug } from "@/lib/registry"
 import { embedSourceColor } from "@/lib/url-embed"
@@ -12,6 +12,7 @@ import ProjectFileActions from "@/components/ProjectFileActions"
 import FileAdminActions from "@/components/FileAdminActions"
 import { AddSectionButton } from "@/components/SectionControls"
 import { SectionBlock } from "@/components/SectionBlock"
+import { AccessDrawer, type AccessGrantRow } from "@/components/AccessDrawer"
 import type { ProjectPage } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -72,6 +73,30 @@ export default async function ProjectPage({ params, searchParams }: Props) {
 
   const storedAdmin = adminUser ? getProjectBySlug(slug) : undefined
   const storedAny = getProjectBySlug(slug)
+
+  // Admin-only: gather users who have a grant for this project
+  let accessGrants: AccessGrantRow[] = []
+  if (adminUser) {
+    try {
+      const { data: users } = await clerkClient.users.getUserList({ limit: 200 })
+      for (const u of users) {
+        const grants = readGrants(u)
+        const g = grants.find((x) => x.slug === slug)
+        if (!g) continue
+        accessGrants.push({
+          userId: u.id,
+          name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.primaryEmailAddress?.emailAddress || "(no name)",
+          email: u.primaryEmailAddress?.emailAddress ?? "(no email)",
+          expiresAt: g.expiresAt,
+        })
+      }
+      // Sort: active first (by expiresAt asc — soonest to expire on top), then expired
+      accessGrants.sort((a, b) => a.expiresAt - b.expiresAt)
+    } catch {
+      // non-fatal; drawer just shows empty
+      accessGrants = []
+    }
+  }
   const project = storedAdmin
     ? { slug: storedAdmin.slug, name: storedAdmin.name, description: storedAdmin.description ?? "", vpsPath: storedAdmin.vpsPath, pages: storedAdmin.pages, sectionOrder: storedAdmin.sectionOrder ?? [] }
     : getProject(slug)
@@ -144,6 +169,12 @@ export default async function ProjectPage({ params, searchParams }: Props) {
         {adminUser && (
           <div style={{ marginBottom: "24px" }}>
             <ProjectAdminActions slug={project.slug} name={project.name} status={projectStatus} />
+          </div>
+        )}
+
+        {adminUser && (
+          <div style={{ marginBottom: "16px" }}>
+            <AccessDrawer slug={project.slug} projectName={project.name} grants={accessGrants} />
           </div>
         )}
 
