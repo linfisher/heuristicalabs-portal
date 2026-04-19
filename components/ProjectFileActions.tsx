@@ -3,13 +3,13 @@
 import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 
-const MAX_SIZE = 50 * 1024 * 1024
+const MAX_SIZE = 250 * 1024 * 1024
 
 type Status =
   | { kind: "idle" }
   | { kind: "uploading"; name: string; progress: number }
   | { kind: "success"; message: string }
-  | { kind: "error"; message: string }
+  | { kind: "error"; message: string; failures: string[]; successCount: number }
 
 type DuplicateIntent = {
   file: File
@@ -69,7 +69,8 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
 
   async function uploadOne(file: File, index: number, total: number): Promise<{ ok: boolean; error?: string }> {
     if (file.size > MAX_SIZE) {
-      return { ok: false, error: `"${file.name}" is larger than 50 MB` }
+      const mb = (file.size / (1024 * 1024)).toFixed(1)
+      return { ok: false, error: `"${file.name}" is ${mb} MB — over the 250 MB limit` }
     }
 
     // First attempt, no overwrite
@@ -115,20 +116,17 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
 
     if (failures.length === 0) {
       setStatus({ kind: "success", message: arr.length > 1 ? `Uploaded ${success} files` : `Uploaded ${arr[0]?.name ?? "file"}` })
-    } else if (success > 0) {
-      setStatus({ kind: "error", message: `${success} uploaded, ${failures.length} skipped — ${failures[0]}` })
-    } else {
-      setStatus({ kind: "error", message: failures[0] ?? "Upload failed" })
-    }
-
-    // Hard reload so the new files reliably appear. router.refresh() is flaky
-    // when fired from an XHR callback chain — pages often keep stale RSC data.
-    if (success > 0) {
+      // Reload to show new cards (router.refresh is unreliable from XHR chains)
       setTimeout(() => window.location.reload(), 600)
       return
     }
 
-    setTimeout(() => setStatus({ kind: "idle" }), 3500)
+    // Any failure → keep the error visible with full per-file detail until the
+    // admin dismisses. Never auto-reload when something went wrong.
+    const headline = success > 0
+      ? `${success} uploaded, ${failures.length} failed or skipped`
+      : `Upload failed (${failures.length} file${failures.length === 1 ? "" : "s"})`
+    setStatus({ kind: "error", message: headline, failures, successCount: success })
   }
 
   function onDrop(e: React.DragEvent) {
@@ -162,7 +160,7 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
             Drop files to upload
           </div>
           <div style={{ color: "#666", fontSize: "0.78rem" }}>
-            Any file up to 50 MB. PDFs and Markdown get an in-portal preview; images, video, and audio play inline; other files get a download link. Or paste a YouTube / Drive / Dropbox / Vimeo URL.
+            Any file up to 250 MB. PDFs and Markdown get an in-portal preview; images, video, and audio play inline; other files get a download link. Or paste a YouTube / Drive / Dropbox / Vimeo URL.
           </div>
         </div>
 
@@ -221,7 +219,19 @@ export default function ProjectFileActions({ slug }: { slug: string }) {
         </StatusLine>
       )}
       {status.kind === "success" && <StatusLine color="#22c55e">{status.message}</StatusLine>}
-      {status.kind === "error" && <StatusLine color="#ef4444">{status.message}</StatusLine>}
+      {status.kind === "error" && (
+        <ErrorPanel
+          headline={status.message}
+          failures={status.failures}
+          onDismiss={() => {
+            const hadSuccess = status.successCount > 0
+            setStatus({ kind: "idle" })
+            // If some files actually uploaded, reload on dismiss so the new
+            // cards appear; otherwise stay put so the admin can retry.
+            if (hadSuccess) window.location.reload()
+          }}
+        />
+      )}
 
       {duplicate && (
         <DuplicateModal
@@ -260,7 +270,7 @@ function DuplicateModal({
   onDecision: (d: boolean | "cancel") => void
 }) {
   return (
-    <Modal onClose={() => onDecision("cancel")}>
+    <Modal onClose={() => onDecision("cancel")} dismissOnBackdropClick={false}>
       <h3 style={modalTitle}>File already exists</h3>
       <p style={modalSub}>
         A file named <strong style={{ color: "#fff" }}>&ldquo;{existingTitle}&rdquo;</strong> is already in this project.
@@ -270,7 +280,7 @@ function DuplicateModal({
         The old file will be replaced on the server. This cannot be undone.
       </p>
       <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-        <button onClick={() => onDecision("cancel")} style={btnGhost}>Skip</button>
+        <button onClick={() => onDecision("cancel")} style={btnGhost}>Skip this file</button>
         <button onClick={() => onDecision(true)} style={btnDangerPrimary}>Overwrite</button>
       </div>
     </Modal>
@@ -346,7 +356,11 @@ function AddLinkModal({
   )
 }
 
-function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+function Modal({ children, onClose, dismissOnBackdropClick = true }: {
+  children: React.ReactNode
+  onClose: () => void
+  dismissOnBackdropClick?: boolean
+}) {
   return (
     <div
       style={{
@@ -358,7 +372,9 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
         justifyContent: "center",
         zIndex: 100,
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => {
+        if (dismissOnBackdropClick && e.target === e.currentTarget) onClose()
+      }}
     >
       <div
         style={{
@@ -373,6 +389,57 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
       >
         {children}
       </div>
+    </div>
+  )
+}
+
+function ErrorPanel({
+  headline,
+  failures,
+  onDismiss,
+}: {
+  headline: string
+  failures: string[]
+  onDismiss: () => void
+}) {
+  return (
+    <div
+      role="alert"
+      style={{
+        marginTop: "12px",
+        background: "#2d0f0f",
+        border: "1px solid #3d1515",
+        borderRadius: "8px",
+        padding: "14px 16px",
+        fontFamily: "var(--font-exo2)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+        <strong style={{ color: "#ef4444", fontSize: "0.85rem" }}>{headline}</strong>
+        <button
+          onClick={onDismiss}
+          style={{
+            background: "transparent",
+            border: "1px solid #3d1515",
+            borderRadius: "4px",
+            color: "#ef4444",
+            cursor: "pointer",
+            fontSize: "0.72rem",
+            padding: "4px 10px",
+            fontFamily: "inherit",
+            flexShrink: 0,
+          }}
+        >
+          Dismiss
+        </button>
+      </div>
+      {failures.length > 0 && (
+        <ul style={{ margin: "10px 0 0", padding: "0 0 0 20px", color: "#ddd", fontSize: "0.8rem", lineHeight: 1.5 }}>
+          {failures.map((f, i) => (
+            <li key={i}>{f}</li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

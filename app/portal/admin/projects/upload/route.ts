@@ -12,7 +12,7 @@ import type { ProjectPage } from "@/lib/types"
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
-const MAX_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
+const MAX_SIZE_BYTES = 250 * 1024 * 1024 // 250 MB
 
 export async function POST(request: Request) {
   const { userId } = await auth()
