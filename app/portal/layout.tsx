@@ -1,7 +1,7 @@
 import Link from "next/link"
 import type { Metadata } from "next"
 import { auth } from "@clerk/nextjs/server"
-import { UserButton } from "@clerk/nextjs"
+import { UserButton, ClerkProvider } from "@clerk/nextjs"
 import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
 
@@ -24,7 +24,7 @@ export default async function PortalLayout({
   }
 
   return (
-    <>
+    <ClerkProvider signInUrl="/portal/sign-in">
       <nav
         style={{
           background: "#111111",
@@ -102,6 +102,6 @@ export default async function PortalLayout({
         </div>
       </nav>
       <main className="pt-16">{children}</main>
-    </>
+    </ClerkProvider>
   )
 }

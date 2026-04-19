@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Exo_2 } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 const exo2 = Exo_2({
@@ -28,10 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider signInUrl="/portal/sign-in">
-      <html lang="en" className={exo2.variable}>
-        <body className="font-sans antialiased">{children}</body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" className={exo2.variable}>
+      <body className="font-sans antialiased">{children}</body>
+    </html>
   );
 }

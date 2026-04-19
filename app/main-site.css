@@ -185,26 +185,32 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
 
 /* ─── Manifesto ─────────────────────────────────────────────── */
 #manifesto {
-  padding: 0;
+  background: #050505;
+  padding: clamp(48px, 6vw, 96px) clamp(20px, 4vw, 56px);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 .manifesto-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: clamp(12px, 1.5vw, 20px);
+  max-width: 1400px;
+  margin: 0 auto;
 }
 .manifesto-panel {
-  padding: clamp(72px, 10vw, 140px) clamp(32px, 5vw, 80px);
+  padding: clamp(56px, 7vw, 100px) clamp(28px, 4vw, 72px);
+  border-radius: 18px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 .manifesto-dark {
   background: #0A0A0A;
   color: #fff;
 }
-.manifesto-light {
-  background: #FAF7F0;
-  color: #0A0A0A;
+.manifesto-heuristica {
+  background: #151515;
+  color: #fff;
 }
 .manifesto-statement {
   font-size: clamp(44px, 6.5vw, 96px);
@@ -213,33 +219,34 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
   line-height: 0.95;
   margin: 0 0 28px;
 }
+.manifesto-heuristica .manifesto-statement {
+  color: #E8147F;
+}
 .manifesto-eyebrow {
   font-size: clamp(14px, 1.4vw, 20px);
   font-weight: 600;
   font-style: normal;
   letter-spacing: 0.01em;
   margin: 0 0 22px;
+  color: rgba(255, 255, 255, 0.4);
 }
-.manifesto-dark .manifesto-eyebrow { color: rgba(255, 255, 255, 0.4); }
-.manifesto-light .manifesto-eyebrow { color: rgba(10, 10, 10, 0.5); }
 .manifesto-definition {
   font-size: clamp(17px, 1.9vw, 24px);
   font-weight: 400;
   line-height: 1.5;
   margin: 0;
   max-width: 460px;
+  color: rgba(255, 255, 255, 0.85);
 }
-.manifesto-dark .manifesto-definition { color: rgba(255, 255, 255, 0.85); }
-.manifesto-light .manifesto-definition { color: rgba(10, 10, 10, 0.82); }
-.manifesto-light .manifesto-definition strong {
+.manifesto-heuristica .manifesto-definition strong {
   color: #E8147F;
   font-weight: 800;
   letter-spacing: 0.01em;
 }
 
 @media (max-width: 768px) {
-  .manifesto-split { grid-template-columns: 1fr; }
-  .manifesto-panel { padding: 64px 24px; }
+  .manifesto-split { grid-template-columns: 1fr; gap: 14px; }
+  .manifesto-panel { padding: 56px 28px; border-radius: 14px; }
 }
 
 /* ─── SPLINTR Feature ───────────────────────────────────────── */
