@@ -75,7 +75,7 @@ interface SectionHeaderAdminProps {
   pageCount: number
 }
 
-export function SectionHeaderAdmin({ slug, name, index, total, pageCount }: SectionHeaderAdminProps) {
+export function SectionHeaderAdmin({ slug, name, index, total }: SectionHeaderAdminProps) {
   const router = useRouter()
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState(name)
@@ -118,51 +118,75 @@ export function SectionHeaderAdmin({ slug, name, index, total, pageCount }: Sect
   async function move(direction: -1 | 1) {
     const target = index + direction
     if (target < 0 || target >= total) return
-    // client doesn't know the full order here; fetch from a data-attr on parent? Simpler: compute locally via DOM querySelectorAll. Instead we POST nothing and rely on server to handle move: use a dedicated swap. Since reorder API takes full order, we can't easily just swap. So post a "move" signal via reorder with two items swapped by reading siblings. We'll do it via DOM read.
     const nodes = document.querySelectorAll<HTMLElement>("[data-section-name]")
     const order: string[] = []
     nodes.forEach((n) => {
       const v = n.getAttribute("data-section-name")
       if (v) order.push(v)
     })
-    if (order[index] !== name) return
-    const [moved] = order.splice(index, 1)
+    // Filter out the unsectioned bucket ("")
+    const filtered = order.filter((s) => s !== "")
+    const myIdx = filtered.indexOf(name)
+    if (myIdx < 0) return
+    const [moved] = filtered.splice(myIdx, 1)
     if (!moved) return
-    order.splice(target, 0, moved)
+    const newIdx = Math.max(0, Math.min(filtered.length, myIdx + direction))
+    filtered.splice(newIdx, 0, moved)
     setBusy(true)
-    const res = await post("/portal/admin/projects/section-reorder", { slug, order })
+    const res = await post("/portal/admin/projects/section-reorder", { slug, order: filtered })
     setBusy(false)
     if (res.ok) router.refresh()
   }
 
   return (
-    <div style={sectionHeaderRow}>
-      {renaming ? (
-        <form onSubmit={rename} style={{ display: "flex", gap: "8px", alignItems: "center", flex: 1, maxWidth: "420px" }}>
-          <input
-            autoFocus
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Escape") { setRenaming(false); setNewName(name) } }}
-            style={inlineInput}
-          />
-          <button type="submit" disabled={busy} style={btnSaveSmall}>Save</button>
-          <button type="button" onClick={() => { setRenaming(false); setNewName(name) }} style={btnGhostSmall}>Cancel</button>
-        </form>
-      ) : (
-        <h2 style={sectionTitle}>{name} <span style={sectionCount}>· {pageCount}</span></h2>
-      )}
-
-      {!renaming && (
-        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-          <button onClick={() => move(-1)} disabled={busy || index === 0} style={btnArrow} title="Move up" aria-label="Move up">↑</button>
-          <button onClick={() => move(1)} disabled={busy || index === total - 1} style={btnArrow} title="Move down" aria-label="Move down">↓</button>
-          <button onClick={() => setRenaming(true)} style={btnGhostSmall} disabled={busy}>Rename</button>
-          <button onClick={() => setConfirm(true)} style={btnDangerSmall} disabled={busy}>Delete</button>
-        </div>
-      )}
+    <div style={actionRowStyle}>
+      <button
+        onClick={(e) => { e.stopPropagation(); move(-1) }}
+        disabled={busy || index === 0}
+        style={btnArrow}
+        title="Move up"
+        aria-label="Move section up"
+      >↑</button>
+      <button
+        onClick={(e) => { e.stopPropagation(); move(1) }}
+        disabled={busy || index === total - 1}
+        style={btnArrow}
+        title="Move down"
+        aria-label="Move section down"
+      >↓</button>
+      <button
+        onClick={(e) => { e.stopPropagation(); setRenaming(true) }}
+        style={btnGhostSmall}
+        disabled={busy}
+      >Rename</button>
+      <button
+        onClick={(e) => { e.stopPropagation(); setConfirm(true) }}
+        style={btnDangerSmall}
+        disabled={busy}
+      >Delete</button>
 
       {err && <span style={errText}>{err}</span>}
+
+      {renaming && (
+        <Modal onClose={() => { setRenaming(false); setNewName(name); setErr(null) }}>
+          <h3 style={modalTitle}>Rename section</h3>
+          <form onSubmit={rename}>
+            <input
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              style={modalInput}
+            />
+            {err && <p style={errText}>{err}</p>}
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "16px" }}>
+              <button type="button" onClick={() => { setRenaming(false); setNewName(name); setErr(null) }} style={btnGhost}>Cancel</button>
+              <button type="submit" disabled={busy || !newName.trim()} style={btnPrimary}>
+                {busy ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {confirm && (
         <Modal onClose={() => setConfirm(false)}>
@@ -224,38 +248,11 @@ const btnAddSection: React.CSSProperties = {
   letterSpacing: "0.03em",
 }
 
-const sectionHeaderRow: React.CSSProperties = {
+const actionRowStyle: React.CSSProperties = {
   display: "flex",
+  gap: "6px",
   alignItems: "center",
-  justifyContent: "space-between",
-  gap: "12px",
   flexWrap: "wrap",
-  padding: "20px 0 12px",
-  borderBottom: "1px solid #1f1f1f",
-  marginBottom: "20px",
-}
-
-const sectionTitle: React.CSSProperties = {
-  color: "#F5C418",
-  fontFamily: "var(--font-exo2)",
-  fontSize: "1.15rem",
-  fontWeight: 700,
-  margin: 0,
-  letterSpacing: "0.02em",
-}
-
-const sectionCount: React.CSSProperties = { color: "#555", fontWeight: 400, fontSize: "0.85rem" }
-
-const inlineInput: React.CSSProperties = {
-  flex: 1,
-  background: "#1a1a1a",
-  border: "1px solid #333",
-  borderRadius: "4px",
-  color: "#fff",
-  padding: "6px 10px",
-  fontSize: "0.9rem",
-  outline: "none",
-  fontFamily: "var(--font-exo2)",
 }
 
 const btnArrow: React.CSSProperties = {

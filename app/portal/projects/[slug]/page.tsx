@@ -10,7 +10,8 @@ import { PDFThumbnail } from "@/components/PDFThumbnail"
 import ProjectAdminActions from "@/components/ProjectAdminActions"
 import ProjectFileActions from "@/components/ProjectFileActions"
 import FileAdminActions from "@/components/FileAdminActions"
-import { AddSectionButton, SectionHeaderAdmin } from "@/components/SectionControls"
+import { AddSectionButton } from "@/components/SectionControls"
+import { SectionBlock } from "@/components/SectionBlock"
 import type { ProjectPage } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -160,41 +161,43 @@ export default async function ProjectPage({ params, searchParams }: Props) {
           <>
             {visibleSections.map((sectionName, idx) => {
               const pages = pagesBySection.get(sectionName) ?? []
-              // Hide empty sections from non-admins
               if (!adminUser && pages.length === 0) return null
               return (
-                <section key={sectionName} data-section-name={sectionName} style={{ marginBottom: "32px" }}>
-                  {adminUser ? (
-                    <SectionHeaderAdmin
-                      slug={project.slug}
-                      name={sectionName}
-                      index={idx}
-                      total={visibleSections.length}
-                      pageCount={pages.length}
-                    />
-                  ) : (
-                    <h2 style={publicSectionTitle}>{sectionName}</h2>
-                  )}
+                <SectionBlock
+                  key={sectionName}
+                  slug={project.slug}
+                  sectionName={sectionName}
+                  pageCount={pages.length}
+                  adminUser={adminUser}
+                  index={idx}
+                  total={visibleSections.length}
+                >
                   {pages.length === 0 ? (
                     <p style={{ color: "#555", fontSize: "0.8rem", fontStyle: "italic" }}>
-                      Empty section — assign files via the card dropdown or upload new ones.
+                      Empty section — move files here via the dropdown on any card, or upload new ones.
                     </p>
                   ) : (
                     <CardGrid pages={pages} slug={project.slug} adminUser={adminUser} sections={sectionOrder} />
                   )}
-                </section>
+                </SectionBlock>
               )
             })}
 
             {unsectioned.length > 0 && (
-              <section style={{ marginBottom: "32px" }}>
-                {visibleSections.length > 0 && (
-                  <h2 style={adminUser ? publicSectionTitle : publicSectionTitle}>
-                    {visibleSections.length > 0 ? "Unsectioned" : ""}
-                  </h2>
-                )}
-                <CardGrid pages={unsectioned} slug={project.slug} adminUser={adminUser} sections={sectionOrder} />
-              </section>
+              visibleSections.length > 0 ? (
+                <SectionBlock
+                  slug={project.slug}
+                  sectionName=""
+                  pageCount={unsectioned.length}
+                  adminUser={adminUser}
+                >
+                  <CardGrid pages={unsectioned} slug={project.slug} adminUser={adminUser} sections={sectionOrder} />
+                </SectionBlock>
+              ) : (
+                <div data-section-name="" style={{ marginBottom: "32px" }}>
+                  <CardGrid pages={unsectioned} slug={project.slug} adminUser={adminUser} sections={sectionOrder} />
+                </div>
+              )
             )}
           </>
         )}
@@ -315,16 +318,6 @@ function CardGrid({ pages, slug, adminUser, sections }: { pages: ProjectPage[]; 
   )
 }
 
-const publicSectionTitle: React.CSSProperties = {
-  color: "#F5C418",
-  fontFamily: "var(--font-exo2)",
-  fontSize: "1.05rem",
-  fontWeight: 700,
-  margin: "0 0 18px",
-  letterSpacing: "0.02em",
-  paddingBottom: "10px",
-  borderBottom: "1px solid #1f1f1f",
-}
 
 function ThumbPlaceholder({ icon }: { icon: "md" | "link" | "viewer" | "generic" | "video" | "audio" }) {
   const content = icon === "md" ? (
