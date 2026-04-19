@@ -35,10 +35,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
   const targetUserId = formData.get("userId") as string | null
-  const projectSlug = formData.get("projectSlug") as string | null
+  const projectSlugs = formData.getAll("projectSlug").filter((s): s is string => typeof s === "string" && s.length > 0)
   const durationMsRaw = formData.get("durationMs") as string | null
 
-  if (!targetUserId || !projectSlug || !durationMsRaw) {
+  if (!targetUserId || projectSlugs.length === 0 || !durationMsRaw) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
 
@@ -47,8 +47,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid duration" }, { status: 400 })
   }
 
-  if (!getProject(projectSlug)) {
-    return NextResponse.json({ error: "Unknown project" }, { status: 400 })
+  for (const slug of projectSlugs) {
+    if (!getProject(slug)) {
+      return NextResponse.json({ error: `Unknown project: ${slug}` }, { status: 400 })
+    }
   }
 
   try {
@@ -56,22 +58,21 @@ export async function POST(request: Request) {
     const currentGrants =
       (targetUser.publicMetadata?.projects as ProjectGrant[] | undefined) ?? []
 
-    const newGrant: ProjectGrant = {
-      slug: projectSlug,
-      expiresAt: Date.now() + durationMs,
-    }
-
-    const updated = [
-      ...currentGrants.filter((g) => g.slug !== projectSlug),
-      newGrant,
+    const expiresAt = Date.now() + durationMs
+    const slugSet = new Set(projectSlugs)
+    const updated: ProjectGrant[] = [
+      ...currentGrants.filter((g) => !slugSet.has(g.slug)),
+      ...projectSlugs.map((slug) => ({ slug, expiresAt })),
     ]
 
     await clerkClient.users.updateUserMetadata(targetUserId, {
       publicMetadata: { projects: updated },
     })
 
-    // Invalidate any pending email-based grant tokens for this project
-    await deleteGrantGroup(targetUserId, projectSlug)
+    // Invalidate any pending email-based grant tokens for these projects
+    for (const slug of projectSlugs) {
+      await deleteGrantGroup(targetUserId, slug)
+    }
   } catch {
     redirect("/portal/admin?error=grant_failed")
   }
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
     action: "direct-grant",
     adminUserId: userId,
     targetUserId,
-    projectSlug,
+    projectSlugs,
     durationMs,
     timestamp: new Date().toISOString(),
   })

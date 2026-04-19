@@ -41,16 +41,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
   const targetUserId = formData.get("userId") as string | null
-  const projectSlug = formData.get("projectSlug") as string | null
+  const projectSlugs = formData.getAll("projectSlug").filter((s): s is string => typeof s === "string" && s.length > 0)
 
-  if (!targetUserId || !projectSlug) {
+  if (!targetUserId || projectSlugs.length === 0) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
 
-  // Validate project
-  const project = getProject(projectSlug)
-  if (!project) {
-    return NextResponse.json({ error: "Unknown project slug" }, { status: 400 })
+  // Validate all projects
+  for (const slug of projectSlugs) {
+    if (!getProject(slug)) {
+      return NextResponse.json({ error: `Unknown project: ${slug}` }, { status: 400 })
+    }
   }
 
   // Look up target user
@@ -59,80 +60,64 @@ export async function POST(request: Request) {
   if (!targetUserEmail) {
     return NextResponse.json({ error: "Target user has no email address" }, { status: 400 })
   }
+  const targetUserName = targetUser.firstName ?? targetUserEmail
 
-  const targetUserName =
-    targetUser.firstName ?? targetUserEmail
+  // For each project: sign tokens, store group, send email
+  for (const projectSlug of projectSlugs) {
+    const project = getProject(projectSlug)
+    if (!project) continue
 
-  // Sign 4 accept tokens — one per duration (72hr link expiry)
-  const tokenStrings = await Promise.all(
-    DURATIONS.map((d) =>
-      signToken(
-        {
-          type: "accept",
-          userId: targetUserId,
-          projectSlug,
-          accessDurationMs: d.ms,
-        },
-        TOKEN_LINK_TTL_MS
+    const tokenStrings = await Promise.all(
+      DURATIONS.map((d) =>
+        signToken(
+          { type: "accept", userId: targetUserId, projectSlug, accessDurationMs: d.ms },
+          TOKEN_LINK_TTL_MS
+        )
       )
     )
-  )
+    const denyTokenString = await signToken(
+      { type: "deny", userId: targetUserId, projectSlug, accessDurationMs: 0 },
+      TOKEN_LINK_TTL_MS
+    )
+    const acceptJtis = tokenStrings.map((t) => decodeJwt(t).jti as string)
+    const denyJti = decodeJwt(denyTokenString).jti as string
+    await storeGrantGroup(targetUserId, projectSlug, [...acceptJtis, denyJti], TOKEN_LINK_TTL_MS / 1000)
 
-  // Sign 1 deny token
-  const denyTokenString = await signToken(
-    {
-      type: "deny",
-      userId: targetUserId,
+    const [h24Token, d3Token, d7Token, d30Token] = tokenStrings
+    const tokens = {
+      h24: `${appUrl}/api/access/accept?token=${h24Token}`,
+      d3:  `${appUrl}/api/access/accept?token=${d3Token}`,
+      d7:  `${appUrl}/api/access/accept?token=${d7Token}`,
+      d30: `${appUrl}/api/access/accept?token=${d30Token}`,
+    }
+    const denyUrl = `${appUrl}/api/access/deny?token=${denyTokenString}`
+
+    try {
+      await sendEmail({
+        to: process.env.ADMIN_EMAIL!,
+        subject: subject(project.name),
+        react: React.createElement(GrantInviteEmail, {
+          userName: targetUserName,
+          userEmail: targetUserEmail,
+          projectName: project.name,
+          projectDescription: project.description,
+          tokens,
+          denyUrl,
+        }),
+      })
+    } catch {
+      await deleteGrantGroup(targetUserId, projectSlug)
+      redirect("/portal/admin?error=email_failed")
+    }
+
+    console.info("[admin]", {
+      action: "grant",
+      adminUserId: userId,
+      targetUserId,
       projectSlug,
-      accessDurationMs: 0,
-    },
-    TOKEN_LINK_TTL_MS
-  )
-
-  // Extract jtis from all tokens
-  const acceptJtis = tokenStrings.map((t) => decodeJwt(t).jti as string)
-  const denyJti = decodeJwt(denyTokenString).jti as string
-  const allJtis = [...acceptJtis, denyJti]
-
-  // Store grant group for single-use invalidation of the whole group
-  await storeGrantGroup(targetUserId, projectSlug, allJtis, TOKEN_LINK_TTL_MS / 1000)
-
-  // Build accept URLs
-  const [h24Token, d3Token, d7Token, d30Token] = tokenStrings
-  const tokens = {
-    h24: `${appUrl}/api/access/accept?token=${h24Token}`,
-    d3:  `${appUrl}/api/access/accept?token=${d3Token}`,
-    d7:  `${appUrl}/api/access/accept?token=${d7Token}`,
-    d30: `${appUrl}/api/access/accept?token=${d30Token}`,
-  }
-  const denyUrl = `${appUrl}/api/access/deny?token=${denyTokenString}`
-
-  // Send grant-invite email to admin so admin picks the duration
-  try {
-    await sendEmail({
-      to: process.env.ADMIN_EMAIL!,
-      subject: subject(project.name),
-      react: React.createElement(GrantInviteEmail, {
-        userName: targetUserName,
-        userEmail: targetUserEmail,
-        projectName: project.name,
-        projectDescription: project.description,
-        tokens,
-        denyUrl,
-      }),
+      timestamp: new Date().toISOString(),
     })
-  } catch {
-    await deleteGrantGroup(targetUserId, projectSlug)
-    redirect("/portal/admin?error=email_failed")
   }
-
-  console.info("[admin]", {
-    action: "grant",
-    adminUserId: userId,
-    targetUserId,
-    projectSlug,
-    timestamp: new Date().toISOString(),
-  })
 
   redirect("/portal/admin?sent=1")
 }

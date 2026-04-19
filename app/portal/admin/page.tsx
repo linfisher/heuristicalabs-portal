@@ -251,11 +251,7 @@ export default async function AdminPage({
                       style={{ display: "flex", flexDirection: "column", gap: "6px" }}
                     >
                       <input type="hidden" name="userId" value={user.id} />
-                      <select name="projectSlug" style={selectStyle}>
-                        {activeProjects.map((p) => (
-                          <option key={p.slug} value={p.slug}>{p.name}</option>
-                        ))}
-                      </select>
+                      <ProjectCheckboxList projects={activeProjects} name="projectSlug" />
                       <select name="durationMs" style={selectStyle}>
                         {DURATIONS.map((d) => (
                           <option key={d.ms} value={d.ms}>{d.label}</option>
@@ -275,11 +271,7 @@ export default async function AdminPage({
                       style={{ display: "flex", flexDirection: "column", gap: "6px" }}
                     >
                       <input type="hidden" name="userId" value={user.id} />
-                      <select name="projectSlug" style={selectStyle}>
-                        {activeProjects.map((p) => (
-                          <option key={p.slug} value={p.slug}>{p.name}</option>
-                        ))}
-                      </select>
+                      <ProjectCheckboxList projects={activeProjects} name="projectSlug" />
                       <button type="submit" style={btnGhost}>
                         Send Email
                       </button>
@@ -319,6 +311,44 @@ function FlashMessage({
       }}
     >
       {children}
+    </div>
+  )
+}
+
+function ProjectCheckboxList({ projects, name }: { projects: { slug: string; name: string }[]; name: string }) {
+  return (
+    <div
+      style={{
+        background: "#1a1a1a",
+        border: "1px solid #2a2a2a",
+        borderRadius: "4px",
+        padding: "6px 8px",
+        maxHeight: "120px",
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: "4px",
+      }}
+    >
+      {projects.map((p) => (
+        <label
+          key={p.slug}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            color: "#cccccc",
+            fontSize: "0.75rem",
+            cursor: "pointer",
+          }}
+        >
+          <input type="checkbox" name={name} value={p.slug} style={{ accentColor: "#E8147F" }} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+        </label>
+      ))}
+      {projects.length === 0 && (
+        <span style={{ color: "#555", fontSize: "0.7rem" }}>No active projects</span>
+      )}
     </div>
   )
 }
