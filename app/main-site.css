@@ -96,16 +96,8 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
   background: #E8147F;
   color: #fff;
 }
-.nav-links a.nav-portal {
-  background: #E8147F;
-  color: #fff;
-  border: 1px solid #E8147F;
-  font-weight: 600;
-}
-.nav-links a.nav-portal:hover {
-  background: transparent;
-  color: #E8147F;
-}
+/* Client Portal link matches the other nav links in default state,
+   falls back to the shared .nav-links a:hover rule above. */
 .nav-spacer { display: none; }
 
 /* ─── Hero ──────────────────────────────────────────────────── */

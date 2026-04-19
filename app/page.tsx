@@ -39,7 +39,6 @@ export default function HomePage() {
           <Link href="/"><img src="/logo.png" alt="Heuristica" className="hero-logo" /></Link>
           <p className="hero-tagline">Venture Studio. Bold Ideas. Real Products.</p>
           <p className="hero-sub">We build Ai driven solutions that are unapologetically original, obsessively crafted, and engineered to create&nbsp;value.</p>
-          <a href="#splintr" className="hero-cta">Explore Our Work</a>
         </div>
       </section>
 
