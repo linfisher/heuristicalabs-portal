@@ -103,6 +103,18 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 - **Delete**: wipes the project from registry AND deletes files at `/var/www/portal-content/projects/<slug>/`. Irreversible. Confirm dialog required.
 - **Archived projects**: admin can view + restore from both `/portal` home (collapsed section) and `/portal/admin`.
 
+## File Uploads (Phase 2 — shipped Apr 19, 2026)
+- **Drag-drop zone + Choose Files + "+ Add Link"** on every project detail page (admin only).
+- **Accepts any file type** up to **250 MB**. Server limit: `MAX_SIZE_BYTES` in upload route. VPS nginx `client_max_body_size` must be 260m+ (set via `/etc/nginx/conf.d/upload-size.conf`).
+- **File type detection**: `lib/file-type.ts` maps extensions → `pdf`, `md`, `image`, `video`, `audio`, or `file`.
+- **Viewers**: pdf → PDFProxyIframe (blob URL), md → marked + DOMPurify, image/video/audio → native tags via proxy, file → download button. See `app/portal/projects/[slug]/[...path]/page.tsx`.
+- **Link embeds**: `lib/url-embed.ts` auto-detects YouTube / Drive / Dropbox / Vimeo, stores an iframe-ready `embedUrl`. Generic URLs become external-open links.
+- **Color chips** per file type on project cards: PDF pink, MD yellow, IMAGE teal, VIDEO purple, AUDIO orange, FILE gray, plus provider colors (YouTube red, Drive teal, Dropbox blue, Vimeo cyan).
+- **Sort**: pages sorted by `createdAt` DESC on the project page — newest first.
+- **Duplicate handling**: server returns 409 with `existingTitle`/`existingPath` if slugified path collides; client shows a confirm modal (Skip/Overwrite). Modal requires explicit button click — backdrop click disabled.
+- **Failure UX**: persistent `ErrorPanel` with per-file reasons + Dismiss button; never auto-reloads on failure. Auto-reload only runs when everything succeeded.
+- **revalidatePath on EVERY mutation**: create/rename/archive/restore/delete project + upload/add-link/page-delete/page-rename. Without this, Next.js Router Cache keeps stale pages until a hard refresh.
+
 ## PDF Proxy Architecture
 - Proxy route: `GET /api/proxy/[slug]/[...path]` — verifies Clerk auth + grant (admin bypasses), fetches from VPS
 - VPS request: `fetch(VPS_ORIGIN + vpsPath + "/" + filePath, { headers: { "X-Portal-Secret": VPS_SECRET } })`
