@@ -19,7 +19,6 @@
       -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ── Back link ── */
     .back {
       position: fixed;
       top: 20px; left: 24px;
@@ -33,7 +32,6 @@
     }
     .back:hover { color: #fff; }
 
-    /* ── Ambient background ── */
     .bg {
       position: fixed; inset: 0;
       background:
@@ -44,7 +42,6 @@
       z-index: 0;
     }
 
-    /* ── Layout ── */
     .page {
       position: relative; z-index: 1;
       min-height: 100vh;
@@ -55,11 +52,10 @@
       padding: 96px 24px 80px;
     }
 
-    /* ── Header ── */
     .header {
       text-align: center;
       max-width: 580px;
-      margin-bottom: 56px;
+      margin-bottom: 40px;
     }
     .eyebrow {
       display: block;
@@ -84,47 +80,52 @@
       line-height: 1.72;
     }
 
-    /* ── NDA request badge ── */
-    .nda-badge {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      background: rgba(232, 20, 127, 0.10);
-      border: 1px solid rgba(232, 20, 127, 0.30);
+    /* ── Mode toggle ── */
+    .mode-toggle {
+      display: inline-flex;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
       border-radius: 100px;
-      padding: 9px 20px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: #E8147F;
+      padding: 4px;
+      gap: 2px;
+      margin: 0 auto 28px;
       width: fit-content;
-      margin: 0 auto 36px;
     }
-    .nda-badge.visible { display: inline-flex; }
-    .nda-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.45);
+      font-family: 'Exo 2', system-ui, sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 9px 22px;
+      border-radius: 100px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .mode-btn[aria-pressed="true"] {
       background: #E8147F;
-      box-shadow: 0 0 8px rgba(232, 20, 127, 0.8);
-      flex-shrink: 0;
+      color: #fff;
+    }
+    .mode-btn:hover:not([aria-pressed="true"]) {
+      color: rgba(255,255,255,0.8);
     }
 
-    /* ── Form card ── */
     .form-card {
       width: 100%;
       max-width: 560px;
       background: rgba(255,255,255,0.026);
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 28px;
-      padding: 48px 44px 52px;
+      padding: 44px 44px 52px;
     }
 
     .field-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
-      margin-bottom: 16px;
       align-items: start;
     }
     .field {
@@ -132,7 +133,9 @@
       flex-direction: column;
       gap: 8px;
     }
-    .field + .field { margin-top: 16px; }
+    .field + .field,
+    .field-row + .field,
+    .field + .field-row { margin-top: 16px; }
     .field-row .field + .field { margin-top: 0; }
 
     label {
@@ -143,7 +146,7 @@
       color: rgba(255,255,255,0.32);
     }
 
-    input, textarea {
+    input, textarea, select {
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.09);
       border-radius: 12px;
@@ -156,10 +159,20 @@
       width: 100%;
       transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
     }
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      padding-right: 42px;
+      cursor: pointer;
+    }
     input::placeholder, textarea::placeholder {
       color: rgba(255,255,255,0.18);
     }
-    input:focus, textarea:focus {
+    input:focus, textarea:focus, select:focus {
       border-color: rgba(232, 20, 127, 0.45);
       background: rgba(232, 20, 127, 0.04);
       box-shadow: 0 0 0 3px rgba(232, 20, 127, 0.07);
@@ -170,9 +183,6 @@
       line-height: 1.65;
     }
 
-    .field-spacer { height: 16px; }
-
-    /* ── Submit ── */
     .submit-btn {
       margin-top: 32px;
       width: 100%;
@@ -198,7 +208,6 @@
     }
     .submit-btn svg { flex-shrink: 0; }
 
-    /* ── Privacy note ── */
     .privacy {
       text-align: center;
       margin-top: 18px;
@@ -207,7 +216,6 @@
       letter-spacing: 0.01em;
     }
 
-    /* ── Success ── */
     .success-state {
       display: none;
       text-align: center;
@@ -236,7 +244,6 @@
       line-height: 1.7;
     }
 
-    /* ── Footer note ── */
     .page-footer {
       margin-top: 40px;
       font-size: 12px;
@@ -254,10 +261,10 @@
       .field-row { grid-template-columns: 1fr; }
       .form-card { padding: 32px 20px 40px; border-radius: 20px; }
       .page { padding: 72px 16px 60px; }
-      .header { margin-bottom: 36px; }
+      .header { margin-bottom: 28px; }
       .title { font-size: clamp(38px, 11vw, 64px); }
       .subtitle { font-size: 14px; }
-      .nda-badge { font-size: 10px; padding: 7px 16px; }
+      .mode-btn { padding: 8px 16px; font-size: 11px; }
     }
   </style>
 </head>
@@ -274,14 +281,32 @@
       <p class="subtitle" id="subtitle">Have a bold idea? Want to explore a partnership?<br/>We'd love to hear from you.</p>
     </div>
 
-    <span class="nda-badge" id="nda-badge">
-      <span class="nda-dot"></span>
-      NDA Request — <span id="nda-project"></span>
-    </span>
+    <div class="mode-toggle" role="tablist" aria-label="What kind of request?">
+      <button type="button" class="mode-btn" id="mode-contact" role="tab" aria-pressed="true" data-mode="contact">
+        Just a question
+      </button>
+      <button type="button" class="mode-btn" id="mode-nda" role="tab" aria-pressed="false" data-mode="nda">
+        Request NDA
+      </button>
+    </div>
 
     <div class="form-card" id="form-card">
 
       <form id="contact-form">
+        <div class="field">
+          <label for="project">About which project?</label>
+          <select id="project" name="project" required>
+            <option value="">Select a project…</option>
+            <option value="SPLINTR">SPLINTR</option>
+            <option value="Extreme Video Factory">Extreme Video Factory</option>
+            <option value="HiVibe Temple">HiVibe Temple</option>
+            <option value="No Limit Chess">No Limit Chess</option>
+            <option value="Akasha Ai">Akasha Ai</option>
+            <option value="1 TO 1">1 TO 1</option>
+            <option value="General">General — not project-specific</option>
+          </select>
+        </div>
+
         <div class="field-row">
           <div class="field">
             <label for="name">Name</label>
@@ -293,22 +318,18 @@
           </div>
         </div>
 
-        <div class="field-spacer"></div>
-
         <div class="field">
           <label for="email">Email</label>
           <input type="email" id="email" name="email" placeholder="your@email.com" required />
         </div>
 
-        <div class="field-spacer"></div>
-
         <div class="field">
-          <label for="message">Message</label>
-          <textarea id="message" name="message" placeholder="Tell us about your business, your interest, and how we may help..."></textarea>
+          <label for="message" id="message-label">Message</label>
+          <textarea id="message" name="message" placeholder="Tell us about your business, your interest, and how we may help..." required></textarea>
         </div>
 
-        <button type="submit" class="submit-btn">
-          Send Message
+        <button type="submit" class="submit-btn" id="submit-btn">
+          <span id="submit-label">Send Message</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="5" y1="12" x2="19" y2="12"/>
             <polyline points="12 5 19 12 12 19"/>
@@ -337,65 +358,118 @@
   </main>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const project = params.get('project');
-    const isNda   = params.get('nda') === 'true';
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      const projectParam = params.get('project');
+      // Accept legacy ?nda=true and new ?mode=nda
+      const urlMode = params.get('mode') === 'nda' || params.get('nda') === 'true'
+        ? 'nda'
+        : (params.get('mode') === 'contact' ? 'contact' : 'contact');
 
-    if (isNda && project) {
-      // Badge
-      document.getElementById('nda-project').textContent = project;
-      document.getElementById('nda-badge').classList.add('visible');
+      const $ = (id) => document.getElementById(id);
+      const projectSel = $('project');
+      const messageEl  = $('message');
+      const messageLabel = $('message-label');
+      const titleEl    = $('title');
+      const subtitleEl = $('subtitle');
+      const eyebrowEl  = $('eyebrow');
+      const submitLbl  = $('submit-label');
+      const ndaBtn     = $('mode-nda');
+      const contactBtn = $('mode-contact');
 
-      // Heading swap
-      document.getElementById('eyebrow').textContent    = 'NDA Request';
-      document.getElementById('title').innerHTML         = 'Request<br/>an NDA';
-      document.getElementById('subtitle').textContent   =
-        'Fill in your details below and we\'ll send the agreement straight to your inbox.';
+      // Pre-select project from URL (if the option exists)
+      if (projectParam) {
+        const match = Array.from(projectSel.options).find(o => o.value === projectParam);
+        if (match) projectSel.value = projectParam;
+      }
 
-      // Pre-fill message
-      document.getElementById('message').value =
-        `Hi Heuristica team,\n\nI'm interested in ${project} and would like to request a Non-Disclosure Agreement to review confidential materials and explore this opportunity further.\n\nABOUT MY BUSINESS AND INTEREST:\n(Replace this with a few sentences about who you are, what you do, and how you see this project fitting your needs.)\n\nPlease send the NDA to my email above at your earliest convenience.\n\nThank you.`;
-    }
+      function applyMode(mode, opts) {
+        opts = opts || {};
+        const isNda = mode === 'nda';
+        ndaBtn.setAttribute('aria-pressed', isNda ? 'true' : 'false');
+        contactBtn.setAttribute('aria-pressed', isNda ? 'false' : 'true');
 
-    document.getElementById('contact-form').addEventListener('submit', function (e) {
-      e.preventDefault();
+        if (isNda) {
+          eyebrowEl.textContent = 'NDA Request';
+          titleEl.innerHTML     = "Request<br/>an NDA";
+          subtitleEl.textContent = "Fill in your details below and we'll send the agreement straight to your inbox.";
+          submitLbl.textContent = 'Send NDA Request';
+          messageLabel.textContent = 'About your business & interest';
+          messageEl.placeholder = 'Tell us who you are, what you do, and how you see this project fitting your needs...';
 
-      const name    = document.getElementById('name').value.trim();
-      const company = document.getElementById('company').value.trim();
-      const email   = document.getElementById('email').value.trim();
-      const message = document.getElementById('message').value.trim();
+          // Only pre-fill NDA body once per mode switch AND only if message is empty
+          // (so the user doesn't lose their typing when toggling back)
+          if (opts.prefillIfEmpty && messageEl.value.trim() === '') {
+            const proj = projectSel.value || '[project]';
+            messageEl.value =
+              "Hi Heuristica team,\n\n" +
+              "I'm interested in " + proj + " and would like to request a Non-Disclosure Agreement to review confidential materials and explore this opportunity further.\n\n" +
+              "ABOUT MY BUSINESS AND INTEREST:\n" +
+              "(Replace this with a few sentences about who you are, what you do, and how you see this project fitting your needs.)\n\n" +
+              "Please send the NDA to my email above at your earliest convenience.\n\nThank you.";
+          }
+        } else {
+          eyebrowEl.textContent = 'Get in Touch';
+          titleEl.innerHTML     = "Let's Build<br/>Something";
+          subtitleEl.textContent = "Have a bold idea? Want to explore a partnership? We'd love to hear from you.";
+          submitLbl.textContent = 'Send Message';
+          messageLabel.textContent = 'Message';
+          messageEl.placeholder = 'Tell us about your business, your interest, and how we may help...';
+        }
+      }
 
-      const subject = (isNda && project)
-        ? `NDA Request — ${project}`
-        : `Inquiry — Heuristica Labs`;
+      // Initial mode from URL
+      applyMode(urlMode, { prefillIfEmpty: true });
 
-      const body = [
-        `Name: ${name}`,
-        company ? `Company: ${company}` : null,
-        `Email: ${email}`,
-        '',
-        message
-      ].filter(l => l !== null).join('\n');
+      // Toggle click handlers
+      ndaBtn.addEventListener('click', () => applyMode('nda', { prefillIfEmpty: true }));
+      contactBtn.addEventListener('click', () => applyMode('contact'));
 
-      window.location.href =
-        `mailto:hello@heuristicalabs.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      // Submit: opens mailto with a structured body
+      $('contact-form').addEventListener('submit', function (e) {
+        e.preventDefault();
 
-      // Show success
-      document.getElementById('contact-form').style.display = 'none';
-      document.getElementById('success').classList.add('visible');
-    });
+        const isNda   = ndaBtn.getAttribute('aria-pressed') === 'true';
+        const proj    = projectSel.value.trim();
+        const name    = $('name').value.trim();
+        const company = $('company').value.trim();
+        const email   = $('email').value.trim();
+        const message = messageEl.value.trim();
 
-    // Swipe left to go back
-    let _tx = 0, _ty = 0;
-    document.addEventListener('touchstart', (e) => {
-      _tx = e.touches[0].clientX;
-      _ty = e.touches[0].clientY;
-    }, { passive: true });
-    document.addEventListener('touchend', (e) => {
-      const dx = e.changedTouches[0].clientX - _tx;
-      const dy = e.changedTouches[0].clientY - _ty;
-      if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.5) history.back();
-    }, { passive: true });
+        const subject = isNda
+          ? "NDA Request — " + (proj || 'Heuristica Labs')
+          : "Inquiry — " + (proj || 'Heuristica Labs');
+
+        const lines = [
+          "Project: " + (proj || '(not specified)'),
+          "Name: " + name,
+          company ? "Company: " + company : null,
+          "Email: " + email,
+          "Mode: " + (isNda ? 'NDA Request' : 'General inquiry'),
+          "",
+          message
+        ].filter(function (l) { return l !== null; });
+
+        window.location.href =
+          "mailto:hello@heuristicalabs.com?subject=" +
+          encodeURIComponent(subject) + "&body=" + encodeURIComponent(lines.join("\n"));
+
+        $('contact-form').style.display = 'none';
+        $('success').classList.add('visible');
+      });
+
+      // Swipe left = back
+      let tx = 0, ty = 0;
+      document.addEventListener('touchstart', (e) => {
+        tx = e.touches[0].clientX;
+        ty = e.touches[0].clientY;
+      }, { passive: true });
+      document.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - tx;
+        const dy = e.changedTouches[0].clientY - ty;
+        if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.5) history.back();
+      }, { passive: true });
+    })();
   </script>
 
 </body>

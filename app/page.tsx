@@ -84,7 +84,8 @@ export default function HomePage() {
             <p className="splintr-desc">Intelligent AI video curation for YouTube. Give Archer any topic and it builds you the perfect playlist — from any angle, any depth, any mission.</p>
             <a href="https://asksplintr.com" target="_blank" rel="noopener noreferrer" className="splintr-cta">Visit asksplintr.com <span aria-hidden="true">→</span></a>
             <div className="project-links" style={{ marginTop: "28px" }}>
-              <a href="/contact.html?project=SPLINTR&nda=true" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+              <a href="/contact.html?project=SPLINTR&mode=nda" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+              <a href="/contact.html?project=SPLINTR&mode=contact" className="project-link">Contact <span aria-hidden="true">→</span></a>
             </div>
           </div>
         </div>
@@ -102,7 +103,8 @@ export default function HomePage() {
             <h3 className="mid-feature-title">Extreme Video Factory</h3>
             <p className="mid-feature-desc">The AI editor senses shifts in horizon, speech patterns, keywords, and G-forces — taking the pain and hours out of syncing up to 18 camera feeds, plus telemetry and geolocation, into one master timeline. Cut straight to the action!</p>
             <div className="project-links">
-              <a href="/contact.html?project=Extreme+Video+Factory&nda=true" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+              <a href="/contact.html?project=Extreme+Video+Factory&mode=nda" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+              <a href="/contact.html?project=Extreme+Video+Factory&mode=contact" className="project-link">Contact <span aria-hidden="true">→</span></a>
             </div>
           </div>
         </div>
@@ -121,7 +123,8 @@ export default function HomePage() {
             <h3 className="mid-feature-title">HiVibe Temple</h3>
             <p className="mid-feature-desc">Immersive light, sound, and full-body vibration. Modular Infinity MagTile floor snaps into any footprint — fixed studio or mobile road case, same vibe anywhere.</p>
             <div className="project-links">
-              <a href="/contact.html?project=HiVibe+Temple&nda=true" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+              <a href="/contact.html?project=HiVibe+Temple&mode=nda" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+              <a href="/contact.html?project=HiVibe+Temple&mode=contact" className="project-link">Contact <span aria-hidden="true">→</span></a>
             </div>
           </div>
         </div>
@@ -138,9 +141,8 @@ export default function HomePage() {
               <h3>No Limit Chess</h3>
               <p>Where strategy meets chaos. A bold reimagining of the world&apos;s oldest game — built for the next generation of players.</p>
               <div className="project-links">
-                <a href="/nlc.html" className="project-link">Introduction Deck <span aria-hidden="true">→</span></a>
-                <a href="/nlc-biz.html" className="project-link">Business Deck <span aria-hidden="true">→</span></a>
-                <a href="/contact.html?project=No+Limit+Chess&nda=true" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+                <a href="/contact.html?project=No+Limit+Chess&mode=nda" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+                <a href="/contact.html?project=No+Limit+Chess&mode=contact" className="project-link">Contact <span aria-hidden="true">→</span></a>
               </div>
             </div>
           </article>
@@ -155,8 +157,8 @@ export default function HomePage() {
               <h3>Akasha Ai</h3>
               <p>An AI game master that builds living legends. Infinite worlds. Infinite stories. Every session unique, every player the hero.</p>
               <div className="project-links">
-                <a href="/akasha.html" className="project-link">Introduction Deck <span aria-hidden="true">→</span></a>
-                <a href="/contact.html?project=Akasha+Ai&nda=true" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+                <a href="/contact.html?project=Akasha+Ai&mode=nda" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+                <a href="/contact.html?project=Akasha+Ai&mode=contact" className="project-link">Contact <span aria-hidden="true">→</span></a>
               </div>
             </div>
           </article>
@@ -171,7 +173,8 @@ export default function HomePage() {
               <h3>1 TO 1</h3>
               <p>Peer-to-peer bet matching without the house. Transparent, fair, and direct — the way it should have always been.</p>
               <div className="project-links">
-                <a href="/contact.html?project=1 TO 1&nda=true" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+                <a href="/contact.html?project=1+TO+1&mode=nda" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+                <a href="/contact.html?project=1+TO+1&mode=contact" className="project-link">Contact <span aria-hidden="true">→</span></a>
               </div>
             </div>
           </article>
