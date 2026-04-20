@@ -7,11 +7,11 @@ import { AdminProjectsPanel } from "@/components/AdminProjectsPanel"
 import type { ProjectGrant } from "@/lib/types"
 
 const DURATIONS = [
-  { label: "24 hours", ms: 86400000 },
-  { label: "3 days",   ms: 259200000 },
-  { label: "7 days",   ms: 604800000 },
-  { label: "30 days",  ms: 2592000000 },
-  { label: "90 days",  ms: 7776000000 },
+  { label: "24 hours", chip: "24h", ms: 86400000 },
+  { label: "3 days",   chip: "3d",  ms: 259200000 },
+  { label: "7 days",   chip: "7d",  ms: 604800000 },
+  { label: "30 days",  chip: "30d", ms: 2592000000 },
+  { label: "90 days",  chip: "90d", ms: 7776000000 },
 ]
 
 function grantStatus(grant: ProjectGrant, now: number): "active" | "expiring" | "expired" {
@@ -198,41 +198,71 @@ export default async function AdminPage({
                               key={grant.slug}
                               style={{
                                 display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                flexWrap: "wrap",
+                                flexDirection: "column",
+                                gap: "4px",
+                                paddingBottom: "8px",
+                                borderBottom: "1px solid #1a1a1a",
                               }}
                             >
-                              <span
-                                style={{
-                                  backgroundColor: colors.bg,
-                                  border: `1px solid ${colors.border}`,
-                                  color: colors.text,
-                                  borderRadius: "4px",
-                                  padding: "2px 8px",
-                                  fontSize: "0.75rem",
-                                  fontWeight: 600,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {projectName}
-                              </span>
-                              <span style={{ color: colors.text, fontSize: "0.75rem", whiteSpace: "nowrap" }}>
-                                {status === "expired"
-                                  ? `Expired ${expiry}`
-                                  : `${days}d · ${expiry}`}
-                              </span>
-                              <form
-                                action="/portal/admin/revoke"
-                                method="POST"
-                                style={{ marginLeft: "auto" }}
-                              >
-                                <input type="hidden" name="userId" value={user.id} />
-                                <input type="hidden" name="projectSlug" value={grant.slug} />
-                                <button type="submit" style={btnRevokeLink} title="Revoke access">
-                                  Revoke
-                                </button>
-                              </form>
+                              {/* Row 1: project badge + current state + Revoke */}
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                <span
+                                  style={{
+                                    backgroundColor: colors.bg,
+                                    border: `1px solid ${colors.border}`,
+                                    color: colors.text,
+                                    borderRadius: "4px",
+                                    padding: "2px 8px",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {projectName}
+                                </span>
+                                <span style={{ color: colors.text, fontSize: "0.75rem", whiteSpace: "nowrap" }}>
+                                  {status === "expired"
+                                    ? `Expired ${expiry}`
+                                    : `${days}d · ${expiry}`}
+                                </span>
+                                <form
+                                  action="/portal/admin/revoke"
+                                  method="POST"
+                                  style={{ marginLeft: "auto" }}
+                                >
+                                  <input type="hidden" name="userId" value={user.id} />
+                                  <input type="hidden" name="projectSlug" value={grant.slug} />
+                                  <button type="submit" style={btnRevokeLink} title="Revoke access">
+                                    Revoke
+                                  </button>
+                                </form>
+                              </div>
+
+                              {/* Row 2: one-click duration chips */}
+                              <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                                <span style={{ color: "#666666", fontSize: "0.7rem", marginRight: "2px" }}>
+                                  Set to:
+                                </span>
+                                {DURATIONS.map((d) => (
+                                  <form
+                                    key={d.ms}
+                                    action="/portal/admin/extend"
+                                    method="POST"
+                                    style={{ display: "inline" }}
+                                  >
+                                    <input type="hidden" name="userId" value={user.id} />
+                                    <input type="hidden" name="projectSlug" value={grant.slug} />
+                                    <input type="hidden" name="durationMs" value={d.ms} />
+                                    <button
+                                      type="submit"
+                                      style={btnDurationChip}
+                                      title={`Set ${projectName} access to ${d.label}`}
+                                    >
+                                      {d.chip}
+                                    </button>
+                                  </form>
+                                ))}
+                              </div>
                             </div>
                           )
                         })}
@@ -403,6 +433,18 @@ const btnPrimary: React.CSSProperties = {
   fontWeight: 600,
   padding: "7px 14px",
   width: "100%",
+}
+
+const btnDurationChip: React.CSSProperties = {
+  backgroundColor: "#1a1a1a",
+  border: "1px solid #2a2a2a",
+  borderRadius: "3px",
+  color: "#aaaaaa",
+  cursor: "pointer",
+  fontSize: "0.7rem",
+  fontWeight: 600,
+  padding: "2px 7px",
+  whiteSpace: "nowrap",
 }
 
 const btnRevokeLink: React.CSSProperties = {
