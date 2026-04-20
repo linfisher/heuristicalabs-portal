@@ -38,9 +38,22 @@ function getRedis() {
 }
 
 function clientIp(req: Request): string {
+  // X-Real-IP is set by nginx to $remote_addr (the TCP peer) and cannot be
+  // spoofed by the client. Prefer it.
+  const real = req.headers.get("x-real-ip")
+  if (real) return real.trim()
+
+  // Fall back to the RIGHTMOST entry of X-Forwarded-For. nginx appends the
+  // real peer at the end with $proxy_add_x_forwarded_for, so the last entry
+  // is trustworthy. The leftmost entry is client-controllable and MUST NOT
+  // be used for rate limiting.
   const xff = req.headers.get("x-forwarded-for")
-  if (xff) return xff.split(",")[0]!.trim()
-  return req.headers.get("x-real-ip") ?? "unknown"
+  if (xff) {
+    const parts = xff.split(",").map((s) => s.trim()).filter(Boolean)
+    if (parts.length > 0) return parts[parts.length - 1]!
+  }
+
+  return "unknown"
 }
 
 export async function POST(request: Request) {
