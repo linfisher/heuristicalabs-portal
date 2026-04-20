@@ -93,7 +93,7 @@ export default async function AdminPage({
         )}
         {searchParams.granted === "1" && (
           <FlashMessage color="#22c55e" bg="#0f2d0f" border="#22c55e">
-            Access granted directly. User can log in now.
+            Access granted. User notified by email.
           </FlashMessage>
         )}
         {searchParams.extended === "1" && (
@@ -142,7 +142,7 @@ export default async function AdminPage({
             fontSize: "0.8rem",
           }}
         >
-          <strong style={{ color: "#888888" }}>Pending requests</strong> — received via email. Use Direct Grant below to skip the email flow and grant access instantly.
+          <strong style={{ color: "#888888" }}>How this works</strong> — pick projects and a duration under <em>Grant Access</em>. The user gets access immediately and receives a notification email with a direct link to the project.
         </div>
 
         {/* Projects management */}
@@ -154,8 +154,7 @@ export default async function AdminPage({
             <tr style={{ borderBottom: "1px solid #2a2a2a" }}>
               <th style={th}>User</th>
               <th style={th}>Current Access</th>
-              <th style={th}>Direct Grant</th>
-              <th style={th}>Email Grant</th>
+              <th style={th}>Grant Access</th>
             </tr>
           </thead>
           <tbody>
@@ -290,20 +289,6 @@ export default async function AdminPage({
                     </form>
                   </td>
 
-                  {/* Email Grant */}
-                  <td style={{ ...td, minWidth: "160px" }}>
-                    <form
-                      action="/portal/admin/grant"
-                      method="POST"
-                      style={{ display: "flex", flexDirection: "column", gap: "6px" }}
-                    >
-                      <input type="hidden" name="userId" value={user.id} />
-                      <ProjectCheckboxList projects={activeProjects} name="projectSlug" />
-                      <button type="submit" style={btnGhost}>
-                        Send Email
-                      </button>
-                    </form>
-                  </td>
                 </tr>
               )
             })}
@@ -457,16 +442,5 @@ const btnRevokeLink: React.CSSProperties = {
   textDecoration: "underline",
   textUnderlineOffset: "2px",
   whiteSpace: "nowrap",
-}
-
-const btnGhost: React.CSSProperties = {
-  backgroundColor: "transparent",
-  border: "1px solid #333333",
-  borderRadius: "4px",
-  color: "#888888",
-  cursor: "pointer",
-  fontSize: "0.8rem",
-  padding: "7px 14px",
-  width: "100%",
 }
 

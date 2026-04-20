@@ -1,11 +1,14 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import { redirect } from "next/navigation"
+import React from "react"
 import { clerkClient } from "@/lib/clerk"
 import { getProject } from "@/lib/projects"
 import { isAdminEmail } from "@/lib/auth"
 import { VALID_DURATIONS_MS } from "@/lib/durations"
 import { checkSameOrigin } from "@/lib/csrf"
+import { sendEmail } from "@/lib/email"
+import GrantConfirmationEmail, { subject as confirmationSubject } from "@/emails/grant-confirmation"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -49,20 +52,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unknown project" }, { status: 400 })
   }
 
+  let targetEmail: string | undefined
+  let targetName: string | undefined
+  const expiresAt = Date.now() + durationMs
+
   try {
     const targetUser = await clerkClient.users.getUser(targetUserId)
+    targetEmail = targetUser.primaryEmailAddress?.emailAddress
+    targetName =
+      [targetUser.firstName, targetUser.lastName].filter(Boolean).join(" ") ||
+      targetEmail?.split("@")[0] ||
+      "there"
+
     const currentGrants =
       (targetUser.publicMetadata?.projects as ProjectGrant[] | undefined) ?? []
 
-    // Set expiry from now, regardless of current state (extend or re-grant)
-    const updatedGrant: ProjectGrant = {
-      slug: projectSlug,
-      expiresAt: Date.now() + durationMs,
-    }
-
-    const updated = [
+    const updated: ProjectGrant[] = [
       ...currentGrants.filter((g) => g.slug !== projectSlug),
-      updatedGrant,
+      { slug: projectSlug, expiresAt },
     ]
 
     await clerkClient.users.updateUserMetadata(targetUserId, {
@@ -70,6 +77,28 @@ export async function POST(request: Request) {
     })
   } catch {
     redirect("/portal/admin?error=extend_failed")
+  }
+
+  // Background notification — best effort, never blocks the redirect
+  if (targetEmail) {
+    const project = getProject(projectSlug)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://heuristicalabs.com"
+    if (project) {
+      try {
+        await sendEmail({
+          to: targetEmail,
+          subject: confirmationSubject(project.name),
+          react: React.createElement(GrantConfirmationEmail, {
+            userName: targetName ?? "there",
+            projectName: project.name,
+            expiresAt,
+            projectUrl: `${appUrl}/portal/projects/${projectSlug}`,
+          }),
+        })
+      } catch (err) {
+        console.error("[extend] notification email failed", { projectSlug, targetEmail, err })
+      }
+    }
   }
 
   console.info("[admin]", {
