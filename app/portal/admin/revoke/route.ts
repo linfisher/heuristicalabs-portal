@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { clerkClient } from "@/lib/clerk"
 import { deleteGrantGroup } from "@/lib/tokens"
 import { isAdminEmail } from "@/lib/auth"
+import { checkSameOrigin } from "@/lib/csrf"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = 'force-dynamic'
@@ -22,9 +23,7 @@ export async function POST(request: Request) {
   }
 
   // CSRF: verify request originates from our app
-  const origin = request.headers.get("origin")
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!origin || !appUrl || origin.replace(/\/$/, "") !== appUrl.replace(/\/$/, "")) {
+  if (!checkSameOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 

@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import { clerkClient } from "@/lib/clerk"
 import { sendEmail } from "@/lib/email"
+import { checkSameOrigin } from "@/lib/csrf"
 import SupportRequestEmail from "@/emails/support-request"
 
 export const dynamic = "force-dynamic"
@@ -25,9 +26,7 @@ export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const origin = request.headers.get("origin")
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!origin || !appUrl || origin.replace(/\/$/, "") !== appUrl.replace(/\/$/, "")) {
+  if (!checkSameOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 

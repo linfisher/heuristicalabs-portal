@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/email"
 import { getProject } from "@/lib/projects"
 import { isAdminEmail } from "@/lib/auth"
 import { DURATIONS, TOKEN_LINK_TTL_MS } from "@/lib/durations"
+import { checkSameOrigin } from "@/lib/csrf"
 import GrantInviteEmail, { subject } from "@/emails/grant-invite"
 import React from "react"
 
@@ -27,11 +28,11 @@ export async function POST(request: Request) {
   }
 
   // CSRF: verify request originates from our app
-  const origin = request.headers.get("origin")
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!origin || !appUrl || origin.replace(/\/$/, "") !== appUrl.replace(/\/$/, "")) {
+  if (!checkSameOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
 
   // Parse form data
   let formData: FormData

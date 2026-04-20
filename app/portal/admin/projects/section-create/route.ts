@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
 import { addSection } from "@/lib/registry"
+import { checkSameOrigin } from "@/lib/csrf"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -15,9 +16,7 @@ export async function POST(request: Request) {
   if (!isAdminEmail(user.primaryEmailAddress?.emailAddress)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
-  const origin = request.headers.get("origin")
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!origin || !appUrl || origin.replace(/\/$/, "") !== appUrl.replace(/\/$/, "")) {
+  if (!checkSameOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
   let body: Record<string, unknown>

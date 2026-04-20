@@ -5,6 +5,7 @@ import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
 import { addPage, slugify, getProjectBySlug } from "@/lib/registry"
 import { detectEmbed } from "@/lib/url-embed"
+import { checkSameOrigin } from "@/lib/csrf"
 import type { ProjectPage } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -19,9 +20,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const origin = request.headers.get("origin")
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!origin || !appUrl || origin.replace(/\/$/, "") !== appUrl.replace(/\/$/, "")) {
+  if (!checkSameOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 

@@ -6,6 +6,7 @@ import { getProject } from "@/lib/projects"
 import { deleteGrantGroup } from "@/lib/tokens"
 import { isAdminEmail } from "@/lib/auth"
 import { VALID_DURATIONS_MS } from "@/lib/durations"
+import { checkSameOrigin } from "@/lib/csrf"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -22,9 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const origin = request.headers.get("origin")
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!origin || !appUrl || origin.replace(/\/$/, "") !== appUrl.replace(/\/$/, "")) {
+  if (!checkSameOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
