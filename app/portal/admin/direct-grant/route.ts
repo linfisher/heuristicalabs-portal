@@ -19,25 +19,12 @@ export async function POST(request: Request) {
   }
 
   const adminUser = await clerkClient.users.getUser(userId)
-  const adminEmail = adminUser.primaryEmailAddress?.emailAddress
-  if (!isAdminEmail(adminEmail)) {
-    console.warn("[direct-grant] admin check failed", {
-      userId,
-      email: adminEmail,
-      ADMIN_EMAIL: process.env.ADMIN_EMAIL,
-    })
-    return NextResponse.json({ error: "Forbidden: not admin" }, { status: 403 })
+  if (!isAdminEmail(adminUser.primaryEmailAddress?.emailAddress)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   if (!checkSameOrigin(request)) {
-    console.warn("[direct-grant] csrf check failed", {
-      origin: request.headers.get("origin"),
-      referer: request.headers.get("referer"),
-      host: request.headers.get("host"),
-      xForwardedHost: request.headers.get("x-forwarded-host"),
-      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-    })
-    return NextResponse.json({ error: "Forbidden: csrf" }, { status: 403 })
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   let formData: FormData
