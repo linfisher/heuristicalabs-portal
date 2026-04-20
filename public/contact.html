@@ -330,6 +330,14 @@
           <textarea id="message" name="message" placeholder="Tell us about your business, your interest, and how we may help..." required></textarea>
         </div>
 
+        <!-- Honeypot: real users never fill a hidden field -->
+        <div style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden" aria-hidden="true">
+          <label for="website">Website (leave blank)</label>
+          <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <p class="form-error" id="form-error" role="alert" aria-live="polite" style="display:none;color:#ef4444;font-size:13px;margin-top:16px;text-align:center;"></p>
+
         <button type="submit" class="submit-btn" id="submit-btn">
           <span id="submit-label">Send Message</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -433,37 +441,64 @@
       ndaBtn.addEventListener('click', () => applyMode('nda', { prefillIfEmpty: true }));
       contactBtn.addEventListener('click', () => applyMode('contact'));
 
-      // Submit: opens mailto with a structured body
-      $('contact-form').addEventListener('submit', function (e) {
+      // Submit: POST to /api/contact — backend sends via Resend to admin
+      const submitBtn = $('submit-btn');
+      const errBox = $('form-error');
+
+      function showError(msg) {
+        errBox.textContent = msg;
+        errBox.style.display = 'block';
+      }
+      function clearError() {
+        errBox.textContent = '';
+        errBox.style.display = 'none';
+      }
+
+      $('contact-form').addEventListener('submit', async function (e) {
         e.preventDefault();
+        clearError();
 
-        const isNda   = ndaBtn.getAttribute('aria-pressed') === 'true';
-        const proj    = projectSel.value.trim();
-        const name    = $('name').value.trim();
-        const company = $('company').value.trim();
-        const email   = $('email').value.trim();
-        const message = messageEl.value.trim();
+        if (submitBtn.disabled) return;
+        submitBtn.disabled = true;
+        const origLabel = submitLbl.textContent;
+        submitLbl.textContent = 'Sending…';
 
-        const subject = isNda
-          ? "NDA Request — " + (proj || 'Heuristica Labs')
-          : "Inquiry — " + (proj || 'Heuristica Labs');
+        const payload = {
+          mode:    ndaBtn.getAttribute('aria-pressed') === 'true' ? 'nda' : 'contact',
+          project: projectSel.value.trim(),
+          name:    $('name').value.trim(),
+          company: $('company').value.trim(),
+          email:   $('email').value.trim(),
+          message: messageEl.value.trim(),
+          website: $('website').value, // honeypot
+        };
 
-        const lines = [
-          "Project: " + (proj || '(not specified)'),
-          "Name: " + name,
-          company ? "Company: " + company : null,
-          "Email: " + email,
-          "Mode: " + (isNda ? 'NDA Request' : 'General inquiry'),
-          "",
-          message
-        ].filter(function (l) { return l !== null; });
+        try {
+          const res = await fetch('/api/contact', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
 
-        window.location.href =
-          "mailto:hello@heuristicalabs.com?subject=" +
-          encodeURIComponent(subject) + "&body=" + encodeURIComponent(lines.join("\n"));
+          if (res.ok) {
+            $('contact-form').style.display = 'none';
+            $('success').classList.add('visible');
+            return;
+          }
 
-        $('contact-form').style.display = 'none';
-        $('success').classList.add('visible');
+          let msg = "Something went wrong. Please try again.";
+          try {
+            const data = await res.json();
+            if (data && typeof data.error === 'string') msg = data.error;
+          } catch {}
+          if (res.status === 429) msg = "You've sent a few already — please try again in an hour.";
+          showError(msg);
+        } catch (err) {
+          showError("Network error. Please check your connection and retry.");
+        } finally {
+          submitBtn.disabled = false;
+          submitLbl.textContent = origLabel;
+        }
       });
 
       // Swipe left = back

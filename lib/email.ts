@@ -5,10 +5,12 @@ export async function sendEmail({
   to,
   subject,
   react,
+  replyTo,
 }: {
   to: string
   subject: string
   react: ReactElement
+  replyTo?: string
 }) {
   if (!to || !to.includes("@") || !to.includes(".")) {
     throw new Error(`Invalid recipient email address: ${to}`)
@@ -25,6 +27,7 @@ export async function sendEmail({
     to,
     subject,
     react,
+    ...(replyTo ? { reply_to: replyTo } : {}),
   })
 
   if (error) {
