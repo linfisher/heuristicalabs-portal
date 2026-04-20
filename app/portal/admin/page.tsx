@@ -181,9 +181,11 @@ export default async function AdminPage({
                   {/* Current Access */}
                   <td style={{ ...td, minWidth: "280px" }}>
                     {grants.length === 0 ? (
-                      <span style={{ color: "#444444", fontSize: "0.8rem" }}>None</span>
+                      <span style={{ color: "#444444", fontSize: "0.8rem", fontStyle: "italic" }}>
+                        No access yet
+                      </span>
                     ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                         {grants.map((grant) => {
                           const status = grantStatus(grant, now)
                           const colors = STATUS_COLORS[status]
@@ -192,50 +194,45 @@ export default async function AdminPage({
                           const expiry = formatExpiry(grant.expiresAt)
 
                           return (
-                            <div key={grant.slug}>
-                              {/* Status badge + days */}
-                              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                                <span
-                                  style={{
-                                    backgroundColor: colors.bg,
-                                    border: `1px solid ${colors.border}`,
-                                    color: colors.text,
-                                    borderRadius: "4px",
-                                    padding: "2px 8px",
-                                    fontSize: "0.75rem",
-                                    fontWeight: 600,
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {projectName}
-                                </span>
-                                <span style={{ color: colors.text, fontSize: "0.75rem" }}>
-                                  {status === "expired"
-                                    ? `Expired ${expiry}`
-                                    : `${days}d left — ${expiry}`}
-                                </span>
-                              </div>
-
-                              {/* Extend + Revoke controls */}
-                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <form action="/portal/admin/extend" method="POST" style={{ display: "flex", gap: "6px" }}>
-                                  <input type="hidden" name="userId" value={user.id} />
-                                  <input type="hidden" name="projectSlug" value={grant.slug} />
-                                  <select name="durationMs" style={selectStyle}>
-                                    {DURATIONS.map((d) => (
-                                      <option key={d.ms} value={d.ms}>{d.label}</option>
-                                    ))}
-                                  </select>
-                                  <button type="submit" style={btnSecondary}>
-                                    {status === "expired" ? "Restore" : "Extend"}
-                                  </button>
-                                </form>
-                                <form action="/portal/admin/revoke" method="POST">
-                                  <input type="hidden" name="userId" value={user.id} />
-                                  <input type="hidden" name="projectSlug" value={grant.slug} />
-                                  <button type="submit" style={btnDanger}>Revoke</button>
-                                </form>
-                              </div>
+                            <div
+                              key={grant.slug}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  backgroundColor: colors.bg,
+                                  border: `1px solid ${colors.border}`,
+                                  color: colors.text,
+                                  borderRadius: "4px",
+                                  padding: "2px 8px",
+                                  fontSize: "0.75rem",
+                                  fontWeight: 600,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {projectName}
+                              </span>
+                              <span style={{ color: colors.text, fontSize: "0.75rem", whiteSpace: "nowrap" }}>
+                                {status === "expired"
+                                  ? `Expired ${expiry}`
+                                  : `${days}d · ${expiry}`}
+                              </span>
+                              <form
+                                action="/portal/admin/revoke"
+                                method="POST"
+                                style={{ marginLeft: "auto" }}
+                              >
+                                <input type="hidden" name="userId" value={user.id} />
+                                <input type="hidden" name="projectSlug" value={grant.slug} />
+                                <button type="submit" style={btnRevokeLink} title="Revoke access">
+                                  Revoke
+                                </button>
+                              </form>
                             </div>
                           )
                         })}
@@ -408,14 +405,15 @@ const btnPrimary: React.CSSProperties = {
   width: "100%",
 }
 
-const btnSecondary: React.CSSProperties = {
-  backgroundColor: "#1a1a1a",
-  border: "1px solid #333333",
-  borderRadius: "4px",
-  color: "#aaaaaa",
+const btnRevokeLink: React.CSSProperties = {
+  backgroundColor: "transparent",
+  border: "none",
+  color: "#888888",
   cursor: "pointer",
-  fontSize: "0.75rem",
-  padding: "4px 10px",
+  fontSize: "0.7rem",
+  padding: "2px 4px",
+  textDecoration: "underline",
+  textUnderlineOffset: "2px",
   whiteSpace: "nowrap",
 }
 
@@ -430,13 +428,3 @@ const btnGhost: React.CSSProperties = {
   width: "100%",
 }
 
-const btnDanger: React.CSSProperties = {
-  backgroundColor: "transparent",
-  border: "1px solid #3d1515",
-  borderRadius: "4px",
-  color: "#ef4444",
-  cursor: "pointer",
-  fontSize: "0.75rem",
-  padding: "4px 10px",
-  whiteSpace: "nowrap",
-}
