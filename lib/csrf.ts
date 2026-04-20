@@ -13,17 +13,29 @@
 export function checkSameOrigin(request: Request): boolean {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
   if (!appUrl) return false
-  const expected = appUrl.replace(/\/$/, "")
+
+  const allowed = new Set<string>()
+  try {
+    const base = new URL(appUrl)
+    allowed.add(base.origin)
+    if (base.hostname.startsWith("www.")) {
+      allowed.add(`${base.protocol}//${base.hostname.slice(4)}`)
+    } else {
+      allowed.add(`${base.protocol}//www.${base.hostname}`)
+    }
+  } catch {
+    return false
+  }
 
   const origin = request.headers.get("origin")
   if (origin) {
-    return origin.replace(/\/$/, "") === expected
+    return allowed.has(origin.replace(/\/$/, ""))
   }
 
   const referer = request.headers.get("referer")
   if (referer) {
     try {
-      return new URL(referer).origin === expected
+      return allowed.has(new URL(referer).origin)
     } catch {
       return false
     }

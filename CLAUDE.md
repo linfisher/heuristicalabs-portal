@@ -84,7 +84,7 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 
 ## Deploy
 - **Primary production URL**: `https://heuristicalabs.com` (VPS PM2, port 3001; nginx reverse-proxies from apex). `www.heuristicalabs.com` also serves here.
-- **Old subdomain**: `https://portal.heuristicalabs.com/*` 301-redirects to `https://heuristicalabs.com/*`. Kept for ~24h as safety net; will be removed.
+- **Old subdomain**: `portal.heuristicalabs.com` fully retired Apr 19 2026 — nginx config, SSL cert, and redirect all removed. DNS A record in GoDaddy should be deleted by user.
 - **Vercel (secondary)**: `https://heuristicalabs-portal.vercel.app` — kept as a preview deploy.
 - **VPS deploy**: `ssh heuristica-vps "cd /var/www/portal && git pull && npm ci --prefer-offline && npm run build && pm2 restart portal --update-env && pm2 status"`
 - **Vercel deploy**: use Vercel MCP. When editing env vars via CLI, use `printf` (not `echo`) to avoid trailing `\n` in values.
