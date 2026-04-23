@@ -40,6 +40,9 @@ jobs:
           VPS_PORT: ${{ secrets.VPS_PORT }}
         run: |
           set -euo pipefail
+          # Trim any whitespace/newlines accidentally pasted into secrets
+          VPS_HOST="$(printf '%s' "$VPS_HOST" | tr -d '[:space:]')"
+          VPS_PORT="$(printf '%s' "${VPS_PORT:-}" | tr -d '[:space:]')"
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
@@ -62,6 +65,12 @@ jobs:
           PM2_APP_NAME: ${{ secrets.PM2_APP_NAME }}
         run: |
           set -euo pipefail
+          # Trim any whitespace/newlines accidentally pasted into secrets
+          VPS_HOST="$(printf '%s' "$VPS_HOST" | tr -d '[:space:]')"
+          VPS_USER="$(printf '%s' "$VPS_USER" | tr -d '[:space:]')"
+          VPS_PORT="$(printf '%s' "${VPS_PORT:-}" | tr -d '[:space:]')"
+          VPS_APP_PATH="$(printf '%s' "${VPS_APP_PATH:-}" | tr -d '[:space:]')"
+          PM2_APP_NAME="$(printf '%s' "${PM2_APP_NAME:-}" | tr -d '[:space:]')"
           port="${VPS_PORT:-22}"
           app_path="${VPS_APP_PATH:-/var/www/portal}"
           pm2_name="${PM2_APP_NAME:-portal}"
