@@ -1,0 +1,112 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy to VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check required secrets
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          missing=()
+          [ -z "$VPS_HOST" ] && missing+=("VPS_HOST")
+          [ -z "$VPS_USER" ] && missing+=("VPS_USER")
+          [ -z "$VPS_SSH_KEY" ] && missing+=("VPS_SSH_KEY")
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Missing required GitHub Secrets: ${missing[*]}"
+            echo "See DEPLOY_SETUP.md in the repo for setup instructions."
+            exit 1
+          fi
+          echo "All required secrets are present."
+
+      - name: Set up SSH key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          port="${VPS_PORT:-22}"
+          echo "Scanning host key for $VPS_HOST on port $port..."
+          ssh-keyscan -p "$port" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "::error::ssh-keyscan returned no host key. Check VPS_HOST and that SSH is reachable on port $port."
+            exit 1
+          fi
+          echo "SSH key and known_hosts configured."
+
+      - name: Deploy over SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_APP_PATH: ${{ secrets.VPS_APP_PATH }}
+          PM2_APP_NAME: ${{ secrets.PM2_APP_NAME }}
+        run: |
+          set -euo pipefail
+          port="${VPS_PORT:-22}"
+          app_path="${VPS_APP_PATH:-/var/www/portal}"
+          pm2_name="${PM2_APP_NAME:-portal}"
+          commit="${GITHUB_SHA:-HEAD}"
+
+          echo "Deploying commit $commit to $VPS_USER@$VPS_HOST:$app_path"
+          echo "PM2 process: $pm2_name"
+
+          ssh -i ~/.ssh/deploy_key \
+              -p "$port" \
+              -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=6 \
+              "$VPS_USER@$VPS_HOST" \
+              "APP_PATH='$app_path' PM2_NAME='$pm2_name' TARGET_COMMIT='$commit' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          echo "--- VPS deploy started at $(date -u +%FT%TZ) ---"
+          cd "$APP_PATH"
+
+          echo "--- git fetch + reset to origin/main ---"
+          git fetch --prune origin main
+          git reset --hard origin/main
+          echo "HEAD is now: $(git rev-parse HEAD)"
+
+          echo "--- npm ci ---"
+          npm ci --prefer-offline --no-audit --no-fund
+
+          echo "--- next build ---"
+          npm run build
+
+          echo "--- pm2 restart $PM2_NAME ---"
+          if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
+            pm2 restart "$PM2_NAME" --update-env
+          else
+            echo "::error::PM2 process '$PM2_NAME' not found. Run the one-time setup in DEPLOY_SETUP.md."
+            exit 1
+          fi
+
+          echo "--- pm2 status ---"
+          pm2 status "$PM2_NAME"
+
+          echo "--- deploy finished OK at $(date -u +%FT%TZ) ---"
+          REMOTE
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
