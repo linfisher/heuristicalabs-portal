@@ -235,6 +235,26 @@ export async function restoreProject(slug: string): Promise<void> {
   })
 }
 
+// Move an active project one slot up (-1) or down (+1) in the display list.
+// Swap happens in-place within the underlying projects[] array; archived
+// projects keep their existing positions.
+export async function moveProject(slug: string, direction: -1 | 1): Promise<void> {
+  await mutate((r) => {
+    const activeIndexes = r.projects
+      .map((p, i) => (p.status === "active" ? i : -1))
+      .filter((i) => i >= 0)
+    const slot = activeIndexes.findIndex((i) => r.projects[i]!.slug === slug)
+    if (slot < 0) throw new Error("Project not found")
+    const swapSlot = slot + direction
+    if (swapSlot < 0 || swapSlot >= activeIndexes.length) return
+    const a = activeIndexes[slot]!
+    const b = activeIndexes[swapSlot]!
+    const tmp = r.projects[a]!
+    r.projects[a] = r.projects[b]!
+    r.projects[b] = tmp
+  })
+}
+
 export async function deleteProject(slug: string): Promise<void> {
   await mutate((r) => {
     r.projects = r.projects.filter((p) => p.slug !== slug)

@@ -66,6 +66,17 @@ export function AdminProjectsPanel({
     }
   }
 
+  async function handleMove(slug: string, direction: -1 | 1) {
+    setBusy(slug)
+    const res = await fetch("/portal/admin/projects/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, direction }),
+    })
+    setBusy(null)
+    if (res.ok) router.refresh()
+  }
+
   async function runConfirmed() {
     if (!confirm) return
     const path =
@@ -148,6 +159,26 @@ export function AdminProjectsPanel({
               </div>
               {renaming !== p.slug && (
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: "2px" }}>
+                    <button
+                      disabled={busy === p.slug || i === 0}
+                      onClick={() => handleMove(p.slug, -1)}
+                      style={btnArrow(i === 0)}
+                      title="Move up"
+                      aria-label={`Move ${p.name} up`}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      disabled={busy === p.slug || i === active.length - 1}
+                      onClick={() => handleMove(p.slug, 1)}
+                      style={btnArrow(i === active.length - 1)}
+                      title="Move down"
+                      aria-label={`Move ${p.name} down`}
+                    >
+                      ↓
+                    </button>
+                  </div>
                   <button
                     disabled={busy === p.slug}
                     onClick={() => { setRenaming(p.slug); setRenameValue(p.name) }}
@@ -347,6 +378,20 @@ const btnPrimaryInline: React.CSSProperties = {
   fontSize: "0.8rem",
   fontWeight: 600,
   padding: "7px 16px",
+}
+
+function btnArrow(disabled: boolean): React.CSSProperties {
+  return {
+    backgroundColor: "transparent",
+    border: "1px solid #333333",
+    borderRadius: "4px",
+    color: disabled ? "#333333" : "#aaaaaa",
+    cursor: disabled ? "default" : "pointer",
+    fontSize: "0.85rem",
+    lineHeight: 1,
+    padding: "3px 8px",
+    opacity: disabled ? 0.4 : 1,
+  }
 }
 
 const btnGhostSmall: React.CSSProperties = {

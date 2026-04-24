@@ -7,6 +7,7 @@ import {
   archiveProject as archiveProjectImpl,
   restoreProject as restoreProjectImpl,
   deleteProject as deleteProjectImpl,
+  moveProject as moveProjectImpl,
   getActiveProjects as getActiveStored,
   getArchivedProjects as getArchivedStored,
 } from "./registry"
@@ -43,4 +44,8 @@ export async function restoreProject(slug: string): Promise<void> {
 
 export async function deleteProject(slug: string): Promise<void> {
   await deleteProjectImpl(slug)
+}
+
+export async function moveProject(slug: string, direction: -1 | 1): Promise<void> {
+  await moveProjectImpl(slug, direction)
 }
