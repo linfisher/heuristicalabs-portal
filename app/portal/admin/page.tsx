@@ -148,37 +148,56 @@ export default async function AdminPage({
         {/* Projects management */}
         <AdminProjectsPanel active={activeProjects} archived={archivedProjects} />
 
-        {/* Users table */}
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid #2a2a2a" }}>
-              <th style={th}>User</th>
-              <th style={th}>Current Access</th>
-              <th style={th}>Grant Access</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => {
-              const email = user.primaryEmailAddress?.emailAddress ?? "(no email)"
-              const name =
-                [user.firstName, user.lastName].filter(Boolean).join(" ") || email
-              const grants = readGrants(user)
-              const hasAnyLiveGrant = grants.some((g) => g.expiresAt > now)
+        {/* Inject a tiny style block so native <details> plays nicely in our dark theme */}
+        <style>{`
+          .user-row { border: 1px solid #1f1f1f; border-radius: 8px; background: #0d0d0d; }
+          .user-row + .user-row { margin-top: 6px; }
+          .user-row > summary { list-style: none; cursor: pointer; padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
+          .user-row > summary::-webkit-details-marker { display: none; }
+          .user-row > summary .chev { display: inline-block; color: #666; font-size: 0.75rem; transition: transform 0.15s ease; width: 12px; text-align: center; }
+          .user-row[open] > summary .chev { transform: rotate(90deg); }
+          .user-row > summary:hover .chev { color: #aaa; }
+        `}</style>
 
-              return (
-                <tr key={user.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+        {/* Users list — each user is a collapsible row.
+            Sort: users with live grants first, then alphabetically by first name.
+            Users with no live grants (revoked / none) sink to the bottom. */}
+        <div>
+          {[...users].sort((a, b) => {
+            const aLive = readGrants(a).some((g) => g.expiresAt > now)
+            const bLive = readGrants(b).some((g) => g.expiresAt > now)
+            if (aLive !== bLive) return aLive ? -1 : 1
+            const aKey = (a.firstName || a.primaryEmailAddress?.emailAddress || "").toLowerCase()
+            const bKey = (b.firstName || b.primaryEmailAddress?.emailAddress || "").toLowerCase()
+            return aKey.localeCompare(bKey)
+          }).map((user) => {
+            const email = user.primaryEmailAddress?.emailAddress ?? "(no email)"
+            const name =
+              [user.firstName, user.lastName].filter(Boolean).join(" ") || email
+            const grants = readGrants(user)
+            const liveGrants = grants.filter((g) => g.expiresAt > now)
+            const hasAnyLiveGrant = liveGrants.length > 0
 
-                  {/* User info */}
-                  <td style={{ ...td, minWidth: "180px" }}>
-                    <div style={{ color: "#ffffff", fontWeight: 600, fontSize: "0.875rem" }}>{name}</div>
-                    <div style={{ color: "#555555", marginTop: "3px", fontSize: "0.75rem" }}>{email}</div>
-                    {!hasAnyLiveGrant && grants.length === 0 && (
-                      <div style={{ color: "#444444", marginTop: "6px", fontSize: "0.7rem" }}>No grants</div>
-                    )}
-                  </td>
+            return (
+              <details key={user.id} className="user-row" open={hasAnyLiveGrant}>
+                <summary>
+                  <span className="chev">▸</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: "#ffffff", fontWeight: 600, fontSize: "0.9rem" }}>{name}</div>
+                    <div style={{ color: "#555555", marginTop: "2px", fontSize: "0.72rem" }}>{email}</div>
+                  </div>
+                  <div style={{ color: hasAnyLiveGrant ? "#22c55e" : "#555555", fontSize: "0.72rem", whiteSpace: "nowrap" }}>
+                    {hasAnyLiveGrant
+                      ? `${liveGrants.length} active grant${liveGrants.length !== 1 ? "s" : ""}`
+                      : "no access"}
+                  </div>
+                </summary>
+
+                <div style={{ display: "flex", gap: "20px", padding: "4px 18px 18px", flexWrap: "wrap" }}>
 
                   {/* Current Access */}
-                  <td style={{ ...td, minWidth: "280px" }}>
+                  <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                    <div style={colHeader}>Current Access</div>
                     {grants.length === 0 ? (
                       <span style={{ color: "#444444", fontSize: "0.8rem", fontStyle: "italic" }}>
                         No access yet
@@ -267,10 +286,11 @@ export default async function AdminPage({
                         })}
                       </div>
                     )}
-                  </td>
+                  </div>
 
-                  {/* Direct Grant */}
-                  <td style={{ ...td, minWidth: "220px" }}>
+                  {/* Grant Access */}
+                  <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+                    <div style={colHeader}>Grant Access</div>
                     <form
                       action="/portal/admin/direct-grant"
                       method="POST"
@@ -287,16 +307,25 @@ export default async function AdminPage({
                         Grant Now
                       </button>
                     </form>
-                  </td>
+                  </div>
 
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                </div>
+              </details>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
+}
+
+const colHeader: React.CSSProperties = {
+  color: "#666666",
+  fontSize: "0.65rem",
+  fontWeight: 700,
+  letterSpacing: "0.1em",
+  textTransform: "uppercase",
+  marginBottom: "8px",
 }
 
 function FlashMessage({
@@ -335,7 +364,7 @@ function ProjectCheckboxList({ projects, name }: { projects: { slug: string; nam
         border: "1px solid #2a2a2a",
         borderRadius: "4px",
         padding: "6px 8px",
-        maxHeight: "120px",
+        maxHeight: "220px",
         overflowY: "auto",
         display: "flex",
         flexDirection: "column",
@@ -381,21 +410,6 @@ function StatCard({ label, value, color }: { label: string; value: number; color
       </div>
     </div>
   )
-}
-
-const th: React.CSSProperties = {
-  textAlign: "left",
-  color: "#555555",
-  fontWeight: 600,
-  padding: "10px 16px",
-  fontSize: "0.7rem",
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-}
-
-const td: React.CSSProperties = {
-  padding: "20px 16px",
-  verticalAlign: "top",
 }
 
 const selectStyle: React.CSSProperties = {
