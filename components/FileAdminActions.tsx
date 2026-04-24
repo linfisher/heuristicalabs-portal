@@ -19,6 +19,7 @@ export default function FileAdminActions({ slug, pagePath, title, sections = [],
   const [renaming, setRenaming] = useState(false)
   const [newTitle, setNewTitle] = useState(title)
   const [busy, setBusy] = useState(false)
+  const [renameError, setRenameError] = useState<string | null>(null)
 
   async function assignSection(section: string | null, e?: React.SyntheticEvent) {
     if (e) { e.preventDefault(); e.stopPropagation() }
@@ -61,10 +62,26 @@ export default function FileAdminActions({ slug, pagePath, title, sections = [],
       return
     }
     setBusy(true)
-    await post("/portal/admin/projects/page-rename", { slug, pagePath, title: newTitle.trim() })
-    setBusy(false)
-    setRenaming(false)
-    router.refresh()
+    setRenameError(null)
+    try {
+      const res = await post("/portal/admin/projects/page-rename", { slug, pagePath, title: newTitle.trim() })
+      if (!res.ok) {
+        let msg = `Server returned ${res.status}`
+        try {
+          const data = (await res.json()) as { error?: string }
+          if (data.error) msg = data.error
+        } catch {}
+        setRenameError(msg)
+        setBusy(false)
+        return
+      }
+      setBusy(false)
+      setRenaming(false)
+      router.refresh()
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : "Network error")
+      setBusy(false)
+    }
   }
 
   function stopProp(e: React.MouseEvent) {
@@ -144,17 +161,22 @@ export default function FileAdminActions({ slug, pagePath, title, sections = [],
       )}
 
       {renaming && (
-        <Modal onClose={() => setRenaming(false)}>
+        <Modal onClose={() => { setRenaming(false); setRenameError(null) }}>
           <h3 style={modalTitle}>Rename file</h3>
           <form onSubmit={doRename} onClick={stopProp}>
             <input
               autoFocus
               value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
+              onChange={(e) => { setNewTitle(e.target.value); setRenameError(null) }}
               style={modalInputStyle}
             />
+            {renameError && (
+              <p style={{ color: "#ef4444", fontSize: "0.8rem", margin: "10px 0 0" }}>
+                {renameError}
+              </p>
+            )}
             <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "20px" }}>
-              <button type="button" onClick={() => setRenaming(false)} style={btnGhost}>Cancel</button>
+              <button type="button" onClick={() => { setRenaming(false); setRenameError(null) }} style={btnGhost}>Cancel</button>
               <button type="submit" disabled={busy || !newTitle.trim()} style={btnPrimary}>
                 {busy ? "Saving…" : "Save"}
               </button>

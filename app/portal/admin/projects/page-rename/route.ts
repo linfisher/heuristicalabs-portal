@@ -40,9 +40,11 @@ export async function POST(request: Request) {
   try {
     await renamePage(slug, pagePath, title)
     revalidatePath(`/portal/projects/${slug}`)
+    console.info("[page-rename] ok", { slug, pagePath, title })
     return NextResponse.json({ ok: true })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Rename failed"
+    console.warn("[page-rename] failed", { slug, pagePath, title, message })
     return NextResponse.json({ error: message }, { status: 400 })
   }
 }
