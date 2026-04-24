@@ -12,14 +12,27 @@ interface Props {
   slug: string
   name: string
   status: "active" | "archived"
+  canMoveUp?: boolean
+  canMoveDown?: boolean
 }
 
-export default function ProjectAdminActions({ slug, name, status }: Props) {
+export default function ProjectAdminActions({ slug, name, status, canMoveUp, canMoveDown }: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(name)
   const [confirm, setConfirm] = useState<Intent | null>(null)
+
+  async function handleMove(direction: -1 | 1) {
+    setBusy(true)
+    const res = await fetch("/portal/admin/projects/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, direction }),
+    })
+    setBusy(false)
+    if (res.ok) router.refresh()
+  }
 
   async function post(path: string, body: Record<string, string>) {
     return fetch(path, {
@@ -87,6 +100,28 @@ export default function ProjectAdminActions({ slug, name, status }: Props) {
           </>
         ) : (
           <>
+            {status === "active" && (canMoveUp !== undefined || canMoveDown !== undefined) && (
+              <div style={{ display: "flex", gap: "2px" }}>
+                <button
+                  disabled={busy || !canMoveUp}
+                  onClick={() => handleMove(-1)}
+                  style={btnArrow(!canMoveUp)}
+                  title="Move up in the project order"
+                  aria-label={`Move ${name} up`}
+                >
+                  ↑
+                </button>
+                <button
+                  disabled={busy || !canMoveDown}
+                  onClick={() => handleMove(1)}
+                  style={btnArrow(!canMoveDown)}
+                  title="Move down in the project order"
+                  aria-label={`Move ${name} down`}
+                >
+                  ↓
+                </button>
+              </div>
+            )}
             <button disabled={busy} onClick={() => { setRenameValue(name); setRenaming(true) }} style={btnGhost}>
               Rename
             </button>
@@ -195,6 +230,20 @@ const renameInputStyle: React.CSSProperties = {
   padding: "6px 10px",
   fontSize: "0.85rem",
   outline: "none",
+}
+
+function btnArrow(disabled: boolean): React.CSSProperties {
+  return {
+    background: "transparent",
+    border: "1px solid #333",
+    borderRadius: "4px",
+    color: disabled ? "#333" : "#aaa",
+    cursor: disabled ? "default" : "pointer",
+    fontSize: "0.8rem",
+    padding: "3px 8px",
+    lineHeight: 1,
+    opacity: disabled ? 0.4 : 1,
+  }
 }
 
 const btnGhost: React.CSSProperties = {

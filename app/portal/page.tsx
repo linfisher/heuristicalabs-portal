@@ -56,7 +56,7 @@ export default async function PortalPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {active.map((project) => (
+            {active.map((project, idx) => (
               <div
                 key={project.slug}
                 style={{ background: "#111", border: "1px solid #222" }}
@@ -74,7 +74,13 @@ export default async function PortalPage() {
                   </p>
                 </div>
 
-                <ProjectAdminActions slug={project.slug} name={project.name} status="active" />
+                <ProjectAdminActions
+                  slug={project.slug}
+                  name={project.name}
+                  status="active"
+                  canMoveUp={idx > 0}
+                  canMoveDown={idx < active.length - 1}
+                />
 
                 <Link
                   href={`/portal/projects/${project.slug}`}
