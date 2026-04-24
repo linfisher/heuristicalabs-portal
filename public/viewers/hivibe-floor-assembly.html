@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HiVibe Floor Assembly — 4 Tiles · Rev 1</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #222222; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #e0e0e0; }
+  #info { position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.78); padding: 12px 14px; border-radius: 6px; font-size: 12px; line-height: 1.5; max-width: 340px; pointer-events: none; border-left: 2px solid #c99b3a; }
+  #info h1 { margin: 0 0 4px 0; font-size: 13px; letter-spacing: 2px; color: #c99b3a; }
+  #info .sub { font-size: 11px; opacity: 0.75; }
+  #info .small { opacity: 0.6; font-size: 10.5px; margin-top: 6px; }
+  #controls { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.78); padding: 10px 12px; border-radius: 6px; font-size: 12px; line-height: 1.85; border-left: 2px solid #c99b3a; max-width: 240px; }
+  #controls label { display: block; cursor: pointer; user-select: none; }
+  #controls input { margin-right: 6px; vertical-align: middle; }
+  #controls hr { border: none; border-top: 1px solid #333; margin: 6px 0; }
+  #legend { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.78); padding: 10px 12px; border-radius: 6px; font-size: 11px; line-height: 1.7; border-left: 2px solid #c99b3a; max-width: 240px; }
+  .sw { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: middle; border-radius: 2px; border: 1px solid rgba(255,255,255,0.1); }
+  #angleBtns { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.78); padding: 5px 6px; border-radius: 6px; display: flex; gap: 4px; flex-wrap: wrap; max-width: 400px; justify-content: flex-end; border-left: 2px solid #c99b3a; }
+  #angleBtns button { background: #1a1a1a; color: #e0e0e0; border: 1px solid #3a3a3a; padding: 4px 8px; font-size: 10px; border-radius: 3px; cursor: pointer; font-family: inherit; letter-spacing: 0.5px; transition: all 0.15s; }
+  #angleBtns button:hover { background: #2a2a2a; border-color: #c99b3a; }
+  #angleBtns button.active { background: #c99b3a; color: #000; border-color: #c99b3a; }
+  #spreadSlider { position: absolute; top: 50%; left: 12px; transform: translateY(-50%); background: rgba(0,0,0,0.78); padding: 12px 10px; border-radius: 6px; border-left: 2px solid #c99b3a; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #spreadSlider label { font-size: 10px; letter-spacing: 1px; color: #c99b3a; writing-mode: vertical-rl; }
+  #spreadSlider input { height: 180px; writing-mode: bt-lr; -webkit-appearance: slider-vertical; appearance: slider-vertical; width: 22px; }
+  #spreadVal { font-size: 10px; color: #c99b3a; letter-spacing: 1px; min-height: 14px; text-align: center; }
+  #snapIndicator { position: absolute; top: 18%; left: 80px; background: rgba(201, 155, 58, 0.15); border: 1px solid #c99b3a; padding: 8px 12px; border-radius: 4px; font-size: 11px; color: #c99b3a; letter-spacing: 1.5px; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+  #snapIndicator.on { opacity: 1; }
+  #gridBtns { position: absolute; bottom: 52px; right: 12px; background: rgba(0,0,0,0.78); padding: 5px 8px; border-radius: 6px; display: flex; gap: 5px; align-items: center; border-left: 2px solid #c99b3a; }
+  #gridBtns .label { font-size: 9px; letter-spacing: 1.5px; color: #c99b3a; padding-right: 4px; }
+  #gridBtns button { background: #1a1a1a; color: #e0e0e0; border: 1px solid #3a3a3a; padding: 3px 9px; font-size: 10px; border-radius: 3px; cursor: pointer; font-family: inherit; letter-spacing: 0.5px; transition: all 0.15s; line-height: 1.3; text-align: center; }
+  #gridBtns button .count { font-size: 11px; font-weight: bold; display: block; }
+  #gridBtns button .dim { font-size: 8px; opacity: 0.7; display: block; letter-spacing: 1px; margin-top: 1px; }
+  #gridBtns button:hover { background: #2a2a2a; border-color: #c99b3a; }
+  #gridBtns button.active { background: #c99b3a; color: #000; border-color: #c99b3a; }
+  #gridBtns button.active .dim { opacity: 0.9; }
+</style>
+</head>
+<body>
+
+<div id="info">
+  <h1>HIVIBE FLOOR · ASSEMBLY VIEWER</h1>
+  <div class="sub" id="subtitle">72" × 72" · 4× v19 Tiles · Rev 2</div>
+  <div class="small">Drag slider down to close the floor · Tiles magnetize at seating</div>
+  <div class="small" style="margin-top:4px;">Drag scene to rotate · Scroll to zoom</div>
+</div>
+
+<div id="gridBtns">
+  <span class="label">TILES</span>
+  <button data-count="4" class="active"><span class="count">4</span><span class="dim">2×2</span></button>
+  <button data-count="9"><span class="count">9</span><span class="dim">3×3</span></button>
+  <button data-count="16"><span class="count">16</span><span class="dim">4×4</span></button>
+</div>
+
+<div id="legend">
+  <div><span class="sw" style="background:#c99b3a"></span>Hub colonnade</div>
+  <div><span class="sw" style="background:#2d2d31"></span>Plenum ribs</div>
+  <div><span class="sw" style="background:#18181b"></span>Shells (x-ray)</div>
+  <div><span class="sw" style="background:#2a2a2a"></span>Transducer</div>
+  <div><span class="sw" style="background:#4a7ec5"></span>70V XFMR</div>
+  <div><span class="sw" style="background:#c9632d"></span>PCB star-route</div>
+  <div><span class="sw" style="background:#d6d6d6"></span>Pogo connectors</div>
+  <div><span class="sw" style="background:#8b4ac4"></span>MagTile magnets</div>
+  <div><span class="sw" style="background:#4a4a4a"></span>Cam-locks + hinges</div>
+  <div><span class="sw" style="background:#c44a4a"></span>Wiring bundles</div>
+  <div><span class="sw" style="background:#3a3a3a"></span>EPDM gasket</div>
+</div>
+
+<div id="controls">
+  <label><input type="checkbox" id="showTop" checked> Top shell</label>
+  <label><input type="checkbox" id="showBottom" checked> Bottom shell</label>
+  <label><input type="checkbox" id="showWiring" checked> Wiring</label>
+  <label><input type="checkbox" id="showGasket" checked> EPDM gasket</label>
+  <label><input type="checkbox" id="plugsInstalled" checked> MagTile port plugs</label>
+  <hr>
+  <label><input type="checkbox" id="xray" checked> X-ray shells</label>
+</div>
+
+<div id="spreadSlider">
+  <label>SPREAD</label>
+  <input type="range" id="spread" min="0" max="1000" value="1000">
+  <span id="spreadVal">APART</span>
+</div>
+
+<div id="snapIndicator">◆ MAGNETIZED ◆</div>
+
+<div id="angleBtns">
+  <button data-view="iso">Iso</button>
+  <button data-view="top">Top</button>
+  <button data-view="seam">Seam</button>
+  <button data-view="corner">Corner</button>
+  <button data-view="cross">Center</button>
+  <button data-view="through">Thru-Port</button>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ===== SCENE =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x222222);
+scene.fog = new THREE.Fog(0x222222, 280, 700);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 2400);
+camera.position.set(95, 75, 95);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.35;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+// ===== LIGHTING =====
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+
+const key = new THREE.DirectionalLight(0xfff1d6, 1.6);
+key.position.set(100, 140, 70); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -140, right: 140, top: 140, bottom: -140, near: 1, far: 380 });
+scene.add(key);
+
+const fill = new THREE.DirectionalLight(0x9fb8d4, 0.9);
+fill.position.set(-55, 36, -34); scene.add(fill);
+
+const rim = new THREE.DirectionalLight(0xffffff, 0.6);
+rim.position.set(0, -8, -55); scene.add(rim);
+
+const topLight = new THREE.DirectionalLight(0xffffff, 0.7);
+topLight.position.set(0, 120, 0); scene.add(topLight);
+
+const sideFill = new THREE.DirectionalLight(0xe8d8b8, 0.6);
+sideFill.position.set(80, 14, 0); scene.add(sideFill);
+
+// ===== DIMENSIONS =====
+const TILE = 36;
+const H_TOP = 2.5;
+const H_BOT = 3.5;
+const SHELL_T = 0.25;
+const HUB_R = 3;
+const TRANS_R = 2.7;
+const TRANS_H = 2.2;
+const HUB_H = (H_TOP - SHELL_T - TRANS_H) - (-H_BOT + SHELL_T);
+
+const RIB_H = (H_TOP - SHELL_T) - (-H_BOT + SHELL_T);
+const RIB_W = 0.55;
+const RIB_CENTER_Y = (H_TOP - H_BOT) / 2;
+const halfDiag = (TILE / 2) * Math.SQRT2 - 0.8;
+const cornerLen = halfDiag - HUB_R;
+const edgeLen = TILE / 2 - HUB_R - 3.5;
+
+const TOP_DECK_Y = H_TOP - SHELL_T;
+const TRANS_BOTTOM_Y = TOP_DECK_Y - TRANS_H;
+const TOP_SURFACE_Y = H_TOP - SHELL_T - 0.08;
+const BOT_SURFACE_Y = -H_BOT + SHELL_T + 0.08;
+const TOP_WALL_X = TILE / 2 - SHELL_T - 0.06;
+const BOT_WALL_X = TILE / 2 - SHELL_T - 0.06;
+const SEAM_Y = 0;
+const TOP_ANCHOR = { x: TOP_WALL_X, y: SEAM_Y + 0.08, z: -3 };
+const BOT_ANCHOR = { x: TOP_WALL_X, y: SEAM_Y - 0.08, z: -3 };
+
+// ===== MATERIALS (shared across all 4 tiles) =====
+const M = {
+  shellOuter: new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.3, roughness: 0.6, transparent: true, opacity: 0.15 }),
+  shellInner: new THREE.MeshStandardMaterial({ color: 0x1e1e21, metalness: 0.2, roughness: 0.75, transparent: true, opacity: 0.28, side: THREE.DoubleSide }),
+  hubGold: new THREE.MeshStandardMaterial({ color: 0xc99b3a, metalness: 0.85, roughness: 0.22 }),
+  brandGold: new THREE.MeshStandardMaterial({ color: 0xd4a94a, metalness: 0.9, roughness: 0.15 }),
+  ribPrimary: new THREE.MeshStandardMaterial({ color: 0x2d2d31, metalness: 0.55, roughness: 0.35 }),
+  ribSecondary: new THREE.MeshStandardMaterial({ color: 0x3a3a3f, metalness: 0.5, roughness: 0.38 }),
+  transducerBody: new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.7, roughness: 0.35 }),
+  transducerDark: new THREE.MeshStandardMaterial({ color: 0x141418, metalness: 0.6, roughness: 0.4 }),
+  xfmr: new THREE.MeshStandardMaterial({ color: 0x4a7ec5, metalness: 0.3, roughness: 0.5 }),
+  xfmrCore: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.3 }),
+  pcb: new THREE.MeshStandardMaterial({ color: 0xc9632d, metalness: 0.2, roughness: 0.6 }),
+  pogo: new THREE.MeshStandardMaterial({ color: 0xd6d6d6, metalness: 0.85, roughness: 0.25 }),
+  pogoPin: new THREE.MeshStandardMaterial({ color: 0xd4a94a, metalness: 0.95, roughness: 0.15 }),
+  pogoFaceInner: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.4, roughness: 0.5 }),
+  edgeMagnet: new THREE.MeshStandardMaterial({ color: 0x8b4ac4, metalness: 0.4, roughness: 0.4 }),
+  magnetN: new THREE.MeshStandardMaterial({ color: 0x8b4ac4, metalness: 0.4, roughness: 0.5 }),
+  magnetS: new THREE.MeshStandardMaterial({ color: 0xd4a94a, metalness: 0.7, roughness: 0.3 }),
+  camLock: new THREE.MeshStandardMaterial({ color: 0x4a4a4a, metalness: 0.7, roughness: 0.3 }),
+  hinge: new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.8, roughness: 0.25 }),
+  wireHot: new THREE.MeshStandardMaterial({ color: 0xc44a4a, metalness: 0.1, roughness: 0.7 }),
+  wireReturn: new THREE.MeshStandardMaterial({ color: 0x4ac46a, metalness: 0.1, roughness: 0.7 }),
+  wireGround: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.1, roughness: 0.8 }),
+  wireData: new THREE.MeshStandardMaterial({ color: 0xd4c94a, metalness: 0.1, roughness: 0.7 }),
+  zipTie: new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.1, roughness: 0.9 }),
+  gasket: new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.1, roughness: 0.95 }),
+  portInner: new THREE.MeshStandardMaterial({ color: 0x111113, metalness: 0.1, roughness: 0.9, side: THREE.DoubleSide }),
+  plug: new THREE.MeshStandardMaterial({ color: 0x0f0f0f, metalness: 0.05, roughness: 0.95 }),
+  fastener: new THREE.MeshStandardMaterial({ color: 0x8b6a1f, metalness: 0.9, roughness: 0.25 }),
+  perfMat: new THREE.MeshStandardMaterial({ color: 0x080808, metalness: 0.1, roughness: 0.9, transparent: true, opacity: 0.5 }),
+};
+
+// ===== HELPERS =====
+function pillShape(length, height) {
+  const s = new THREE.Shape();
+  const r = height / 2;
+  const hl = length / 2 - r;
+  s.moveTo(-hl, -r);
+  s.lineTo(hl, -r);
+  s.absarc(hl, 0, r, -Math.PI / 2, Math.PI / 2, false);
+  s.lineTo(-hl, r);
+  s.absarc(-hl, 0, r, Math.PI / 2, -Math.PI / 2, false);
+  return s;
+}
+
+// ============================================================================
+// BUILD ONE TILE — returns a Group containing all tile components.
+// Everything is in tile-local coordinates. Caller positions/rotates the group.
+// ============================================================================
+function buildTile() {
+  const tileGroup = new THREE.Group();
+
+  // Sub-groups
+  const bottomShellGroup = new THREE.Group();
+  tileGroup.add(bottomShellGroup);
+
+  const hingeGroup = new THREE.Group();
+  hingeGroup.position.set(TILE / 2, 0, 0);
+  tileGroup.add(hingeGroup);
+
+  const topShellGroup = new THREE.Group();
+  topShellGroup.position.set(-TILE / 2, 0, 0);
+  hingeGroup.add(topShellGroup);
+
+  const fastGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.06, 16);
+
+  // ========================================================================
+  // BOTTOM SHELL
+  // ========================================================================
+  const botFloor = new THREE.Mesh(new THREE.BoxGeometry(TILE, SHELL_T, TILE), M.shellOuter);
+  botFloor.position.y = -H_BOT + SHELL_T / 2;
+  botFloor.castShadow = true; botFloor.receiveShadow = true;
+  bottomShellGroup.add(botFloor);
+
+  function makeWallWithPort(wallLen, wallH, wallT, hasPort) {
+    if (!hasPort) return new THREE.Mesh(new THREE.BoxGeometry(wallLen, wallH, wallT), M.shellOuter);
+    const shape = new THREE.Shape();
+    shape.moveTo(-wallLen / 2, -wallH / 2);
+    shape.lineTo(wallLen / 2, -wallH / 2);
+    shape.lineTo(wallLen / 2, wallH / 2);
+    shape.lineTo(-wallLen / 2, wallH / 2);
+    shape.lineTo(-wallLen / 2, -wallH / 2);
+    const portLen = 3.0, portH = 1.2;
+    const portCenterY = -H_BOT / 2 + SHELL_T + 0.8 + portH / 2;
+    const pill = pillShape(portLen, portH);
+    const hole = new THREE.Path();
+    const verts = pill.getPoints(48);
+    hole.moveTo(verts[0].x, verts[0].y + portCenterY);
+    for (let v = 1; v < verts.length; v++) hole.lineTo(verts[v].x, verts[v].y + portCenterY);
+    shape.holes.push(hole);
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: wallT, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2 });
+    geo.translate(0, 0, -wallT / 2);
+    return new THREE.Mesh(geo, M.shellOuter);
+  }
+
+  const botWallN = makeWallWithPort(TILE, H_BOT, SHELL_T, true);
+  botWallN.position.set(0, -H_BOT / 2, TILE / 2 - SHELL_T / 2);
+  botWallN.castShadow = true; botWallN.receiveShadow = true;
+  bottomShellGroup.add(botWallN);
+
+  const botWallS = makeWallWithPort(TILE, H_BOT, SHELL_T, true);
+  botWallS.position.set(0, -H_BOT / 2, -(TILE / 2 - SHELL_T / 2));
+  botWallS.castShadow = true; botWallS.receiveShadow = true;
+  bottomShellGroup.add(botWallS);
+
+  const botWallE = makeWallWithPort(TILE - 2 * SHELL_T, H_BOT, SHELL_T, false);
+  botWallE.position.set(TILE / 2 - SHELL_T / 2, -H_BOT / 2, 0);
+  botWallE.rotation.y = Math.PI / 2;
+  botWallE.castShadow = true; botWallE.receiveShadow = true;
+  bottomShellGroup.add(botWallE);
+
+  const botWallW = makeWallWithPort(TILE - 2 * SHELL_T, H_BOT, SHELL_T, true);
+  botWallW.position.set(-(TILE / 2 - SHELL_T / 2), -H_BOT / 2, 0);
+  botWallW.rotation.y = Math.PI / 2;
+  botWallW.castShadow = true; botWallW.receiveShadow = true;
+  bottomShellGroup.add(botWallW);
+
+  const botShellParts = [botFloor, botWallN, botWallS, botWallE, botWallW];
+
+  // ========================================================================
+  // FOUR-STAR PLENUM (colonnade + ribs)
+  // ========================================================================
+  const hubGroup = new THREE.Group();
+  const capH = 0.35;
+  const pillarH = HUB_H - 2 * capH;
+  const hubWallThick = 0.55;
+  const pillarArcFrac = 0.38;
+
+  const topCapShape = new THREE.Shape();
+  topCapShape.absarc(0, 0, HUB_R, 0, Math.PI * 2, false);
+  const topCapHole = new THREE.Path();
+  topCapHole.absarc(0, 0, HUB_R - hubWallThick, 0, Math.PI * 2, true);
+  topCapShape.holes.push(topCapHole);
+  const topCapGeo = new THREE.ExtrudeGeometry(topCapShape, { depth: capH, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2, curveSegments: 48 });
+
+  const botCapShape = new THREE.Shape();
+  botCapShape.absarc(0, 0, HUB_R, 0, Math.PI * 2, false);
+  const botCapHole = new THREE.Path();
+  botCapHole.absarc(0, 0, HUB_R - hubWallThick, 0, Math.PI * 2, true);
+  botCapShape.holes.push(botCapHole);
+  const botCapGeo = new THREE.ExtrudeGeometry(botCapShape, { depth: capH, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2, curveSegments: 48 });
+
+  const topCap = new THREE.Mesh(topCapGeo, M.hubGold);
+  topCap.rotation.x = -Math.PI / 2;
+  topCap.position.y = (H_TOP - SHELL_T - TRANS_H) - capH;
+  topCap.castShadow = true; topCap.receiveShadow = true;
+  hubGroup.add(topCap);
+
+  const botCap = new THREE.Mesh(botCapGeo, M.hubGold);
+  botCap.rotation.x = -Math.PI / 2;
+  botCap.position.y = -H_BOT + SHELL_T;
+  botCap.castShadow = true; botCap.receiveShadow = true;
+  hubGroup.add(botCap);
+
+  function makePillar(angle) {
+    const arcWidth = (Math.PI / 4) * pillarArcFrac;
+    const halfArc = arcWidth / 2;
+    const steps = 10;
+    const s = new THREE.Shape();
+    const outer = [], inner = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const a = angle - halfArc + arcWidth * t;
+      outer.push([Math.cos(a) * HUB_R, Math.sin(a) * HUB_R]);
+    }
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const a = angle - halfArc + arcWidth * t;
+      inner.push([Math.cos(a) * (HUB_R - hubWallThick), Math.sin(a) * (HUB_R - hubWallThick)]);
+    }
+    s.moveTo(outer[0][0], outer[0][1]);
+    for (let i = 1; i < outer.length; i++) s.lineTo(outer[i][0], outer[i][1]);
+    for (let i = 0; i < inner.length; i++) s.lineTo(inner[i][0], inner[i][1]);
+    s.lineTo(outer[0][0], outer[0][1]);
+    const g = new THREE.ExtrudeGeometry(s, { depth: pillarH, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2, curveSegments: 12 });
+    const m = new THREE.Mesh(g, M.hubGold);
+    m.rotation.x = -Math.PI / 2;
+    m.position.y = -H_BOT + SHELL_T + capH;
+    m.castShadow = true; m.receiveShadow = true;
+    return m;
+  }
+  for (let i = 0; i < 8; i++) hubGroup.add(makePillar(i * Math.PI / 4));
+
+  const accentGeo = new THREE.TorusGeometry(HUB_R - hubWallThick / 2, 0.05, 10, 64);
+  const topAccent = new THREE.Mesh(accentGeo, M.brandGold);
+  topAccent.rotation.x = Math.PI / 2; topAccent.position.y = H_TOP - SHELL_T - TRANS_H;
+  hubGroup.add(topAccent);
+  const botAccent = new THREE.Mesh(accentGeo, M.brandGold);
+  botAccent.rotation.x = Math.PI / 2; botAccent.position.y = -H_BOT + SHELL_T;
+  hubGroup.add(botAccent);
+
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4;
+    const f = new THREE.Mesh(fastGeo, M.fastener);
+    f.position.set(Math.cos(a) * (HUB_R - hubWallThick / 2), H_TOP - SHELL_T - TRANS_H + 0.04, Math.sin(a) * (HUB_R - hubWallThick / 2));
+    hubGroup.add(f);
+  }
+  bottomShellGroup.add(hubGroup);
+
+  function makeIBeamRib(length, height, width, material, numWindows, wireNotches) {
+    const g = new THREE.Group();
+    wireNotches = wireNotches || [];
+    const flangeGeo = new THREE.BoxGeometry(length, 0.22, width);
+    const topF = new THREE.Mesh(flangeGeo, material);
+    topF.position.y = height / 2 - 0.11; topF.castShadow = true; g.add(topF);
+
+    const notchHalfW = 0.6;
+    const notches = wireNotches.slice().sort((a, b) => a - b);
+    const boundaries = [-length / 2];
+    for (const nx of notches) { boundaries.push(nx - notchHalfW); boundaries.push(nx + notchHalfW); }
+    boundaries.push(length / 2);
+
+    for (let i = 0; i < boundaries.length; i += 2) {
+      const segStart = boundaries[i], segEnd = boundaries[i + 1];
+      const segLen = segEnd - segStart;
+      if (segLen <= 0.01) continue;
+      const segGeo = new THREE.BoxGeometry(segLen, 0.22, width);
+      const seg = new THREE.Mesh(segGeo, material);
+      seg.position.set((segStart + segEnd) / 2, -height / 2 + 0.11, 0);
+      seg.castShadow = true; seg.receiveShadow = true;
+      g.add(seg);
+    }
+
+    for (const nx of notches) {
+      for (const side of [-1, 1]) {
+        const lipGeo = new THREE.CylinderGeometry(0.03, 0.03, width * 0.9, 12);
+        const lip = new THREE.Mesh(lipGeo, M.brandGold);
+        lip.rotation.x = Math.PI / 2;
+        lip.position.set(nx + side * notchHalfW, -height / 2 + 0.11, 0);
+        g.add(lip);
+      }
+    }
+
+    const webH = height - 0.44;
+    const webShape = new THREE.Shape();
+    webShape.moveTo(-length / 2, -webH / 2);
+    webShape.lineTo(length / 2, -webH / 2);
+    webShape.lineTo(length / 2, webH / 2);
+    webShape.lineTo(-length / 2, webH / 2);
+    webShape.lineTo(-length / 2, -webH / 2);
+
+    const winLen = Math.min(length * 0.28, 3.0);
+    const winH = webH * 0.55;
+    for (let i = 0; i < numWindows; i++) {
+      const pos = ((i + 0.5) / numWindows) * length - length / 2;
+      let skip = false;
+      for (const nx of notches) {
+        if (Math.abs(pos - nx) < (winLen / 2 + notchHalfW + 0.3)) { skip = true; break; }
+      }
+      if (skip) continue;
+      const pill = pillShape(winLen, winH);
+      const hole = new THREE.Path();
+      const verts = pill.getPoints(48);
+      hole.moveTo(verts[0].x + pos, verts[0].y);
+      for (let v = 1; v < verts.length; v++) hole.lineTo(verts[v].x + pos, verts[v].y);
+      webShape.holes.push(hole);
+    }
+
+    for (const nx of notches) {
+      const notchWebLen = 1.2;
+      const notchWebH = webH * 0.5;
+      const pill = pillShape(notchWebLen, notchWebH);
+      const hole = new THREE.Path();
+      const verts = pill.getPoints(32);
+      const pillCenterY = -webH / 2 + notchWebH / 2 - 0.02;
+      hole.moveTo(verts[0].x + nx, verts[0].y + pillCenterY);
+      for (let v = 1; v < verts.length; v++) hole.lineTo(verts[v].x + nx, verts[v].y + pillCenterY);
+      webShape.holes.push(hole);
+    }
+
+    const webGeo = new THREE.ExtrudeGeometry(webShape, { depth: width * 0.35, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2 });
+    const web = new THREE.Mesh(webGeo, material);
+    web.position.z = -(width * 0.35) / 2; web.castShadow = true; g.add(web);
+
+    const reliefGeo = new THREE.BoxGeometry(length * 0.96, 0.03, 0.06);
+    const relief = new THREE.Mesh(reliefGeo, M.brandGold);
+    relief.position.y = height / 2; g.add(relief);
+    return g;
+  }
+
+  const primaryNotchX = cornerLen * 0.38;
+  const primaryInnerNotchX = -cornerLen * 0.30;
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + i * Math.PI / 2;
+    const notches = [primaryNotchX];
+    if (i === 0) notches.push(primaryInnerNotchX);
+    const rib = makeIBeamRib(cornerLen, RIB_H, RIB_W, M.ribPrimary, 3, notches);
+    rib.position.set(Math.cos(a) * (HUB_R + cornerLen / 2), RIB_CENTER_Y, Math.sin(a) * (HUB_R + cornerLen / 2));
+    rib.rotation.y = -a;
+    bottomShellGroup.add(rib);
+  }
+  const secondaryNotchX = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2;
+    const notches = (i === 0) ? [secondaryNotchX] : [];
+    const rib = makeIBeamRib(edgeLen, RIB_H, RIB_W * 0.85, M.ribSecondary, 2, notches);
+    rib.position.set(Math.cos(a) * (HUB_R + edgeLen / 2), RIB_CENTER_Y, Math.sin(a) * (HUB_R + edgeLen / 2));
+    rib.rotation.y = -a;
+    bottomShellGroup.add(rib);
+  }
+
+  // ========================================================================
+  // TOP SHELL
+  // ========================================================================
+  const topDeck = new THREE.Mesh(new THREE.BoxGeometry(TILE, SHELL_T, TILE), M.shellOuter);
+  topDeck.position.set(0, H_TOP - SHELL_T / 2, 0);
+  topDeck.castShadow = true; topDeck.receiveShadow = true;
+  topShellGroup.add(topDeck);
+
+  const topWallN = new THREE.Mesh(new THREE.BoxGeometry(TILE, H_TOP, SHELL_T), M.shellOuter);
+  topWallN.position.set(0, H_TOP / 2, TILE / 2 - SHELL_T / 2);
+  topWallN.castShadow = true; topWallN.receiveShadow = true;
+  topShellGroup.add(topWallN);
+
+  const topWallS = new THREE.Mesh(new THREE.BoxGeometry(TILE, H_TOP, SHELL_T), M.shellOuter);
+  topWallS.position.set(0, H_TOP / 2, -(TILE / 2 - SHELL_T / 2));
+  topWallS.castShadow = true; topWallS.receiveShadow = true;
+  topShellGroup.add(topWallS);
+
+  const topWallE = new THREE.Mesh(new THREE.BoxGeometry(SHELL_T, H_TOP, TILE - 2 * SHELL_T), M.shellOuter);
+  topWallE.position.set(TILE / 2 - SHELL_T / 2, H_TOP / 2, 0);
+  topWallE.castShadow = true; topWallE.receiveShadow = true;
+  topShellGroup.add(topWallE);
+
+  const topWallW = new THREE.Mesh(new THREE.BoxGeometry(SHELL_T, H_TOP, TILE - 2 * SHELL_T), M.shellOuter);
+  topWallW.position.set(-(TILE / 2 - SHELL_T / 2), H_TOP / 2, 0);
+  topWallW.castShadow = true; topWallW.receiveShadow = true;
+  topShellGroup.add(topWallW);
+
+  const topShellParts = [topDeck, topWallN, topWallS, topWallE, topWallW];
+
+  // Perforation pattern
+  const perfGeo = new THREE.CylinderGeometry(0.2, 0.2, SHELL_T * 1.2, 6);
+  for (let i = -10; i <= 10; i++) {
+    for (let j = -10; j <= 10; j++) {
+      const x = i * 1.7 + (j % 2) * 0.85;
+      const z = j * 1.5;
+      if (Math.abs(x) > TILE / 2 - 2) continue;
+      if (Math.abs(z) > TILE / 2 - 2) continue;
+      if (Math.sqrt(x * x + z * z) < HUB_R + 1) continue;
+      const p = new THREE.Mesh(perfGeo, M.perfMat);
+      p.position.set(x, H_TOP - SHELL_T / 2, z);
+      topShellGroup.add(p);
+    }
+  }
+
+  // Transducer
+  const transBody = new THREE.Mesh(new THREE.CylinderGeometry(TRANS_R, TRANS_R, TRANS_H, 48), M.transducerBody);
+  transBody.position.set(0, TOP_DECK_Y - TRANS_H / 2, 0);
+  transBody.castShadow = true; transBody.receiveShadow = true;
+  topShellGroup.add(transBody);
+
+  const transTopCap = new THREE.Mesh(new THREE.CylinderGeometry(TRANS_R * 0.7, TRANS_R * 0.7, 0.08, 48), M.transducerDark);
+  transTopCap.position.set(0, TOP_DECK_Y - 0.04, 0);
+  topShellGroup.add(transTopCap);
+
+  const transBottomGroove = new THREE.Mesh(new THREE.TorusGeometry(TRANS_R - 0.1, 0.025, 8, 48), M.brandGold);
+  transBottomGroove.rotation.x = Math.PI / 2;
+  transBottomGroove.position.set(0, TRANS_BOTTOM_Y + 0.05, 0);
+  topShellGroup.add(transBottomGroove);
+
+  const transMountRing = new THREE.Mesh(new THREE.TorusGeometry(TRANS_R + 0.05, 0.04, 8, 48), M.transducerDark);
+  transMountRing.rotation.x = Math.PI / 2;
+  transMountRing.position.set(0, TOP_DECK_Y - 0.04, 0);
+  topShellGroup.add(transMountRing);
+
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const f = new THREE.Mesh(fastGeo, M.fastener);
+    f.position.set(Math.cos(a) * (TRANS_R - 0.2), TOP_DECK_Y + 0.02, Math.sin(a) * (TRANS_R - 0.2));
+    topShellGroup.add(f);
+  }
+
+  // XFMR
+  const XFMR_POS = new THREE.Vector3(12, H_TOP - SHELL_T - 1.25, 5);
+  const xfmrBox = new THREE.Mesh(new THREE.BoxGeometry(4, 2.5, 3), M.xfmr);
+  xfmrBox.position.copy(XFMR_POS); xfmrBox.castShadow = true;
+  topShellGroup.add(xfmrBox);
+  const xfmrCore = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2, 1.6), M.xfmrCore);
+  xfmrCore.position.copy(XFMR_POS);
+  topShellGroup.add(xfmrCore);
+  const xfmrPlate = new THREE.Mesh(new THREE.BoxGeometry(2, 0.05, 1.2), M.brandGold);
+  xfmrPlate.position.set(XFMR_POS.x, XFMR_POS.y + 1.28, XFMR_POS.z);
+  topShellGroup.add(xfmrPlate);
+
+  // PCB
+  const PCB_POS = new THREE.Vector3(12, H_TOP - SHELL_T - 0.28, -5);
+  const pcbBox = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 3), M.pcb);
+  pcbBox.position.copy(PCB_POS); pcbBox.castShadow = true;
+  topShellGroup.add(pcbBox);
+  const trace1 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.04, 0.08), M.brandGold);
+  trace1.position.set(PCB_POS.x, PCB_POS.y + 0.27, PCB_POS.z);
+  trace1.rotation.y = Math.PI / 4;
+  topShellGroup.add(trace1);
+  const trace2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.04, 0.08), M.brandGold);
+  trace2.position.set(PCB_POS.x, PCB_POS.y + 0.27, PCB_POS.z);
+  trace2.rotation.y = -Math.PI / 4;
+  topShellGroup.add(trace2);
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.15, 8), M.brandGold);
+    pin.position.set(PCB_POS.x + Math.cos(a) * 1.2, PCB_POS.y + 0.32, PCB_POS.z + Math.sin(a) * 1.2);
+    topShellGroup.add(pin);
+  }
+
+  // ========================================================================
+  // POGO CONNECTORS
+  // ========================================================================
+  function makePogoPair(edge, pos, type) {
+    const g = new THREE.Group();
+    const housingW = 1.3, housingH = 0.55, housingD = 0.35;
+    const housing = new THREE.Mesh(new THREE.BoxGeometry(housingW, housingH, housingD), M.pogo);
+    housing.castShadow = true; g.add(housing);
+    const rimW = housingW, rimH = housingH, rimD = 0.05;
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(rimW, rimH, rimD), M.pogo);
+    rim.position.z = housingD / 2 + rimD / 2;
+    g.add(rim);
+    const faceW = housingW - 0.1, faceH = housingH - 0.1;
+    const face = new THREE.Mesh(new THREE.BoxGeometry(faceW, faceH, 0.02), M.pogoFaceInner);
+    face.position.z = housingD / 2 + rimD - 0.01;
+    g.add(face);
+
+    if (type === 'male') {
+      for (let i = 0; i < 4; i++) {
+        const pinGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.02, 16);
+        const pin = new THREE.Mesh(pinGeo, M.pogoPin);
+        pin.rotation.x = Math.PI / 2;
+        pin.position.set(-0.36 + i * 0.24, 0, housingD / 2 + rimD + 0.001);
+        g.add(pin);
+      }
+      const magGeo = new THREE.BoxGeometry(housingW - 0.2, 0.05, 0.03);
+      const mag = new THREE.Mesh(magGeo, M.magnetN);
+      mag.position.set(0, -housingH / 2 + 0.08, housingD / 2 + rimD + 0.001);
+      g.add(mag);
+    } else {
+      for (let i = 0; i < 4; i++) {
+        const padGeo = new THREE.BoxGeometry(0.14, 0.2, 0.012);
+        const pad = new THREE.Mesh(padGeo, M.pogoPin);
+        pad.position.set(-0.36 + i * 0.24, 0, housingD / 2 + rimD + 0.008);
+        g.add(pad);
+      }
+      const magGeo = new THREE.BoxGeometry(housingW - 0.2, 0.05, 0.03);
+      const mag = new THREE.Mesh(magGeo, M.magnetS);
+      mag.position.set(0, -housingH / 2 + 0.08, housingD / 2 + rimD + 0.001);
+      g.add(mag);
+    }
+
+    const labelGeo = new THREE.BoxGeometry(0.25, 0.02, 0.05);
+    const label = new THREE.Mesh(labelGeo, M.brandGold);
+    label.position.set(type === 'male' ? -0.35 : 0.35, housingH / 2, 0);
+    g.add(label);
+
+    let x = 0, z = 0, rotY = 0;
+    const totalDepth = housingD + rimD;
+    const proud = 0.05;
+    const centerOff = TILE / 2 + proud - totalDepth / 2;
+    const along = pos * (TILE / 2 - 5);
+    if (edge === 'N') { x = along; z = centerOff; rotY = 0; }
+    if (edge === 'S') { x = along; z = -centerOff; rotY = Math.PI; }
+    if (edge === 'E') { x = centerOff; z = along; rotY = -Math.PI / 2; }
+    if (edge === 'W') { x = -centerOff; z = along; rotY = Math.PI / 2; }
+    g.position.set(x, -H_BOT + SHELL_T + 0.6, z);
+    g.rotation.y = rotY;
+    return g;
+  }
+
+  ['N', 'S', 'W', 'E'].forEach(edge => {
+    const pairs = [{ pos: -0.5, type: 'male' }, { pos: 0.5, type: 'female' }];
+    pairs.forEach(cfg => bottomShellGroup.add(makePogoPair(edge, cfg.pos, cfg.type)));
+  });
+
+  // ========================================================================
+  // EDGE MAGNETS
+  // ========================================================================
+  function makeEdgeMagnet(edge, pos) {
+    const g = new THREE.Group();
+    const bodyW = 1.5, bodyH = 0.8, bodyD = 0.5;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyD), M.edgeMagnet);
+    body.castShadow = true; g.add(body);
+    const facePlate = new THREE.Mesh(new THREE.BoxGeometry(bodyW - 0.1, bodyH - 0.1, 0.02), M.brandGold);
+    facePlate.position.z = bodyD / 2 + 0.011;
+    g.add(facePlate);
+    const polMark = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.025), M.edgeMagnet);
+    polMark.position.set(0, 0, bodyD / 2 + 0.025);
+    g.add(polMark);
+    let x = 0, z = 0, rotY = 0;
+    const proud = 0.05;
+    const centerOff = TILE / 2 + proud - bodyD / 2;
+    const along = pos * (TILE / 2 - 7);
+    if (edge === 'N') { x = along; z = centerOff; rotY = 0; }
+    if (edge === 'S') { x = along; z = -centerOff; rotY = Math.PI; }
+    if (edge === 'W') { x = -centerOff; z = along; rotY = Math.PI / 2; }
+    if (edge === 'E') { x = centerOff; z = along; rotY = -Math.PI / 2; }
+    g.position.set(x, -H_BOT + SHELL_T + 1.5, z);
+    g.rotation.y = rotY;
+    return g;
+  }
+  ['N', 'S', 'W', 'E'].forEach(edge => {
+    [-0.92, 0.92].forEach(p => bottomShellGroup.add(makeEdgeMagnet(edge, p)));
+  });
+
+  // ========================================================================
+  // PORTS (N, S, W only — not on spine/E)
+  // ========================================================================
+  const plugsList = [];
+  function makePort(edge) {
+    const g = new THREE.Group();
+    const portLen = 3.0, portH = 1.2;
+    const portCenterY = -H_BOT + SHELL_T + 0.8 + portH / 2;
+    const collarOuter = pillShape(portLen + 0.35, portH + 0.35);
+    const collarInnerShape = pillShape(portLen, portH);
+    collarOuter.holes.push(new THREE.Path(collarInnerShape.getPoints(48).map(p => new THREE.Vector2(p.x, p.y))));
+    const collarGeo = new THREE.ExtrudeGeometry(collarOuter, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2 });
+    const collar = new THREE.Mesh(collarGeo, M.hubGold);
+    collar.rotation.y = Math.PI / 2;
+    collar.position.set(TILE / 2 - 0.04, portCenterY, 0);
+    g.add(collar);
+
+    const plugShape = pillShape(portLen - 0.05, portH - 0.05);
+    const plugGeo = new THREE.ExtrudeGeometry(plugShape, { depth: 0.28, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 3 });
+    const plug = new THREE.Mesh(plugGeo, M.plug);
+    plug.rotation.y = Math.PI / 2;
+    plug.position.set(TILE / 2 - SHELL_T / 2 - 0.14, portCenterY, 0);
+    g.add(plug);
+    plugsList.push(plug);
+
+    const tabGeo = new THREE.TorusGeometry(0.18, 0.04, 10, 20);
+    const tab = new THREE.Mesh(tabGeo, M.brandGold);
+    tab.rotation.y = Math.PI / 2;
+    tab.position.set(TILE / 2 + 0.01, portCenterY, 0);
+    g.add(tab);
+    plugsList.push(tab);
+
+    if (edge === 'N') g.rotation.y = -Math.PI / 2;
+    if (edge === 'S') g.rotation.y = Math.PI / 2;
+    if (edge === 'W') g.rotation.y = Math.PI;
+    return g;
+  }
+  ['N', 'S', 'W'].forEach(edge => bottomShellGroup.add(makePort(edge)));
+
+  // ========================================================================
+  // HINGES (spine/E edge)
+  // ========================================================================
+  function makeHinge(zPos) {
+    const g = new THREE.Group();
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.5, 16), M.hinge);
+    barrel.rotation.x = Math.PI / 2; barrel.castShadow = true;
+    g.add(barrel);
+    const leafGeo = new THREE.BoxGeometry(0.8, 0.12, 1.2);
+    const topLeaf = new THREE.Mesh(leafGeo, M.hinge);
+    topLeaf.position.set(-0.3, 0.08, 0);
+    g.add(topLeaf);
+    g.position.set(TILE / 2, 0, zPos);
+    return g;
+  }
+  [-12, 0, 12].forEach(z => bottomShellGroup.add(makeHinge(z)));
+
+  // ========================================================================
+  // CAM-LOCK LATCHES
+  // ========================================================================
+  function makeCamLock(edge, pos) {
+    const g = new THREE.Group();
+    const housingW = 1.6, housingH = 0.9, housingDepth = 0.2;
+    const housingOuter = new THREE.Mesh(new THREE.BoxGeometry(housingW, housingH, housingDepth), M.camLock);
+    housingOuter.castShadow = true; g.add(housingOuter);
+
+    const rimT = 0.06, rimD = 0.04;
+    const rimOut = housingDepth / 2 + rimD / 2;
+    const rimTop = new THREE.Mesh(new THREE.BoxGeometry(housingW + rimT * 2, rimT, rimD), M.brandGold);
+    rimTop.position.set(0, housingH / 2 + rimT / 2, rimOut); g.add(rimTop);
+    const rimBot = new THREE.Mesh(new THREE.BoxGeometry(housingW + rimT * 2, rimT, rimD), M.brandGold);
+    rimBot.position.set(0, -housingH / 2 - rimT / 2, rimOut); g.add(rimBot);
+    const rimL = new THREE.Mesh(new THREE.BoxGeometry(rimT, housingH + rimT * 2, rimD), M.brandGold);
+    rimL.position.set(-housingW / 2 - rimT / 2, 0, rimOut); g.add(rimL);
+    const rimR = new THREE.Mesh(new THREE.BoxGeometry(rimT, housingH + rimT * 2, rimD), M.brandGold);
+    rimR.position.set(housingW / 2 + rimT / 2, 0, rimOut); g.add(rimR);
+
+    const ringOuterW = housingW * 0.82, ringOuterH = housingH * 0.65;
+    const ringThick = 0.06, ringRecess = 0.04;
+    const ringShapeOuter = pillShape(ringOuterW, ringOuterH);
+    const ringShapeInner = pillShape(ringOuterW * 0.72, ringOuterH * 0.52);
+    ringShapeOuter.holes.push(new THREE.Path(ringShapeInner.getPoints(32).map(p => new THREE.Vector2(p.x, p.y))));
+    const ringGeo = new THREE.ExtrudeGeometry(ringShapeOuter, { depth: ringThick, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2 });
+    const dRing = new THREE.Mesh(ringGeo, M.hubGold);
+    dRing.position.z = housingDepth / 2 - ringRecess - ringThick / 2;
+    g.add(dRing);
+
+    const pivot = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.22, 12), M.camLock);
+    pivot.rotation.z = Math.PI / 2;
+    pivot.position.set(-ringOuterW / 2 + 0.08, 0, housingDepth / 2 - ringRecess - ringThick / 2);
+    g.add(pivot);
+
+    const tongue = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.05), M.pogo);
+    tongue.position.set(ringOuterW / 2 - 0.1, 0, housingDepth / 2 - ringRecess - ringThick - 0.03);
+    g.add(tongue);
+
+    const stateIndicator = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.18, 0.02), M.brandGold);
+    stateIndicator.position.set(housingW / 2 - 0.12, 0, housingDepth / 2 + 0.01);
+    g.add(stateIndicator);
+
+    let x = 0, z = 0, rotY = 0;
+    const edgeOff = TILE / 2 - housingDepth / 2;
+    const along = pos * (TILE / 2 - 6);
+    if (edge === 'N') { x = along; z = edgeOff; rotY = 0; }
+    if (edge === 'S') { x = along; z = -edgeOff; rotY = Math.PI; }
+    if (edge === 'W') { x = -edgeOff; z = along; rotY = Math.PI / 2; }
+    g.position.set(x, 0, z); g.rotation.y = rotY;
+    return g;
+  }
+  ['N', 'S', 'W'].forEach(edge => {
+    [-0.6, 0.6].forEach(p => bottomShellGroup.add(makeCamLock(edge, p)));
+  });
+
+  // ========================================================================
+  // GASKETS
+  // ========================================================================
+  const gasketGroup = new THREE.Group();
+  function makeOuterGasket(edge) {
+    const g = new THREE.Group();
+    const gT = 0.02, gLen = TILE - 0.5;
+    const geo = new THREE.BoxGeometry(gLen, 0.3, gT);
+    const m = new THREE.Mesh(geo, M.gasket); m.castShadow = true; g.add(m);
+    let x = 0, z = 0, rotY = 0;
+    const off = TILE / 2 + gT / 2;
+    if (edge === 'N') { z = off; }
+    if (edge === 'S') { z = -off; }
+    if (edge === 'W') { x = -off; rotY = Math.PI / 2; }
+    if (edge === 'E') { x = off; rotY = Math.PI / 2; }
+    g.position.set(x, -H_BOT / 2 + 1.3, z); g.rotation.y = rotY;
+    return g;
+  }
+  ['N', 'S', 'W', 'E'].forEach(e => gasketGroup.add(makeOuterGasket(e)));
+
+  const seamGeo = new THREE.BoxGeometry(TILE - 0.8, 0.08, 0.3);
+  const seams = [
+    { pos: [0, 0.04, TILE / 2 - 0.3], rot: 0 },
+    { pos: [0, 0.04, -(TILE / 2 - 0.3)], rot: 0 },
+    { pos: [TILE / 2 - 0.3, 0.04, 0], rot: Math.PI / 2 },
+    { pos: [-(TILE / 2 - 0.3), 0.04, 0], rot: Math.PI / 2 },
+  ];
+  seams.forEach(s => {
+    const m = new THREE.Mesh(seamGeo, M.gasket);
+    m.position.set(...s.pos); m.rotation.y = s.rot;
+    gasketGroup.add(m);
+  });
+  bottomShellGroup.add(gasketGroup);
+
+  // ========================================================================
+  // WIRING
+  // ========================================================================
+  function makeSurfaceWireBundle(pathPoints, zipTieCount) {
+    const g = new THREE.Group();
+    const colors = [M.wireHot, M.wireReturn, M.wireGround, M.wireData];
+    const ribbonOffsets = [-0.09, -0.03, 0.03, 0.09];
+    colors.forEach((mat, ci) => {
+      const offset = ribbonOffsets[ci];
+      const curvePts = pathPoints.map((p, idx, arr) => {
+        let dx = 0, dz = 0;
+        if (idx < arr.length - 1) { dx = arr[idx + 1][0] - p[0]; dz = arr[idx + 1][2] - p[2]; }
+        else { dx = p[0] - arr[idx - 1][0]; dz = p[2] - arr[idx - 1][2]; }
+        const len = Math.sqrt(dx * dx + dz * dz) || 1;
+        const perpX = -dz / len, perpZ = dx / len;
+        return new THREE.Vector3(p[0] + perpX * offset, p[1], p[2] + perpZ * offset);
+      });
+      const curve = new THREE.CatmullRomCurve3(curvePts, false, 'catmullrom', 0.0);
+      const tubeGeo = new THREE.TubeGeometry(curve, Math.max(24, pathPoints.length * 4), 0.035, 8, false);
+      g.add(new THREE.Mesh(tubeGeo, mat));
+    });
+    const curveCenter = new THREE.CatmullRomCurve3(pathPoints.map(p => new THREE.Vector3(...p)));
+    for (let i = 1; i <= zipTieCount; i++) {
+      const t = i / (zipTieCount + 1);
+      const pt = curveCenter.getPoint(t);
+      const tan = curveCenter.getTangent(t);
+      const clipBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.18), M.zipTie);
+      clipBase.position.copy(pt); clipBase.position.y -= 0.02;
+      const quat = new THREE.Quaternion();
+      quat.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan.normalize());
+      clipBase.quaternion.copy(quat);
+      g.add(clipBase);
+      const tie = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.015, 6, 16), M.zipTie);
+      tie.position.copy(pt); tie.position.y += 0.02;
+      const tieQuat = new THREE.Quaternion();
+      tieQuat.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan.normalize());
+      tie.quaternion.copy(tieQuat);
+      g.add(tie);
+    }
+    return g;
+  }
+
+  // Top shell wiring
+  const wA = makeSurfaceWireBundle([
+    [PCB_POS.x - 0.5, TOP_SURFACE_Y, PCB_POS.z + 1.5],
+    [PCB_POS.x - 0.5, TOP_SURFACE_Y, -3],
+    [8.75, TOP_SURFACE_Y, -1.5],
+    [8.75, TOP_SURFACE_Y, 0],
+    [8.75, TOP_SURFACE_Y, 1.5],
+    [XFMR_POS.x - 0.5, TOP_SURFACE_Y, 3],
+    [XFMR_POS.x - 0.5, TOP_SURFACE_Y, XFMR_POS.z - 1.5],
+    [XFMR_POS.x - 1, TOP_SURFACE_Y, XFMR_POS.z],
+  ], 5);
+  topShellGroup.add(wA);
+
+  const wB = makeSurfaceWireBundle([
+    [XFMR_POS.x - 1.5, TOP_SURFACE_Y, XFMR_POS.z - 0.5],
+    [8, TOP_SURFACE_Y, 6],
+    [5.98, TOP_SURFACE_Y, 5.98],
+    [5.18, TOP_SURFACE_Y, 5.18],
+    [4.38, TOP_SURFACE_Y, 4.38],
+    [3.5, TOP_SURFACE_Y, 3.5],
+    [2.2, TOP_SURFACE_Y, 2.2],
+    [TRANS_R * Math.cos(Math.PI / 4), TOP_SURFACE_Y - 0.08, TRANS_R * Math.sin(Math.PI / 4)],
+    [TRANS_R * Math.cos(Math.PI / 4), 1.5, TRANS_R * Math.sin(Math.PI / 4)],
+    [TRANS_R * Math.cos(Math.PI / 4), 0.8, TRANS_R * Math.sin(Math.PI / 4)],
+    [TRANS_R * 0.4, 0.3, TRANS_R * 0.4],
+  ], 4);
+  topShellGroup.add(wB);
+
+  const wC = makeSurfaceWireBundle([
+    [PCB_POS.x + 1.5, TOP_SURFACE_Y, PCB_POS.z + 0.5],
+    [PCB_POS.x + 1.5, TOP_SURFACE_Y, PCB_POS.z - 1],
+    [TOP_WALL_X - 2, TOP_SURFACE_Y, PCB_POS.z - 1],
+    [TOP_WALL_X, TOP_SURFACE_Y, PCB_POS.z - 1],
+    [TOP_WALL_X, TOP_SURFACE_Y, -3],
+    [TOP_WALL_X, TOP_SURFACE_Y - 0.4, -3],
+    [TOP_WALL_X, (TOP_SURFACE_Y + SEAM_Y) / 2, -3],
+    [TOP_ANCHOR.x, TOP_ANCHOR.y, TOP_ANCHOR.z],
+  ], 5);
+  topShellGroup.add(wC);
+
+  // Service loop (static — tile is always closed in this viewer)
+  const serviceLoopGroup = new THREE.Group();
+  const topA = new THREE.Vector3(TOP_ANCHOR.x, TOP_ANCHOR.y, TOP_ANCHOR.z);
+  const botA = new THREE.Vector3(BOT_ANCHOR.x, BOT_ANCHOR.y, BOT_ANCHOR.z);
+  const distance = topA.distanceTo(botA);
+  const bowAmount = Math.max(0.35, distance * 0.18);
+  const midpoint = new THREE.Vector3().addVectors(topA, botA).multiplyScalar(0.5);
+  midpoint.x += bowAmount;
+  const basePts = [
+    topA.clone(),
+    new THREE.Vector3().lerpVectors(topA, midpoint, 0.35),
+    midpoint.clone(),
+    new THREE.Vector3().lerpVectors(botA, midpoint, 0.35),
+    botA.clone(),
+  ];
+  const slColors = [M.wireHot, M.wireReturn, M.wireGround, M.wireData];
+  const slOffsets = [-0.09, -0.03, 0.03, 0.09];
+  slColors.forEach((mat, ci) => {
+    const offset = slOffsets[ci];
+    const offsetPts = basePts.map(p => new THREE.Vector3(p.x, p.y, p.z + offset));
+    const curve = new THREE.CatmullRomCurve3(offsetPts, false, 'catmullrom', 0.0);
+    const tubeGeo = new THREE.TubeGeometry(curve, 48, 0.035, 8, false);
+    serviceLoopGroup.add(new THREE.Mesh(tubeGeo, mat));
+  });
+  bottomShellGroup.add(serviceLoopGroup);
+
+  // Anchor cleats
+  const topCleat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.35), M.zipTie);
+  topCleat.position.set(TOP_ANCHOR.x, TOP_ANCHOR.y - 0.02, TOP_ANCHOR.z);
+  topShellGroup.add(topCleat);
+  const topCleatStrap = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.02, 6, 16), M.zipTie);
+  topCleatStrap.position.set(TOP_ANCHOR.x, TOP_ANCHOR.y + 0.02, TOP_ANCHOR.z);
+  topCleatStrap.rotation.y = Math.PI / 2;
+  topShellGroup.add(topCleatStrap);
+  const botCleat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.35), M.zipTie);
+  botCleat.position.set(BOT_ANCHOR.x, BOT_ANCHOR.y + 0.02, BOT_ANCHOR.z);
+  bottomShellGroup.add(botCleat);
+  const botCleatStrap = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.02, 6, 16), M.zipTie);
+  botCleatStrap.position.set(BOT_ANCHOR.x, BOT_ANCHOR.y - 0.02, BOT_ANCHOR.z);
+  botCleatStrap.rotation.y = Math.PI / 2;
+  bottomShellGroup.add(botCleatStrap);
+
+  const wBotDescent = makeSurfaceWireBundle([
+    [BOT_ANCHOR.x, BOT_ANCHOR.y, BOT_ANCHOR.z],
+    [BOT_WALL_X, (SEAM_Y + BOT_SURFACE_Y) / 2, -3],
+    [BOT_WALL_X, BOT_SURFACE_Y + 0.4, -3],
+    [BOT_WALL_X - 0.4, BOT_SURFACE_Y, -3],
+  ], 2);
+  bottomShellGroup.add(wBotDescent);
+
+  // Bottom perimeter wiring
+  const perimOffset = 2.3;
+  const perimN = TILE / 2 - perimOffset;
+  const perimS = -(TILE / 2 - perimOffset);
+  const perimW = -(TILE / 2 - perimOffset);
+  const perimE = TILE / 2 - perimOffset;
+
+  const wD = makeSurfaceWireBundle([
+    [BOT_WALL_X - 0.4, BOT_SURFACE_Y, -3],
+    [TILE / 2 - 1, BOT_SURFACE_Y, -5],
+    [perimE, BOT_SURFACE_Y, -7],
+    [perimE, BOT_SURFACE_Y, -10],
+    [perimE, BOT_SURFACE_Y, -13],
+    [15.60, BOT_SURFACE_Y, -14.80],
+    [15.60, BOT_SURFACE_Y, -15.60],
+    [14.80, BOT_SURFACE_Y, -15.60],
+    [10, BOT_SURFACE_Y, perimS],
+    [6, BOT_SURFACE_Y, perimS],
+    [0, BOT_SURFACE_Y, perimS],
+    [-6, BOT_SURFACE_Y, perimS],
+    [-10, BOT_SURFACE_Y, perimS],
+    [-14.80, BOT_SURFACE_Y, -15.60],
+    [-15.60, BOT_SURFACE_Y, -15.60],
+    [-15.60, BOT_SURFACE_Y, -14.80],
+    [perimW, BOT_SURFACE_Y, -10],
+    [perimW, BOT_SURFACE_Y, -6],
+    [perimW, BOT_SURFACE_Y, 0],
+    [perimW, BOT_SURFACE_Y, 6],
+    [perimW, BOT_SURFACE_Y, 10],
+    [-15.60, BOT_SURFACE_Y, 14.80],
+    [-15.60, BOT_SURFACE_Y, 15.60],
+    [-14.80, BOT_SURFACE_Y, 15.60],
+    [-10, BOT_SURFACE_Y, perimN],
+    [-6, BOT_SURFACE_Y, perimN],
+    [0, BOT_SURFACE_Y, perimN],
+    [6, BOT_SURFACE_Y, perimN],
+    [10, BOT_SURFACE_Y, perimN],
+    [14.80, BOT_SURFACE_Y, 15.60],
+    [15.60, BOT_SURFACE_Y, 15.60],
+    [15.60, BOT_SURFACE_Y, 14.80],
+    [perimE, BOT_SURFACE_Y, 10],
+    [perimE, BOT_SURFACE_Y, 7],
+    [perimE, BOT_SURFACE_Y, 5],
+    [TILE / 2 - 1, BOT_SURFACE_Y, 3],
+  ], 32);
+  bottomShellGroup.add(wD);
+
+  function makePogoRiser(edge, pos) {
+    const alongPos = pos * (TILE / 2 - 5);
+    let startX = 0, startZ = 0, endX = 0, endZ = 0;
+    const riseFromY = BOT_SURFACE_Y;
+    const riseToY = BOT_SURFACE_Y + 0.5;
+    const pogoConnectOffset = TILE / 2 - 0.2;
+    if (edge === 'N') { startX = alongPos; startZ = perimN; endX = alongPos; endZ = pogoConnectOffset; }
+    if (edge === 'S') { startX = alongPos; startZ = perimS; endX = alongPos; endZ = -pogoConnectOffset; }
+    if (edge === 'W') { startX = perimW; startZ = alongPos; endX = -pogoConnectOffset; endZ = alongPos; }
+    if (edge === 'E') { startX = perimE; startZ = alongPos; endX = pogoConnectOffset; endZ = alongPos; }
+    return makeSurfaceWireBundle([
+      [startX, riseFromY, startZ],
+      [(startX + endX) * 0.5, riseFromY, (startZ + endZ) * 0.5],
+      [endX, riseFromY, endZ],
+      [endX, riseFromY + 0.15, endZ],
+      [endX, riseToY, endZ],
+    ], 1);
+  }
+
+  const pogoRisers = [];
+  ['N', 'S', 'W', 'E'].forEach(edge => {
+    [-0.5, 0.5].forEach(p => {
+      const r = makePogoRiser(edge, p);
+      bottomShellGroup.add(r);
+      pogoRisers.push(r);
+    });
+  });
+
+  const allBundles = [wA, wB, wC, wBotDescent, wD, serviceLoopGroup, ...pogoRisers];
+
+  // Stash refs for toggle access
+  tileGroup.userData = {
+    topShellParts, botShellParts, allBundles, gasketGroup, plugsList,
+  };
+
+  return tileGroup;
+}
+
+// ============================================================================
+// BUILD FLOOR — dynamic grid based on tile count
+// ============================================================================
+const GRID_CONFIGS = {
+  4:  { nx: 2, ny: 2 },
+  9:  { nx: 3, ny: 3 },
+  16: { nx: 4, ny: 4 },
+};
+
+const MAX_GAP = 10;
+
+let tiles = [];
+let currentCount = 4;
+let currentProgress = 0;
+
+function buildFloor(count) {
+  tiles.forEach(t => {
+    scene.remove(t);
+    t.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+    });
+  });
+  tiles = [];
+
+  const { nx, ny } = GRID_CONFIGS[count];
+
+  for (let row = 0; row < ny; row++) {
+    for (let col = 0; col < nx; col++) {
+      const t = buildTile();
+      if (col % 2 === 0) t.rotation.y = Math.PI;
+      scene.add(t);
+      tiles.push(t);
+    }
+  }
+
+  currentCount = count;
+  updateSpread(currentProgress);
+  updateViewPresets(nx, ny);
+  updateSubtitle(count, nx, ny);
+}
+
+function updateSubtitle(count, nx, ny) {
+  const floorW = (nx * TILE) / 12;
+  const floorH = (ny * TILE) / 12;
+  document.getElementById('subtitle').textContent =
+    `${nx * TILE}" × ${ny * TILE}" (${floorW}' × ${floorH}') · ${count}× v19 Tiles · Rev 4`;
+}
+
+function updateSpread(rawProgress) {
+  currentProgress = rawProgress;
+  const { nx, ny } = GRID_CONFIGS[currentCount];
+
+  let eased;
+  if (rawProgress < 0.85) {
+    eased = rawProgress;
+  } else {
+    const t = (rawProgress - 0.85) / 0.15;
+    eased = 0.85 + Math.pow(t, 0.3) * 0.15;
+  }
+
+  const gap = MAX_GAP * (1 - eased);
+  const pitch = TILE + gap;
+
+  const colOrigin = (nx - 1) / 2;
+  const rowOrigin = (ny - 1) / 2;
+
+  for (let i = 0; i < tiles.length; i++) {
+    const col = i % nx;
+    const row = Math.floor(i / nx);
+    const x = (col - colOrigin) * pitch;
+    const z = (row - rowOrigin) * pitch;
+    tiles[i].position.set(x, 0, z);
+  }
+
+  const valEl = document.getElementById('spreadVal');
+  if (rawProgress < 0.05) valEl.textContent = 'APART';
+  else if (rawProgress >= 0.95) valEl.textContent = 'SEATED';
+  else valEl.textContent = Math.round((1 - rawProgress) * 100) + '%';
+
+  document.getElementById('snapIndicator').classList.toggle('on', rawProgress > 0.82);
+}
+
+function forEachTile(fn) { tiles.forEach(t => fn(t.userData)); }
+
+function applyAllToggles() {
+  const topChecked = document.getElementById('showTop').checked;
+  const botChecked = document.getElementById('showBottom').checked;
+  const wireChecked = document.getElementById('showWiring').checked;
+  const gasketChecked = document.getElementById('showGasket').checked;
+  const plugsChecked = document.getElementById('plugsInstalled').checked;
+  forEachTile(u => {
+    u.topShellParts.forEach(p => p.visible = topChecked);
+    u.botShellParts.forEach(p => p.visible = botChecked);
+    u.allBundles.forEach(b => b.visible = wireChecked);
+    u.gasketGroup.visible = gasketChecked;
+    u.plugsList.forEach(p => p.visible = plugsChecked);
+  });
+}
+
+document.getElementById('showTop').addEventListener('change', e => {
+  forEachTile(u => u.topShellParts.forEach(p => p.visible = e.target.checked));
+});
+document.getElementById('showBottom').addEventListener('change', e => {
+  forEachTile(u => u.botShellParts.forEach(p => p.visible = e.target.checked));
+});
+document.getElementById('showWiring').addEventListener('change', e => {
+  forEachTile(u => u.allBundles.forEach(b => b.visible = e.target.checked));
+});
+document.getElementById('showGasket').addEventListener('change', e => {
+  forEachTile(u => u.gasketGroup.visible = e.target.checked);
+});
+document.getElementById('plugsInstalled').addEventListener('change', e => {
+  forEachTile(u => u.plugsList.forEach(p => p.visible = e.target.checked));
+});
+document.getElementById('xray').addEventListener('change', e => {
+  const x = e.target.checked;
+  M.shellOuter.transparent = x;
+  M.shellOuter.opacity = x ? 0.15 : 1.0;
+  M.shellOuter.needsUpdate = true;
+});
+
+document.querySelectorAll('#gridBtns button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const count = parseInt(btn.dataset.count, 10);
+    if (count === currentCount) return;
+    document.querySelectorAll('#gridBtns button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildFloor(count);
+    applyAllToggles();
+  });
+});
+
+const spreadEl = document.getElementById('spread');
+spreadEl.addEventListener('input', e => {
+  const progress = 1 - parseFloat(e.target.value) / 1000;
+  updateSpread(progress);
+});
+
+let views = {};
+
+function updateViewPresets(nx, ny) {
+  const floorX = nx * TILE;
+  const floorZ = ny * TILE;
+  const maxDim = Math.max(floorX, floorZ);
+  const diag = Math.sqrt(floorX * floorX + floorZ * floorZ);
+
+  views = {
+    iso: {
+      pos: [maxDim * 1.1, maxDim * 0.85, maxDim * 1.1],
+      target: [0, 0, 0]
+    },
+    top: {
+      pos: [0, diag * 1.0, 0.01],
+      target: [0, 0, 0]
+    },
+    seam: {
+      pos: [0, 14, floorZ / 2 + 20],
+      target: [0, -1, floorZ / 2 - TILE * 0.3]
+    },
+    corner: {
+      pos: [floorX * 0.85, maxDim * 0.35, floorZ * 0.85],
+      target: [0, -1, 0]
+    },
+    cross: {
+      pos: [0, maxDim * 0.45, 0.01],
+      target: [0, 0, 0]
+    },
+    through: {
+      pos: [-floorX / 2 - 18, -1.5, 0],
+      target: [floorX / 2, -1.5, 0]
+    },
+  };
+}
+
+document.querySelectorAll('#angleBtns button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#angleBtns button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const v = views[btn.dataset.view];
+    const sp = camera.position.clone(), st = controls.target.clone();
+    const ep = new THREE.Vector3(...v.pos), et = new THREE.Vector3(...v.target);
+    const t0 = performance.now();
+    (function tween() {
+      const t = Math.min((performance.now() - t0) / 700, 1);
+      const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      camera.position.lerpVectors(sp, ep, e);
+      controls.target.lerpVectors(st, et, e);
+      if (t < 1) requestAnimationFrame(tween);
+    })();
+  });
+});
+
+buildFloor(4);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+(function loop() {
+  requestAnimationFrame(loop);
+  controls.update();
+  renderer.render(scene, camera);
+})();
+</script>
+
+</body>
+</html>
