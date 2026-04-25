@@ -320,13 +320,15 @@
     gap: 14px;
   }
 
-  /* Solo grid: 2 cols at desktop so BridgeBox group can span both rows
-     while MagTile + Cushion stack in column 2. Falls back to 1-col on mobile. */
+  /* Solo grid: 2 cols at desktop. BridgeBox group sits in col 1; all
+     single-solo cards stack tight in col 2 inside .solo-col-stack — kept
+     out of the grid auto-row sizing so MagTile and Cushion don't get
+     pushed apart by BridgeBox's height. */
   .product-grid.solo-grid { grid-template-columns: 1fr 1fr; align-items: start; }
-  .product-grid.solo-grid .product-card.group-card { grid-row: span 2; }
+  .solo-col-stack { display: flex; flex-direction: column; gap: 48px; min-width: 0; }
   @media (max-width: 900px) {
     .product-grid.solo-grid { grid-template-columns: 1fr; }
-    .product-grid.solo-grid .product-card.group-card { grid-row: auto; }
+    .solo-col-stack { gap: 28px; }
   }
 
   /* Bundle grid: 2 cols, HVT Experience variants pinned to col 1, others to col 2.
@@ -1335,7 +1337,7 @@ const DEFAULT_STATE = {
     },
     {
       id: 'magtile_floor',
-      name: 'MagTile Floor Kit (4×4)',
+      name: 'Amplified & Connected MagTile Kits',
       desc: 'Comes with: 16 HiVibe MagTiles, BridgeBox Offer C, accessories pack',
       category: 'tile',
       components: [
@@ -1446,6 +1448,18 @@ function mergeDefaults(s) {
     }
     s.migrated_hvt_variants_v1 = true;
     console.info('[migration] Added HVT Experience Mat B + C variants');
+  }
+
+  // One-time migration: the magtile_floor bundle was renamed from
+  // "MagTile Floor Kit (4×4)" to "Amplified & Connected MagTile Kits".
+  // Update existing saved state if it still has the old name.
+  if (!s.migrated_magtile_floor_rename_v1) {
+    const mf = s.bundles.find(b => b.id === 'magtile_floor');
+    if (mf && (mf.name === 'MagTile Floor Kit (4×4)' || /^magtile floor kit/i.test(mf.name || ''))) {
+      mf.name = 'Amplified & Connected MagTile Kits';
+      console.info('[migration] Renamed magtile_floor bundle');
+    }
+    s.migrated_magtile_floor_rename_v1 = true;
   }
 
   return s;
@@ -1907,7 +1921,8 @@ function renderSoloBOM(s, i) {
 
 function renderSoloCards() {
   const grid = document.getElementById('soloGrid');
-  let html = '';
+  let groupHtml = '';
+  let stackHtml = '';
   let i = 0;
   while (i < state.solos.length) {
     const s = state.solos[i];
@@ -1917,11 +1932,12 @@ function renderSoloCards() {
       while (endIdx + 1 < state.solos.length && state.solos[endIdx + 1].group === s.group) {
         endIdx++;
       }
-      html += renderGroupSoloCard(i, endIdx);
+      groupHtml += renderGroupSoloCard(i, endIdx);
       i = endIdx + 1;
     } else {
-      // Single solo card
-      html += `
+      // Single solo cards stack tight in column 2 (separate flex container so
+      // they don't get spaced out by the grid auto-row sized to BridgeBox).
+      stackHtml += `
       <div class="product-card solo" data-solo-card="${i}">
         <div class="pc-header">
           <div>
@@ -1940,6 +1956,9 @@ function renderSoloCards() {
       i++;
     }
   }
+  // Final HTML: group card in col 1, all single-solo cards wrapped in a flex
+  // stack in col 2 so they pack tight regardless of BridgeBox height.
+  let html = groupHtml + (stackHtml ? `<div class="solo-col-stack">${stackHtml}</div>` : '');
   grid.innerHTML = html;
 }
 
