@@ -189,7 +189,19 @@
   .kpi-value.green { color: var(--green); }
   .kpi-value.red { color: var(--red); }
 
-  /* Card: 3Y Peak Cash Demand (peak shown big, SPV ask editable below). */
+  /* SPV Ask card — full-width with editable raise on the left + use-of-proceeds prose on the right */
+  .kpi-block.kpi-spv-ask-block { border-left-color: #4ac46a; background: rgba(74, 196, 106, 0.05); }
+  .spv-ask-row { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 28px; align-items: start; padding-top: 8px; }
+  @media (max-width: 880px) { .spv-ask-row { grid-template-columns: 1fr; gap: 18px; } }
+  .spv-ask-figure { min-width: 0; }
+  .spv-ask-narrative {
+    color: var(--text-dim); font-size: 12.5px; line-height: 1.55;
+    border-left: 1px solid var(--border); padding-left: 22px;
+  }
+  @media (max-width: 880px) { .spv-ask-narrative { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 14px; } }
+  .spv-ask-narrative b { color: var(--text); font-weight: 600; }
+  .spv-ask-narrative p { margin: 0; }
+
   .kpi-divider { height: 1px; background: var(--border); margin: 14px 0 10px; }
   .kpi-sublabel {
     font-size: 9.5px; letter-spacing: 1.5px; color: var(--text-faint);
@@ -197,6 +209,11 @@
   }
   /* Editable KPI value (SPV Ask) — looks like .kpi-value but typeable. */
   .kpi-value-edit-row { display: flex; align-items: baseline; gap: 4px; line-height: 1.1; }
+  /* Larger green variant for the standalone SPV Ask card (happy number, not red). */
+  .kpi-value-prefix.kpi-value-prefix-lg { font-size: 30px; color: #38a85a; }
+  .kpi-value-input.kpi-value-input-lg { font-size: 32px; color: #38a85a; }
+  .kpi-value-input.kpi-value-input-lg:hover { border-bottom-color: #38a85a; }
+  .kpi-value-input.kpi-value-input-lg:focus { border-bottom-color: var(--gold); color: var(--text); }
   .kpi-value-prefix {
     font-size: 24px; font-weight: 600; color: var(--red); letter-spacing: -0.5px;
   }
@@ -310,6 +327,16 @@
   @media (max-width: 900px) {
     .product-grid.solo-grid { grid-template-columns: 1fr; }
     .product-grid.solo-grid .product-card.group-card { grid-row: auto; }
+  }
+
+  /* Bundle grid: 2 cols, HVT Experience variants pinned to col 1, others to col 2.
+     Falls back to 1-col on mobile. */
+  .product-grid.bundle-grid { grid-template-columns: 1fr 1fr; align-items: start; }
+  .product-grid.bundle-grid .product-card[data-bundle-col="left"]  { grid-column: 1; }
+  .product-grid.bundle-grid .product-card[data-bundle-col="right"] { grid-column: 2; }
+  @media (max-width: 900px) {
+    .product-grid.bundle-grid { grid-template-columns: 1fr; }
+    .product-grid.bundle-grid .product-card[data-bundle-col] { grid-column: auto; }
   }
 
   /* Rollup panel — small list inside each kpi-year column */
@@ -887,9 +914,10 @@
     color: var(--text);
     font-family: inherit;
     font-size: 12px;
-    padding: 4px 8px;
+    padding: 4px 0;
     border-radius: 3px;
-    width: 130px;
+    width: 100%;
+    box-sizing: border-box;
     text-align: right;
     font-feature-settings: "tnum" 1;
   }
@@ -1050,7 +1078,7 @@
   </div>
 
   <h2 class="section"><span class="step">STEP 2</span> Bundles <span class="hint">Compose solo products via dropdown · Set quantities · COGS auto-computes</span></h2>
-  <div class="product-grid" id="bundleGrid"></div>
+  <div class="product-grid bundle-grid" id="bundleGrid"></div>
   <div style="margin-top:10px;">
     <button id="addBundleBtn" class="add-component-btn" style="max-width:280px;">+ ADD CUSTOM BUNDLE</button>
   </div>
@@ -1243,35 +1271,67 @@ const DEFAULT_STATE = {
   bundles: [
     {
       id: 'hvt_experience_mat',
-      name: 'HVT Experience · Mat Version',
-      desc: 'Comes with: 24×24 HVT Mat, 9 inHarmony cushions, BridgeBox Offer B, accessories pack',
-      category: 'flagship',
-      components: [
-        { solo_id: 'cushion', qty: 9 },
-        { solo_id: 'bb_b', qty: 1 },
-      ],
-      sell_price: 19500,
-      proto_units: 1,
-      first_run_units: 3,
-      y1_units: 5,
-      y2_units: 20,
-      y3_units: 50,
-    },
-    {
-      id: 'hvt_experience_magtile',
-      name: 'HVT Experience · MagTile Version',
-      desc: 'Comes with: 24×24 HVT Mat, 9 inHarmony cushions, BridgeBox Offer A, accessories pack',
+      name: 'HVT Experience · Mat A',
+      desc: '24×24 HVT Mat + 9 inHarmony cushions + BridgeBox Offer A · top tier',
       category: 'flagship',
       components: [
         { solo_id: 'cushion', qty: 9 },
         { solo_id: 'bb_a', qty: 1 },
       ],
-      sell_price: 26500,
+      sell_price: 24995,
+      proto_units: 2,
+      first_run_units: 3,
+      y1_units: 5,
+      y2_units: 15,
+      y3_units: 35,
+    },
+    {
+      id: 'hvt_experience_mat_b',
+      name: 'HVT Experience · Mat B',
+      desc: '24×24 HVT Mat + 9 inHarmony cushions + BridgeBox Offer B · standard tier',
+      category: 'flagship',
+      components: [
+        { solo_id: 'cushion', qty: 9 },
+        { solo_id: 'bb_b', qty: 1 },
+      ],
+      sell_price: 22000,
       proto_units: 1,
-      first_run_units: 2,
-      y1_units: 3,
-      y2_units: 12,
-      y3_units: 30,
+      first_run_units: 3,
+      y1_units: 5,
+      y2_units: 18,
+      y3_units: 40,
+    },
+    {
+      id: 'hvt_experience_mat_c',
+      name: 'HVT Experience · Mat C',
+      desc: '24×24 HVT Mat + 9 inHarmony cushions + BridgeBox Offer C · entry tier',
+      category: 'flagship',
+      components: [
+        { solo_id: 'cushion', qty: 9 },
+        { solo_id: 'bb_c', qty: 1 },
+      ],
+      sell_price: 20000,
+      proto_units: 1,
+      first_run_units: 3,
+      y1_units: 6,
+      y2_units: 22,
+      y3_units: 50,
+    },
+    {
+      id: 'hvt_experience_magtile',
+      name: 'HVT Experience · MagTile Version',
+      desc: '16 HiVibe MagTiles (4×4 floor) + BridgeBox Offer B · vibroacoustic floor experience',
+      category: 'flagship',
+      components: [
+        { solo_id: 'bb_b', qty: 1 },
+        { solo_id: 'magtile', qty: 16 },
+      ],
+      sell_price: 24995,
+      proto_units: 0,
+      first_run_units: 3,
+      y1_units: 5,
+      y2_units: 10,
+      y3_units: 20,
     },
     {
       id: 'magtile_floor',
@@ -1369,6 +1429,23 @@ function mergeDefaults(s) {
       s.investments = structuredClone(DEFAULT_STATE.investments);
     }
     s.migrated_arena_v1 = true;
+  }
+
+  // One-time migration: HVT Experience used to be a single bundle (Mat A).
+  // Now there are three variants — Mat A (BB Offer A), B (BB Offer B), C (BB
+  // Offer C). Add the missing variants if a user's saved state predates the
+  // split, preserving anything they've customized about the existing one.
+  if (!s.migrated_hvt_variants_v1) {
+    if (!s.bundles.some(b => b.id === 'hvt_experience_mat_b')) {
+      const tpl = DEFAULT_STATE.bundles.find(b => b.id === 'hvt_experience_mat_b');
+      if (tpl) s.bundles.push(structuredClone(tpl));
+    }
+    if (!s.bundles.some(b => b.id === 'hvt_experience_mat_c')) {
+      const tpl = DEFAULT_STATE.bundles.find(b => b.id === 'hvt_experience_mat_c');
+      if (tpl) s.bundles.push(structuredClone(tpl));
+    }
+    s.migrated_hvt_variants_v1 = true;
+    console.info('[migration] Added HVT Experience Mat B + C variants');
   }
 
   return s;
@@ -1555,8 +1632,7 @@ function readMoneyInput(t) {
   return raw;
 }
 
-// Render the "$X contingency · Y× cover · use of proceeds" subtext under the
-// SPV Ask input. Ask = whatever the user typed; if blank/0, defaults to peak.
+// Render the "$X contingency · Y× cover" stat line under the editable input.
 function formatSpvAskDetail(peak) {
   const ask = +state.assumptions.target_raise || 0;
   const effective = ask > 0 ? ask : peak;
@@ -1568,7 +1644,38 @@ function formatSpvAskDetail(peak) {
   if (contingency < 0) {
     return `Short ${fmt.moneyFull(-contingency)} of peak need · raise too low`;
   }
-  return `${fmt.moneyFull(contingency)} contingency · ${cover.toFixed(2)}× cover · sales delays / supply chain / working capital`;
+  return `${fmt.moneyFull(contingency)} contingency · ${cover.toFixed(2)}× cover`;
+}
+
+// Use-of-proceeds prose for the SPV Ask card. References live numbers
+// (peak demand, ask, contingency, cover) so the narrative stays accurate
+// as the user tunes inputs.
+function formatSpvAskNarrative(peak) {
+  const ask = +state.assumptions.target_raise || 0;
+  const effective = ask > 0 ? ask : peak;
+  const contingency = effective - peak;
+  const cover = peak > 0 ? (effective / peak) : 0;
+  const askStr = fmt.moneyFull(effective);
+  const peakStr = fmt.moneyFull(peak);
+
+  if (peak <= 0) {
+    return `<p><b>Use of Proceeds.</b> Set inputs above so the model can compute the 3Y Peak Cash Demand and a sized raise.</p>`;
+  }
+
+  if (contingency < 0) {
+    return `
+      <p><b>Use of Proceeds.</b> The raise is sized to fund the SPV through the deepest cumulative cash trough — the <b>3Y Peak Cash Demand of ${peakStr}</b>. The current ask of ${askStr} sits <b style="color:var(--red);">${fmt.moneyFull(-contingency)} below</b> that demand, which means the SPV would run out of cash before reaching break-even. Increase the ask or lower the burn upstream.</p>`;
+  }
+
+  return `
+    <p style="margin:0 0 10px;"><b>Use of Proceeds.</b> The SPV raises <b>${askStr}</b>. Of that, <b>${peakStr}</b> directly funds operations through the cumulative cash trough — covering Year 0 build (prototypes, first production run, the Arena CapEx), Year 1 operating runway, and the second-year ramp before sales clear back to break-even.</p>
+    <p style="margin:0 0 10px;"><b>Capital Reserves.</b> The remaining <b>${fmt.moneyFull(contingency)}</b> is held in cash reserve to absorb the three risks that typically take down a hardware launch:
+      <span style="display:block; padding:4px 0 0 14px; opacity:0.85;">&middot; sales running 6&ndash;9 months behind plan,</span>
+      <span style="display:block; padding:0 0 0 14px; opacity:0.85;">&middot; supply-chain disruption forcing re-orders at higher unit cost,</span>
+      <span style="display:block; padding:0 0 4px 14px; opacity:0.85;">&middot; one quarter of stretched receivables.</span>
+    </p>
+    <p style="margin:0;"><b>Cover Ratio.</b> ${askStr} &divide; ${peakStr} = <b>${cover.toFixed(2)}&times;</b> cover against peak need. The deck position: meaningful cushion without overshooting.</p>
+  `;
 }
 
 function totalGP3yr() { return totalYearGP(1) + totalYearGP(2) + totalYearGP(3); }
@@ -1674,14 +1781,24 @@ function renderKPIs() {
         <div class="kpi-label">3Y Peak Cash Demand</div>
         <div class="kpi-value red">${fmt.moneyFull(peak)}</div>
         <div class="kpi-detail">Deepest cumulative cash trough across Y0&ndash;Y3</div>
-        <div class="kpi-divider"></div>
-        <div class="kpi-sublabel">SPV Ask</div>
-        <div class="kpi-value-edit-row">
-          <span class="kpi-value-prefix">$</span>
-          <input id="targetRaiseInput" class="kpi-value-input" type="text" inputmode="numeric"
-            value="${formatCommas(+state.assumptions.target_raise || peak)}" />
+      </div>
+    </div>
+
+    <div class="kpi-block kpi-spv-ask-block">
+      <div class="kpi-block-label">SPV Ask &middot; Use of Proceeds</div>
+      <div class="spv-ask-row">
+        <div class="spv-ask-figure">
+          <div class="kpi-sublabel">Capital Raise Target</div>
+          <div class="kpi-value-edit-row">
+            <span class="kpi-value-prefix kpi-value-prefix-lg">$</span>
+            <input id="targetRaiseInput" class="kpi-value-input kpi-value-input-lg" type="text" inputmode="numeric"
+              value="${formatCommas(+state.assumptions.target_raise || peak)}" />
+          </div>
+          <div class="kpi-detail" id="targetRaiseDetail">${formatSpvAskDetail(peak)}</div>
         </div>
-        <div class="kpi-detail" id="targetRaiseDetail">${formatSpvAskDetail(peak)}</div>
+        <div class="spv-ask-narrative" id="spvAskNarrative">
+          ${formatSpvAskNarrative(peak)}
+        </div>
       </div>
     </div>`;
 
@@ -1930,8 +2047,13 @@ function renderBundleCards() {
       return row;
     }).join('');
 
+    // HVT Experience Mat variants live in the left column; everything else
+    // (HVT MagTile, MagTile Floor Kit, custom bundles) goes to the right.
+    const isMatVariant = /^hvt_experience_mat(_[abc])?$/i.test(b.id || '');
+    const colHint = isMatVariant ? 'left' : 'right';
+
     return `
-    <div class="product-card bundle">
+    <div class="product-card bundle" data-bundle-col="${colHint}">
       <div class="pc-header">
         <div>
           <div class="pc-name">${b.name}</div>
@@ -2465,8 +2587,11 @@ document.addEventListener('input', e => {
         try { t.setSelectionRange(newVal.length, newVal.length); } catch {}
       }
     }
+    const peakNow = peakCashNeed();
     const detail = document.getElementById('targetRaiseDetail');
-    if (detail) detail.textContent = formatSpvAskDetail(peakCashNeed());
+    if (detail) detail.textContent = formatSpvAskDetail(peakNow);
+    const narrative = document.getElementById('spvAskNarrative');
+    if (narrative) narrative.innerHTML = formatSpvAskNarrative(peakNow);
     return;
   }
 
