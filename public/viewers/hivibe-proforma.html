@@ -189,7 +189,13 @@
   .kpi-value.green { color: var(--green); }
   .kpi-value.red { color: var(--red); }
 
-  /* Editable KPI value (Target Cash Raise) — looks like .kpi-value but typeable. */
+  /* Card: 3Y Peak Cash Demand (peak shown big, SPV ask editable below). */
+  .kpi-divider { height: 1px; background: var(--border); margin: 14px 0 10px; }
+  .kpi-sublabel {
+    font-size: 9.5px; letter-spacing: 1.5px; color: var(--text-faint);
+    text-transform: uppercase; font-weight: 500; margin-bottom: 6px;
+  }
+  /* Editable KPI value (SPV Ask) — looks like .kpi-value but typeable. */
   .kpi-value-edit-row { display: flex; align-items: baseline; gap: 4px; line-height: 1.1; }
   .kpi-value-prefix {
     font-size: 24px; font-weight: 600; color: var(--red); letter-spacing: -0.5px;
@@ -1523,20 +1529,46 @@ function peakCashNeed() {
   return Math.abs(lowest);
 }
 
-// Render the "Peak need · Headroom · cover" subtext under the Target Cash Raise KPI.
-// Target = whatever the user typed; if blank/0, defaults to peak need.
-function formatTargetRaiseDetail(peak) {
-  const target = +state.assumptions.target_raise || 0;
-  const effective = target > 0 ? target : peak;
-  const headroom = effective - peak;
+// Comma helpers for money inputs (parse on input, format on display).
+function formatCommas(n) {
+  const v = +n || 0;
+  return v ? Math.round(v).toLocaleString('en-US') : '0';
+}
+function parseCommas(v) {
+  return parseInt(String(v == null ? '' : v).replace(/[^\d-]/g, ''), 10) || 0;
+}
+// Reads a number from a money input. If the input is comma-formatted text
+// (inputmode=numeric + type=text), it also reformats the visible value back
+// with commas and best-effort restores the cursor at end of string.
+function readMoneyInput(t) {
+  const raw = parseCommas(t.value);
+  if (t && t.type === 'text' && t.inputMode === 'numeric') {
+    const cursorAtEnd = t.selectionStart === t.value.length;
+    const formatted = formatCommas(raw);
+    if (formatted !== t.value) {
+      t.value = formatted;
+      if (cursorAtEnd) {
+        try { t.setSelectionRange(formatted.length, formatted.length); } catch {}
+      }
+    }
+  }
+  return raw;
+}
+
+// Render the "$X contingency · Y× cover · use of proceeds" subtext under the
+// SPV Ask input. Ask = whatever the user typed; if blank/0, defaults to peak.
+function formatSpvAskDetail(peak) {
+  const ask = +state.assumptions.target_raise || 0;
+  const effective = ask > 0 ? ask : peak;
+  const contingency = effective - peak;
   const cover = peak > 0 ? (effective / peak) : 0;
-  if (target === 0) {
-    return `Peak need: ${fmt.moneyFull(peak)} · default = peak (edit above to set raise target)`;
+  if (ask === 0) {
+    return `Default = peak need · edit above to set raise target`;
   }
-  if (headroom < 0) {
-    return `Peak need: ${fmt.moneyFull(peak)} · Short ${fmt.moneyFull(-headroom)} (raise too low)`;
+  if (contingency < 0) {
+    return `Short ${fmt.moneyFull(-contingency)} of peak need · raise too low`;
   }
-  return `Peak need: ${fmt.moneyFull(peak)} · Headroom: ${fmt.moneyFull(headroom)} · ${cover.toFixed(2)}× cover`;
+  return `${fmt.moneyFull(contingency)} contingency · ${cover.toFixed(2)}× cover · sales delays / supply chain / working capital`;
 }
 
 function totalGP3yr() { return totalYearGP(1) + totalYearGP(2) + totalYearGP(3); }
@@ -1597,7 +1629,7 @@ function renderKPIs() {
         <div class="kpi-detail">${firstRunUnits} solo units · ${overAllocated > 0 ? `<span style="color:var(--red);">[!] ${overAllocated} SKU${overAllocated>1?'s':''} short</span>` : '<span style="color:var(--green);">all SKUs covered</span>'}</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Pre-Revenue Capital</div>
+        <div class="kpi-label">CapEx for Community Tech Stack &middot; Arena</div>
         <div class="kpi-value">${fmt.moneyFull(capital)}</div>
         <div class="kpi-detail">${(state.investments||[]).length} line${(state.investments||[]).length===1?'':'s'} · amortized across years (Step 3)</div>
       </div>
@@ -1639,13 +1671,17 @@ function renderKPIs() {
         <div class="kpi-detail">Operating income · after OPEX</div>
       </div>
       <div class="kpi kpi-raise">
-        <div class="kpi-label">Target Cash Raise</div>
+        <div class="kpi-label">3Y Peak Cash Demand</div>
+        <div class="kpi-value red">${fmt.moneyFull(peak)}</div>
+        <div class="kpi-detail">Deepest cumulative cash trough across Y0&ndash;Y3</div>
+        <div class="kpi-divider"></div>
+        <div class="kpi-sublabel">SPV Ask</div>
         <div class="kpi-value-edit-row">
           <span class="kpi-value-prefix">$</span>
-          <input id="targetRaiseInput" class="kpi-value-input" type="number" step="10000" min="0"
-            value="${(+state.assumptions.target_raise || peak)}" />
+          <input id="targetRaiseInput" class="kpi-value-input" type="text" inputmode="numeric"
+            value="${formatCommas(+state.assumptions.target_raise || peak)}" />
         </div>
-        <div class="kpi-detail" id="targetRaiseDetail">${formatTargetRaiseDetail(peak)}</div>
+        <div class="kpi-detail" id="targetRaiseDetail">${formatSpvAskDetail(peak)}</div>
       </div>
     </div>`;
 
@@ -1658,21 +1694,28 @@ function renderKPIs() {
 // ----- Per-solo content (used by both single cards and group cards) -----
 function renderSoloFields(s, i) {
   const margin = unitMargin(s);
-  const protoUsed = bundleConsumptionOfSolo(s.id, 'proto_units');
-  const protoAvail = (s.proto_units || 0) - protoUsed;
+  // Prototypes are NEVER sold solo — they're consumed by bundle protos and/or
+  // held for dev/testing/showcase. Display: all protos as "used", 0 for solo.
+  // Only break out the SHORT case (bundle proto demand > proto inventory ordered).
+  const protoTotal = +s.proto_units || 0;
+  const protoBundleNeed = bundleConsumptionOfSolo(s.id, 'proto_units');
+  const protoShort = Math.max(0, protoBundleNeed - protoTotal);
+  const protoUsedDisplay = protoTotal;
+  const protoAvailDisplay = protoShort > 0 ? -protoShort : 0;
+  const protoCls = protoShort > 0 ? 'negative' : (protoTotal > 0 ? 'positive' : '');
+
   const frUsed = bundleConsumptionOfSolo(s.id, 'first_run_units');
   const frAvail = (s.first_run_units || 0) - frUsed;
-  const protoCls = protoAvail < 0 ? 'negative' : (protoUsed > 0 ? 'positive' : '');
   const frCls = frAvail < 0 ? 'negative' : (frUsed > 0 ? 'positive' : '');
   return `
     <div class="field-grid">
       <div class="field">
         <div class="label">Unit COGS</div>
-        <div class="field-inline"><span class="prefix">$</span><input type="number" step="1" data-solo="${i}" data-f="unit_cost" value="${s.unit_cost}"></div>
+        <div class="field-inline"><span class="prefix">$</span><input type="text" inputmode="numeric" data-solo="${i}" data-f="unit_cost" value="${formatCommas(s.unit_cost)}"></div>
       </div>
       <div class="field">
         <div class="label">Sell Price</div>
-        <div class="field-inline"><span class="prefix">$</span><input type="number" step="1" data-solo="${i}" data-f="sell_price" value="${s.sell_price}"></div>
+        <div class="field-inline"><span class="prefix">$</span><input type="text" inputmode="numeric" data-solo="${i}" data-f="sell_price" value="${formatCommas(s.sell_price)}"></div>
       </div>
     </div>
     <div class="field-grid three" style="margin-top:8px;">
@@ -1692,7 +1735,7 @@ function renderSoloFields(s, i) {
     <div class="alloc-block">
       <div class="alloc-row">
         <span class="alloc-label">Proto allocation</span>
-        <span class="alloc-num"><span class="alloc-used ${protoCls}">${fmt.int(protoUsed)} used</span> · <span class="alloc-avail ${protoAvail < 0 ? 'negative' : ''}">${fmt.int(protoAvail)} solo${protoAvail < 0 ? ' SHORT' : ''}</span></span>
+        <span class="alloc-num"><span class="alloc-used ${protoCls}">${fmt.int(protoUsedDisplay)} used</span> · <span class="alloc-avail ${protoAvailDisplay < 0 ? 'negative' : ''}">${fmt.int(protoAvailDisplay)} solo${protoAvailDisplay < 0 ? ' SHORT' : ''}</span></span>
       </div>
       <div class="alloc-row">
         <span class="alloc-label">First-run allocation</span>
@@ -1730,7 +1773,7 @@ function renderSoloBOM(s, i) {
           ${(s.bom || []).map((x, j) => `
             <tr>
               <td><input type="text" data-solo="${i}" data-bom-j="${j}" data-bom-f="name" value="${x.name}"></td>
-              <td class="right"><input type="number" step="1" data-solo="${i}" data-bom-j="${j}" data-bom-f="cost" value="${x.cost}"></td>
+              <td class="right"><input type="text" inputmode="numeric" data-solo="${i}" data-bom-j="${j}" data-bom-f="cost" value="${formatCommas(x.cost)}"></td>
             </tr>
           `).join('')}
         </tbody>
@@ -1910,7 +1953,7 @@ function renderBundleCards() {
         <div class="field-grid">
           <div class="field">
             <div class="label">Sell Price</div>
-            <div class="field-inline"><span class="prefix">$</span><input type="number" step="1" data-bundle="${bi}" data-f="sell_price" value="${b.sell_price}"></div>
+            <div class="field-inline"><span class="prefix">$</span><input type="text" inputmode="numeric" data-bundle="${bi}" data-f="sell_price" value="${formatCommas(b.sell_price)}"></div>
           </div>
           <div class="field">
             <div class="label">Unit Margin</div>
@@ -1997,7 +2040,7 @@ function renderInvestments() {
     return `
       <tr>
         <td><input type="text" data-inv="${i}" data-inv-f="name" value="${inv.name}" style="text-align:left;width:100%;max-width:none;"></td>
-        <td><input type="number" step="1000" min="0" data-inv="${i}" data-inv-f="total" value="${inv.total}" title="Total dev cost"></td>
+        <td><input type="text" inputmode="numeric" data-inv="${i}" data-inv-f="total" value="${formatCommas(inv.total)}" title="Total dev cost"></td>
         <td><input type="number" step="1" min="1" max="10" data-inv="${i}" data-inv-f="years" value="${inv.years}" title="Amortize over how many years"></td>
         <td><input type="text" class="derived" value="${fmt.moneyFull(perYear)}" readonly></td>
         <td class="opex-remove"><button class="remove-btn" data-inv-remove="${i}" title="Remove this capital line">×</button></td>
@@ -2032,9 +2075,9 @@ function renderOpex() {
   const rows = state.opex.map((o, i) => `
     <tr>
       <td><input type="text" data-opex="${i}" data-opex-f="name" value="${o.name}" style="text-align:left;width:100%;max-width:none;"></td>
-      <td><input type="number" step="1000" data-opex="${i}" data-opex-f="y1" value="${o.y1}"></td>
-      <td><input type="number" step="1000" data-opex="${i}" data-opex-f="y2" value="${o.y2}"></td>
-      <td><input type="number" step="1000" data-opex="${i}" data-opex-f="y3" value="${o.y3}"></td>
+      <td><input type="text" inputmode="numeric" data-opex="${i}" data-opex-f="y1" value="${formatCommas(o.y1)}"></td>
+      <td><input type="text" inputmode="numeric" data-opex="${i}" data-opex-f="y2" value="${formatCommas(o.y2)}"></td>
+      <td><input type="text" inputmode="numeric" data-opex="${i}" data-opex-f="y3" value="${formatCommas(o.y3)}"></td>
       <td class="opex-remove"><button class="remove-btn" data-opex-remove="${i}" title="Remove this opex line">×</button></td>
     </tr>
   `).join('');
@@ -2409,12 +2452,21 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (!t.matches('input, select')) return;
 
-  // Target Cash Raise edit — surgical update so the typing input stays focused.
+  // SPV Ask edit — surgical update so the typing input keeps cursor focus.
   if (t.id === 'targetRaiseInput') {
-    state.assumptions.target_raise = +t.value || 0;
+    const raw = parseCommas(t.value);
+    state.assumptions.target_raise = raw;
     saveState();
+    const cursorAtEnd = t.selectionStart === t.value.length;
+    const newVal = formatCommas(raw);
+    if (newVal !== t.value) {
+      t.value = newVal;
+      if (cursorAtEnd) {
+        try { t.setSelectionRange(newVal.length, newVal.length); } catch {}
+      }
+    }
     const detail = document.getElementById('targetRaiseDetail');
-    if (detail) detail.textContent = formatTargetRaiseDetail(peakCashNeed());
+    if (detail) detail.textContent = formatSpvAskDetail(peakCashNeed());
     return;
   }
 
@@ -2423,7 +2475,7 @@ document.addEventListener('input', e => {
     const i = +t.dataset.solo;
     const j = +t.dataset.bomJ;
     const field = t.dataset.bomF;
-    state.solos[i].bom[j][field] = field === 'cost' ? +t.value : t.value;
+    state.solos[i].bom[j][field] = field === 'cost' ? readMoneyInput(t) : t.value;
     saveState();
     softRefreshTotals();
     updateSoloDerivedDisplay(i);
@@ -2434,7 +2486,7 @@ document.addEventListener('input', e => {
   if (t.dataset.solo !== undefined && t.dataset.f) {
     const i = +t.dataset.solo;
     const field = t.dataset.f;
-    state.solos[i][field] = +t.value;
+    state.solos[i][field] = readMoneyInput(t);
     saveState();
     softRefreshTotals();
     updateSoloDerivedDisplay(i);
@@ -2460,7 +2512,7 @@ document.addEventListener('input', e => {
   if (t.dataset.bundle !== undefined && t.dataset.f) {
     const bi = +t.dataset.bundle;
     const field = t.dataset.f;
-    state.bundles[bi][field] = +t.value;
+    state.bundles[bi][field] = readMoneyInput(t);
     saveState();
     softRefreshTotals();
     updateBundleDerivedDisplay(bi);
@@ -2475,7 +2527,7 @@ document.addEventListener('input', e => {
   if (t.dataset.opex !== undefined) {
     const i = +t.dataset.opex;
     const field = t.dataset.opexF;
-    state.opex[i][field] = field === 'name' ? t.value : +t.value;
+    state.opex[i][field] = field === 'name' ? t.value : readMoneyInput(t);
     saveState();
     softRefreshTotals();
     document.querySelectorAll('#opexTable tfoot input').forEach((inp, k) => {
@@ -2490,6 +2542,8 @@ document.addEventListener('input', e => {
     const field = t.dataset.invF;
     if (field === 'name') {
       state.investments[i].name = t.value;
+    } else if (field === 'total') {
+      state.investments[i].total = readMoneyInput(t);
     } else {
       state.investments[i][field] = Math.max(field === 'years' ? 1 : 0, +t.value || 0);
     }
@@ -2557,21 +2611,24 @@ function updateSoloDerivedDisplay(i) {
   const marginEl = card.querySelector('input.derived');
   if (marginEl) marginEl.value = fmt.pct(unitMargin(s));
 
-  // Update inventory allocation block
+  // Update inventory allocation block.
+  // Proto: protos are never sold solo — show all as "used" (dev/testing/bundle protos).
   const allocRows = card.querySelectorAll('.alloc-row');
   if (allocRows[0]) {
-    const protoUsed = bundleConsumptionOfSolo(s.id, 'proto_units');
-    const protoAvail = (s.proto_units || 0) - protoUsed;
+    const protoTotal = +s.proto_units || 0;
+    const protoBundleNeed = bundleConsumptionOfSolo(s.id, 'proto_units');
+    const protoShort = Math.max(0, protoBundleNeed - protoTotal);
+    const protoAvail = protoShort > 0 ? -protoShort : 0;
     const used = allocRows[0].querySelector('.alloc-used');
     const avail = allocRows[0].querySelector('.alloc-avail');
     if (used) {
-      used.textContent = fmt.int(protoUsed) + ' used';
-      used.classList.toggle('positive', protoAvail >= 0 && protoUsed > 0);
-      used.classList.toggle('negative', protoAvail < 0);
+      used.textContent = fmt.int(protoTotal) + ' used';
+      used.classList.toggle('positive', protoShort === 0 && protoTotal > 0);
+      used.classList.toggle('negative', protoShort > 0);
     }
     if (avail) {
-      avail.textContent = fmt.int(protoAvail) + ' solo' + (protoAvail < 0 ? ' SHORT' : '');
-      avail.classList.toggle('negative', protoAvail < 0);
+      avail.textContent = fmt.int(protoAvail) + ' solo' + (protoShort > 0 ? ' SHORT' : '');
+      avail.classList.toggle('negative', protoShort > 0);
     }
   }
   if (allocRows[1]) {

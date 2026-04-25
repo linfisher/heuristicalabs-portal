@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "sync:vps": "bash scripts/sync-from-vps.sh",
+    "predev": "npm run sync:vps",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
