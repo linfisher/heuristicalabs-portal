@@ -1472,6 +1472,18 @@ function mergeDefaults(s) {
     s.migrated_magtile_floor_rename_v1 = true;
   }
 
+  // One-time migration: the original hvt_experience_mat bundle was renamed
+  // from "HVT Experience · Mat Version" to "HVT Experience · Mat A" so it
+  // sits cleanly next to the new Mat B and Mat C variants.
+  if (!s.migrated_hvt_mat_a_rename_v1) {
+    const matA = s.bundles.find(b => b.id === 'hvt_experience_mat');
+    if (matA && /mat version$/i.test(matA.name || '')) {
+      matA.name = 'HVT Experience · Mat A';
+      console.info('[migration] Renamed hvt_experience_mat → Mat A');
+    }
+    s.migrated_hvt_mat_a_rename_v1 = true;
+  }
+
   return s;
 }
 state = mergeDefaults(state);
