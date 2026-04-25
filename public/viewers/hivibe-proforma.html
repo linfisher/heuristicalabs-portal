@@ -1243,6 +1243,22 @@ const DEFAULT_STATE = {
       ],
     },
     {
+      id: 'amp_1000w',
+      name: '1000W Amplifier',
+      desc: 'High-output amplifier · primarily a bundle component · sold solo on request',
+      category: 'audio',
+      unit_cost: 500,
+      sell_price: 1200,
+      proto_units: 1,
+      first_run_units: 10,
+      y1_units: 1,
+      y2_units: 2,
+      y3_units: 4,
+      bom: [
+        { name: 'Amplifier core hardware (placeholder — edit BOM)', cost: 500 },
+      ],
+    },
+    {
       id: 'magtile',
       name: 'HiVibe MagTile',
       desc: 'Per single tile · Modular vibroacoustic floor panel',
@@ -1495,6 +1511,38 @@ function mergeDefaults(s) {
       console.info('[migration] Renamed hvt_experience_mat → Mat A');
     }
     s.migrated_hvt_mat_a_rename_v1 = true;
+  }
+
+  // One-time migration: reorder bundles so Mat A / B / C sit contiguously
+  // at the front. Earlier migrations appended Mat B and C at the end, which
+  // made the rollup list show A, then non-Mat bundles, then B and C.
+  if (!s.migrated_bundle_order_v1) {
+    const matIds = ['hvt_experience_mat', 'hvt_experience_mat_b', 'hvt_experience_mat_c'];
+    const mat = matIds.map(id => s.bundles.find(b => b.id === id)).filter(Boolean);
+    const other = s.bundles.filter(b => !matIds.includes(b.id));
+    if (mat.length > 0 && (s.bundles[0]?.id !== mat[0].id || s.bundles[1]?.id !== mat[1]?.id)) {
+      s.bundles = [...mat, ...other];
+      console.info('[migration] Reordered bundles: Mat A/B/C first, then others');
+    }
+    s.migrated_bundle_order_v1 = true;
+  }
+
+  // One-time migration: the 1000W Amplifier solo was added (mostly used as a
+  // bundle component). Insert it right after the BridgeBox group if missing.
+  if (!s.migrated_amp_1000w_v1) {
+    if (!s.solos.some(x => x.id === 'amp_1000w')) {
+      const tpl = DEFAULT_STATE.solos.find(x => x.id === 'amp_1000w');
+      if (tpl) {
+        // Find insertion point: just after the last BridgeBox group entry.
+        let insertAt = s.solos.length;
+        for (let k = s.solos.length - 1; k >= 0; k--) {
+          if (s.solos[k].group === 'bb') { insertAt = k + 1; break; }
+        }
+        s.solos.splice(insertAt, 0, structuredClone(tpl));
+        console.info('[migration] Added 1000W Amplifier solo at index', insertAt);
+      }
+    }
+    s.migrated_amp_1000w_v1 = true;
   }
 
   return s;
