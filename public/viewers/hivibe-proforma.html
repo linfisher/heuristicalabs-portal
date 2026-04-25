@@ -214,6 +214,15 @@
   .kpi-value-input.kpi-value-input-lg { font-size: 32px; color: #38a85a; }
   .kpi-value-input.kpi-value-input-lg:hover { border-bottom-color: #38a85a; }
   .kpi-value-input.kpi-value-input-lg:focus { border-bottom-color: var(--gold); color: var(--text); }
+  /* Contingency cushion row — editable input above the computed total. */
+  .contingency-row .kpi-value-prefix { font-size: 18px; color: var(--gold-bright); font-weight: 600; }
+  .kpi-value-input.contingency-input {
+    font-size: 22px;
+    color: var(--gold-bright);
+    border-bottom-color: var(--border-strong);
+  }
+  .kpi-value-input.contingency-input:hover { border-bottom-color: var(--gold); }
+  .kpi-value-input.contingency-input:focus { border-bottom-color: var(--gold); color: var(--text); }
   .kpi-value-prefix {
     font-size: 24px; font-weight: 600; color: var(--red); letter-spacing: -0.5px;
   }
@@ -1380,6 +1389,10 @@ const DEFAULT_STATE = {
 
   assumptions: {
     y0_opex_burn_ratio: 0.5,
+    // Contingency cushion the SPV raises ON TOP of the computed 3Y Peak
+    // Cash Demand. SPV Ask = peak + contingency. Default puts the ask at
+    // ~$750k against a default-state peak of ~$470k. User-editable.
+    contingency: 279352,
   },
 };
 
@@ -1668,30 +1681,28 @@ function readMoneyInput(t) {
   return raw;
 }
 
-// Render the "$X contingency · Y× cover" stat line under the editable input.
+// Compute the effective SPV Ask = peak demand + user-set contingency cushion.
+// Returns { ask, contingency, cover, peak } with all numbers resolved.
+function spvAskFigures(peak) {
+  const contingency = Math.max(0, +state.assumptions.contingency || 0);
+  const ask = peak + contingency;
+  const cover = peak > 0 ? (ask / peak) : 0;
+  return { ask, contingency, cover, peak };
+}
+
+// Render the "Peak need · X.XX× cover" stat line under the contingency input.
 function formatSpvAskDetail(peak) {
-  const ask = +state.assumptions.target_raise || 0;
-  const effective = ask > 0 ? ask : peak;
-  const contingency = effective - peak;
-  const cover = peak > 0 ? (effective / peak) : 0;
-  if (ask === 0) {
-    return `Default = peak need · edit above to set raise target`;
-  }
-  if (contingency < 0) {
-    return `Short ${fmt.moneyFull(-contingency)} of peak need · raise too low`;
-  }
-  return `${fmt.moneyFull(contingency)} contingency · ${cover.toFixed(2)}× cover`;
+  const { ask, contingency, cover } = spvAskFigures(peak);
+  if (peak <= 0) return `Set inputs above to compute peak need.`;
+  return `Peak need: ${fmt.moneyFull(peak)} · Total Ask: ${fmt.moneyFull(ask)} · ${cover.toFixed(2)}× cover`;
 }
 
 // Use-of-proceeds prose for the SPV Ask card. References live numbers
 // (peak demand, ask, contingency, cover) so the narrative stays accurate
 // as the user tunes inputs.
 function formatSpvAskNarrative(peak) {
-  const ask = +state.assumptions.target_raise || 0;
-  const effective = ask > 0 ? ask : peak;
-  const contingency = effective - peak;
-  const cover = peak > 0 ? (effective / peak) : 0;
-  const askStr = fmt.moneyFull(effective);
+  const { ask, contingency, cover } = spvAskFigures(peak);
+  const askStr = fmt.moneyFull(ask);
   const peakStr = fmt.moneyFull(peak);
 
   if (peak <= 0) {
@@ -1824,11 +1835,17 @@ function renderKPIs() {
       <div class="kpi-block-label">SPV Ask &middot; Use of Proceeds</div>
       <div class="spv-ask-row">
         <div class="spv-ask-figure">
+          <div class="kpi-sublabel">Contingency Cushion (editable)</div>
+          <div class="kpi-value-edit-row contingency-row">
+            <span class="kpi-value-prefix">+&nbsp;$</span>
+            <input id="contingencyInput" class="kpi-value-input contingency-input" type="text" inputmode="numeric"
+              value="${formatCommas(+state.assumptions.contingency || 0)}" />
+          </div>
+          <div class="kpi-divider"></div>
           <div class="kpi-sublabel">Capital Raise Target</div>
           <div class="kpi-value-edit-row">
             <span class="kpi-value-prefix kpi-value-prefix-lg">$</span>
-            <input id="targetRaiseInput" class="kpi-value-input kpi-value-input-lg" type="text" inputmode="numeric"
-              value="${formatCommas(+state.assumptions.target_raise || peak)}" />
+            <span id="spvAskDisplay" class="kpi-value-input kpi-value-input-lg" style="border-bottom:none; cursor:default;">${formatCommas(spvAskFigures(peak).ask)}</span>
           </div>
           <div class="kpi-detail" id="targetRaiseDetail">${formatSpvAskDetail(peak)}</div>
         </div>
@@ -2627,10 +2644,11 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (!t.matches('input, select')) return;
 
-  // SPV Ask edit — surgical update so the typing input keeps cursor focus.
-  if (t.id === 'targetRaiseInput') {
-    const raw = parseCommas(t.value);
-    state.assumptions.target_raise = raw;
+  // Contingency cushion edit — surgical update so the typing input keeps
+  // cursor focus, and the computed SPV Ask + narrative refresh live.
+  if (t.id === 'contingencyInput') {
+    const raw = Math.max(0, parseCommas(t.value));
+    state.assumptions.contingency = raw;
     saveState();
     const cursorAtEnd = t.selectionStart === t.value.length;
     const newVal = formatCommas(raw);
@@ -2641,6 +2659,9 @@ document.addEventListener('input', e => {
       }
     }
     const peakNow = peakCashNeed();
+    const figs = spvAskFigures(peakNow);
+    const askEl = document.getElementById('spvAskDisplay');
+    if (askEl) askEl.textContent = formatCommas(figs.ask);
     const detail = document.getElementById('targetRaiseDetail');
     if (detail) detail.textContent = formatSpvAskDetail(peakNow);
     const narrative = document.getElementById('spvAskNarrative');
