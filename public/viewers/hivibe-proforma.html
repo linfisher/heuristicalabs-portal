@@ -2994,19 +2994,85 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 
 // ============================================================================
 // SAVE / LOAD NAMED SCENARIOS
-// localStorage key holds an object: { [name]: { state: <snapshot>, savedAt: <ms> } }
-// Auto-save (STORAGE_KEY = 'hivibe_proforma_v5') is independent — it tracks
-// whatever you're typing right now. Named scenarios are deliberate snapshots.
+// Scenarios are stored server-side in Upstash Redis (per Clerk userId) so
+// they sync across every browser — VPS prod, local dev, mobile — instead of
+// being trapped in per-domain localStorage. Auto-save (STORAGE_KEY) is still
+// browser-local; named scenarios are the canonical "saved" set.
+//
+// Shape: { [name]: { state: <snapshot>, savedAt: <ms> } }
 // ============================================================================
-const SCENARIOS_KEY = 'hivibe_proforma_scenarios_v1';
+const SCENARIOS_KEY = 'hivibe_proforma_scenarios_v1'; // legacy localStorage key (migrated → API)
+const SCENARIOS_API = '/api/proforma-scenarios';
+let _scenariosCache = null;
 
-function getScenarios() {
-  try { return JSON.parse(localStorage.getItem(SCENARIOS_KEY) || '{}') || {}; }
-  catch { return {}; }
+async function fetchScenarios() {
+  try {
+    const res = await fetch(SCENARIOS_API, { credentials: 'same-origin' });
+    if (!res.ok) {
+      console.warn('[scenarios] fetch failed:', res.status);
+      return _scenariosCache || {};
+    }
+    const data = await res.json();
+    _scenariosCache = (data && data.scenarios && typeof data.scenarios === 'object') ? data.scenarios : {};
+    return _scenariosCache;
+  } catch (e) {
+    console.warn('[scenarios] fetch threw:', e);
+    return _scenariosCache || {};
+  }
 }
-function setScenarios(obj) {
-  localStorage.setItem(SCENARIOS_KEY, JSON.stringify(obj));
+
+async function saveScenarioApi(name, stateSnapshot) {
+  const res = await fetch(SCENARIOS_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ name, state: stateSnapshot }),
+  });
+  if (!res.ok) throw new Error('save failed: ' + res.status);
+  const data = await res.json();
+  _scenariosCache = (data && data.scenarios) ? data.scenarios : _scenariosCache;
+  return _scenariosCache;
 }
+
+async function deleteScenarioApi(name) {
+  const res = await fetch(SCENARIOS_API + '?name=' + encodeURIComponent(name), {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  });
+  if (!res.ok) throw new Error('delete failed: ' + res.status);
+  const data = await res.json();
+  _scenariosCache = (data && data.scenarios) ? data.scenarios : _scenariosCache;
+  return _scenariosCache;
+}
+
+// One-time migration: push any pre-existing localStorage scenarios up to the
+// server, then clear localStorage so they don't shadow the canonical set.
+async function migrateLocalScenariosToApi() {
+  try {
+    const raw = localStorage.getItem(SCENARIOS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || !Object.keys(parsed).length) {
+      localStorage.removeItem(SCENARIOS_KEY);
+      return;
+    }
+    console.info('[scenarios] migrating', Object.keys(parsed).length, 'localStorage scenarios → API');
+    for (const [name, snap] of Object.entries(parsed)) {
+      if (snap && snap.state) {
+        try { await saveScenarioApi(name, snap.state); }
+        catch (e) { console.warn('[scenarios] migrate failed for', name, e); }
+      }
+    }
+    localStorage.removeItem(SCENARIOS_KEY);
+    console.info('[scenarios] migration complete');
+  } catch (e) {
+    console.warn('[scenarios] migration error:', e);
+  }
+}
+
+// Run migration once the page is interactive (after main render so existing
+// state isn't blocked).
+window.addEventListener('load', () => { migrateLocalScenariosToApi(); });
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -3021,14 +3087,21 @@ function formatScenarioTime(ms) {
 
 let scenarioMode = 'save';
 
-function openScenarioModal(mode) {
+async function openScenarioModal(mode) {
   scenarioMode = mode;
   const titleEl = document.getElementById('scenarioModalTitle');
   const subEl = document.getElementById('scenarioModalSub');
   const nameEl = document.getElementById('scenarioNameInput');
   const listEl = document.getElementById('scenarioList');
   const primary = document.getElementById('scenarioPrimary');
-  const scenarios = getScenarios();
+
+  // Open immediately with a "loading" state, then hydrate from API.
+  document.getElementById('scenarioModal').classList.add('open');
+  titleEl.textContent = mode === 'save' ? 'Save Model' : 'Load Model';
+  subEl.textContent = '';
+  listEl.innerHTML = '<div class="scenario-empty">Loading saved models…</div>';
+
+  const scenarios = await fetchScenarios();
   const names = Object.keys(scenarios).sort((a, b) =>
     (scenarios[b].savedAt || 0) - (scenarios[a].savedAt || 0)
   );
@@ -3065,8 +3138,6 @@ function openScenarioModal(mode) {
           </div>`).join('')
       : '<div class="scenario-empty">No saved models.</div>';
   }
-
-  document.getElementById('scenarioModal').classList.add('open');
 }
 function closeScenarioModal() {
   document.getElementById('scenarioModal').classList.remove('open');
@@ -3079,17 +3150,26 @@ document.getElementById('scenarioModal').addEventListener('click', e => {
   if (e.target.id === 'scenarioModal') closeScenarioModal();
 });
 
-document.getElementById('scenarioPrimary').addEventListener('click', () => {
+document.getElementById('scenarioPrimary').addEventListener('click', async () => {
   if (scenarioMode !== 'save') return;
   const name = document.getElementById('scenarioNameInput').value.trim();
   if (!name) {
     document.getElementById('scenarioNameInput').focus();
     return;
   }
-  const scenarios = getScenarios();
-  scenarios[name] = { state: JSON.parse(JSON.stringify(state)), savedAt: Date.now() };
-  setScenarios(scenarios);
-  closeScenarioModal();
+  const btn = document.getElementById('scenarioPrimary');
+  const origLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    await saveScenarioApi(name, JSON.parse(JSON.stringify(state)));
+    closeScenarioModal();
+  } catch (e) {
+    alert('Save failed. Try again or check your connection.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origLabel;
+  }
 });
 
 document.getElementById('scenarioNameInput').addEventListener('keydown', e => {
@@ -3101,16 +3181,18 @@ document.getElementById('scenarioNameInput').addEventListener('keydown', e => {
   }
 });
 
-document.getElementById('scenarioList').addEventListener('click', e => {
+document.getElementById('scenarioList').addEventListener('click', async e => {
   // Delete button takes precedence over the row click
   const delName = e.target.closest('[data-delete]')?.getAttribute('data-delete');
   if (delName) {
     e.stopPropagation();
     if (!confirm(`Delete saved model "${delName}"?`)) return;
-    const scenarios = getScenarios();
-    delete scenarios[delName];
-    setScenarios(scenarios);
-    openScenarioModal(scenarioMode);  // refresh list
+    try {
+      await deleteScenarioApi(delName);
+      openScenarioModal(scenarioMode);  // refresh list
+    } catch (err) {
+      alert('Delete failed. Try again.');
+    }
     return;
   }
   const item = e.target.closest('.scenario-item');
@@ -3121,7 +3203,7 @@ document.getElementById('scenarioList').addEventListener('click', e => {
     document.getElementById('scenarioNameInput').value = pickName;
     document.getElementById('scenarioNameInput').focus();
   } else if (loadName && scenarioMode === 'load') {
-    const scenarios = getScenarios();
+    const scenarios = _scenariosCache || await fetchScenarios();
     const snap = scenarios[loadName];
     if (!snap || !snap.state) return;
     state = mergeDefaults(JSON.parse(JSON.stringify(snap.state)));
