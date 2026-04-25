@@ -272,6 +272,27 @@
     gap: 14px;
   }
 
+  /* Solo grid: 2 cols at desktop so BridgeBox group can span both rows
+     while MagTile + Cushion stack in column 2. Falls back to 1-col on mobile. */
+  .product-grid.solo-grid { grid-template-columns: 1fr 1fr; align-items: start; }
+  .product-grid.solo-grid .product-card.group-card { grid-row: span 2; }
+  @media (max-width: 900px) {
+    .product-grid.solo-grid { grid-template-columns: 1fr; }
+    .product-grid.solo-grid .product-card.group-card { grid-row: auto; }
+  }
+
+  /* Rollup panel — small list inside each kpi-year column */
+  .rollup-mini { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 12px; }
+  .rollup-mini td { padding: 4px 0; color: var(--text-dim); vertical-align: baseline; }
+  .rollup-mini td.name { text-align: left; padding-right: 6px; }
+  .rollup-mini td.u { text-align: right; color: var(--text-faint); font-feature-settings: 'tnum'; padding-right: 8px; white-space: nowrap; }
+  .rollup-mini td.r { text-align: right; color: var(--text); font-feature-settings: 'tnum'; white-space: nowrap; }
+  .rollup-mini td.r.gold { color: var(--gold-bright); }
+  .rollup-mini td.r.green { color: var(--green); }
+  .rollup-mini td.r.red { color: var(--red); }
+  .rollup-mini tfoot tr.subtotal td { padding-top: 8px; border-top: 1px solid var(--border); font-weight: 600; color: var(--text); }
+  .rollup-mini tfoot tr.subtotal + tr.subtotal td { border-top: none; padding-top: 4px; }
+
   .product-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -975,7 +996,12 @@
   <div class="kpi-grid" id="kpiGrid"></div>
 
   <h2 class="section"><span class="step">STEP 1</span> Solo Products <span class="hint">The atomic SKUs · Unit cost, sell price, BOM detail · Sold standalone AND used as building blocks for bundles</span></h2>
-  <div class="product-grid" id="soloGrid"></div>
+  <div class="product-grid solo-grid" id="soloGrid"></div>
+
+  <div class="kpi-block" id="soloRollupBlock" style="margin-top:14px;">
+    <div class="kpi-block-label">Solo Products · 3-Year Rollup</div>
+    <div class="kpi-year-grid" id="soloRollupGrid"></div>
+  </div>
 
   <h2 class="section"><span class="step">STEP 2</span> Bundles <span class="hint">Compose solo products via dropdown · Set quantities · COGS auto-computes</span></h2>
   <div class="product-grid" id="bundleGrid"></div>
@@ -1035,6 +1061,20 @@
     <div class="actions">
       <button id="scenarioCancel">Cancel</button>
       <button id="scenarioPrimary" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="jsonModal">
+  <div class="modal" style="max-width:600px;">
+    <h3 id="jsonModalTitle">Export Model JSON</h3>
+    <p id="jsonModalSub">Copy the JSON below.</p>
+    <textarea id="jsonModalText"
+      style="width:100%; box-sizing:border-box; height:300px; padding:10px 12px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:11px; font-family:'SF Mono', Menlo, Consolas, monospace; line-height:1.4; outline:none; resize:vertical; margin-bottom:14px;"
+      spellcheck="false"></textarea>
+    <div class="actions">
+      <button id="jsonModalCancel">Close</button>
+      <button id="jsonModalAction" class="primary">Copy to Clipboard</button>
     </div>
   </div>
 </div>
@@ -1611,28 +1651,8 @@ function renderSoloFields(s, i) {
 }
 
 function renderSoloSummaryRows(s, i) {
-  const protoCost = (s.proto_units || 0) * s.unit_cost;
-  const firstRunCost = (s.first_run_units || 0) * s.unit_cost;
-  const totalInv = protoCost + firstRunCost;
-  const yearLine = (yr) => {
-    const u = s['y' + yr + '_units'] || 0;
-    const rev = itemYearRevenue(s, yr);
-    const gp = itemYearGP(s, yr);
-    return `
-      <div class="pc-row"><span class="k">Y${yr} · ${fmt.int(u)} units</span><span class="v gold">${fmt.moneyFull(rev)}</span></div>
-      <div class="pc-row pc-row-sub"><span class="k">Y${yr} Gross Profit</span><span class="v ${gp>=0?'green':'red'}">${fmt.moneyFull(gp)}</span></div>`;
-  };
-  const total3yrRev = itemYearRevenue(s,1)+itemYearRevenue(s,2)+itemYearRevenue(s,3);
-  const total3yrGP = itemYearGP(s,1)+itemYearGP(s,2)+itemYearGP(s,3);
-  return `
-    <div class="pc-row"><span class="k">Prototype cost</span><span class="v">${fmt.moneyFull(protoCost)}</span></div>
-    <div class="pc-row"><span class="k">First-Run inventory cost</span><span class="v">${fmt.moneyFull(firstRunCost)}</span></div>
-    <div class="pc-row pc-row-emph"><span class="k">Total upfront cost</span><span class="v">${fmt.moneyFull(totalInv)}</span></div>
-    ${yearLine(1)}
-    ${yearLine(2)}
-    ${yearLine(3)}
-    <div class="pc-row pc-row-emph"><span class="k">3-Year Revenue</span><span class="v gold">${fmt.moneyFull(total3yrRev)}</span></div>
-    <div class="pc-row pc-row-emph"><span class="k">3-Year Gross Profit</span><span class="v ${total3yrGP>=0?'green':'red'}">${fmt.moneyFull(total3yrGP)}</span></div>`;
+  // Per-card summary moved to consolidated Solo Rollup panel below the grid.
+  return '';
 }
 
 function renderSoloBOM(s, i) {
@@ -1734,6 +1754,8 @@ function renderGroupSoloCard(startIdx, endIdx) {
     if (idx < variants.length - 1) body += '<div class="variant-divider"></div>';
   });
 
+  // Group totals moved to consolidated Solo Rollup panel below the grid;
+  // intentionally keep the variants in the card without an inline summary.
   return `
     <div class="product-card solo group-card" data-group="${first.group}">
       <div class="pc-header">
@@ -1745,20 +1767,6 @@ function renderGroupSoloCard(startIdx, endIdx) {
       </div>
       <div class="pc-body">
         ${body}
-        <div class="group-totals">
-          <div class="group-totals-label">${groupName} Totals · all variants combined</div>
-          <div class="pc-row"><span class="k">Prototype cost</span><span class="v">${fmt.moneyFull(totalProto)}</span></div>
-          <div class="pc-row"><span class="k">First-Run inventory cost</span><span class="v">${fmt.moneyFull(totalFirstRun)}</span></div>
-          <div class="pc-row pc-row-emph"><span class="k">Total upfront cost</span><span class="v">${fmt.moneyFull(totalInvCost)}</span></div>
-          <div class="pc-row"><span class="k">Y1 · ${fmt.int(y1.u)} units</span><span class="v gold">${fmt.moneyFull(y1.rev)}</span></div>
-          <div class="pc-row pc-row-sub"><span class="k">Y1 Gross Profit</span><span class="v ${y1.gp>=0?'green':'red'}">${fmt.moneyFull(y1.gp)}</span></div>
-          <div class="pc-row"><span class="k">Y2 · ${fmt.int(y2.u)} units</span><span class="v gold">${fmt.moneyFull(y2.rev)}</span></div>
-          <div class="pc-row pc-row-sub"><span class="k">Y2 Gross Profit</span><span class="v ${y2.gp>=0?'green':'red'}">${fmt.moneyFull(y2.gp)}</span></div>
-          <div class="pc-row"><span class="k">Y3 · ${fmt.int(y3.u)} units</span><span class="v gold">${fmt.moneyFull(y3.rev)}</span></div>
-          <div class="pc-row pc-row-sub"><span class="k">Y3 Gross Profit</span><span class="v ${y3.gp>=0?'green':'red'}">${fmt.moneyFull(y3.gp)}</span></div>
-          <div class="pc-row pc-row-emph"><span class="k">3-Year Revenue</span><span class="v gold">${fmt.moneyFull(total3yrRev)}</span></div>
-          <div class="pc-row pc-row-emph"><span class="k">3-Year Gross Profit</span><span class="v ${total3yrGP>=0?'green':'red'}">${fmt.moneyFull(total3yrGP)}</span></div>
-        </div>
       </div>
     </div>`;
 }
@@ -2228,11 +2236,61 @@ function renderCashChart() {
 }
 
 // ============================================================================
+// RENDER — Solo Rollup (consolidated 3-year breakdown below the solo cards)
+// ============================================================================
+// One column per year; each column lists every solo product (including
+// individual variants of group products like the BridgeBox offers) with
+// units + revenue, then year subtotals (Solo Revenue + Solo Gross Profit).
+function renderSoloRollup() {
+  const grid = document.getElementById('soloRollupGrid');
+  if (!grid) return;
+
+  const cols = [1, 2, 3].map(yr => {
+    const productRows = state.solos.map(s => {
+      const u = +s['y' + yr + '_units'] || 0;
+      const rev = itemYearRevenue(s, yr);
+      return `<tr>
+        <td class="name">${s.name}</td>
+        <td class="u">${fmt.int(u)}&nbsp;u</td>
+        <td class="r gold">${fmt.moneyFull(rev)}</td>
+      </tr>`;
+    }).join('');
+
+    const totalUnits = state.solos.reduce((s, x) => s + (+x['y' + yr + '_units'] || 0), 0);
+    const totalRev = state.solos.reduce((s, x) => s + itemYearRevenue(x, yr), 0);
+    const totalGP = state.solos.reduce((s, x) => s + itemYearGP(x, yr), 0);
+
+    return `
+      <div class="kpi-year">
+        <div class="kpi-year-head">YEAR ${yr}</div>
+        <table class="rollup-mini">
+          <tbody>${productRows}</tbody>
+          <tfoot>
+            <tr class="subtotal">
+              <td class="name">Solo Revenue</td>
+              <td class="u">${fmt.int(totalUnits)}&nbsp;u</td>
+              <td class="r gold">${fmt.moneyFull(totalRev)}</td>
+            </tr>
+            <tr class="subtotal">
+              <td class="name">Solo Gross Profit</td>
+              <td></td>
+              <td class="r ${totalGP >= 0 ? 'green' : 'red'}">${fmt.moneyFull(totalGP)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>`;
+  }).join('');
+
+  grid.innerHTML = cols;
+}
+
+// ============================================================================
 // RENDER ALL
 // ============================================================================
 function render() {
   renderKPIs();
   renderSoloCards();
+  renderSoloRollup();
   renderBundleCards();
   renderInvestments();
   renderOpex();
@@ -2686,36 +2744,73 @@ document.getElementById('addBundleBtn').addEventListener('click', () => {
 // ============================================================================
 // TOOLBAR
 // ============================================================================
-document.getElementById('exportBtn').addEventListener('click', () => {
-  const data = JSON.stringify(state, null, 2);
-  const blob = new Blob([data], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'hivibe_proforma_' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
-  URL.revokeObjectURL(url);
+// EXPORT / IMPORT — copy/paste modal.
+// File-based download is blocked by the iframe sandbox (allow-scripts only,
+// no allow-downloads), so we surface the JSON in a textarea the user can
+// select-all + copy. Same modal handles paste-import.
+let jsonModalMode = 'export';
+
+function openJsonModal(mode) {
+  jsonModalMode = mode;
+  const titleEl = document.getElementById('jsonModalTitle');
+  const subEl = document.getElementById('jsonModalSub');
+  const textEl = document.getElementById('jsonModalText');
+  const actionEl = document.getElementById('jsonModalAction');
+
+  if (mode === 'export') {
+    titleEl.textContent = 'Export Model JSON';
+    subEl.textContent = 'Select All + Copy, or click Copy below.';
+    textEl.value = JSON.stringify(state, null, 2);
+    textEl.readOnly = true;
+    actionEl.textContent = 'Copy to Clipboard';
+    setTimeout(() => { textEl.focus(); textEl.select(); }, 50);
+  } else {
+    titleEl.textContent = 'Import Model JSON';
+    subEl.textContent = 'Paste your JSON below and click Import. Existing model will be replaced.';
+    textEl.value = '';
+    textEl.readOnly = false;
+    actionEl.textContent = 'Import';
+    setTimeout(() => textEl.focus(), 50);
+  }
+  document.getElementById('jsonModal').classList.add('open');
+}
+
+function closeJsonModal() {
+  document.getElementById('jsonModal').classList.remove('open');
+}
+
+document.getElementById('exportBtn').addEventListener('click', () => openJsonModal('export'));
+document.getElementById('importBtn').addEventListener('click', () => openJsonModal('import'));
+document.getElementById('jsonModalCancel').addEventListener('click', closeJsonModal);
+document.getElementById('jsonModal').addEventListener('click', e => {
+  if (e.target.id === 'jsonModal') closeJsonModal();
 });
 
-document.getElementById('importBtn').addEventListener('click', () => {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'application/json';
-  input.onchange = e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = evt => {
-      try {
-        const parsed = JSON.parse(evt.target.result);
-        state = mergeDefaults(parsed);
-        saveState();
-        render();
-      } catch { alert('Invalid JSON file'); }
-    };
-    reader.readAsText(f);
-  };
-  input.click();
+document.getElementById('jsonModalAction').addEventListener('click', () => {
+  const textEl = document.getElementById('jsonModalText');
+  const actionEl = document.getElementById('jsonModalAction');
+  if (jsonModalMode === 'export') {
+    textEl.focus();
+    textEl.select();
+    let copied = false;
+    try {
+      // execCommand still works inside sandboxed iframes where the
+      // navigator.clipboard API is blocked by permissions policy.
+      copied = document.execCommand('copy');
+    } catch {}
+    actionEl.textContent = copied ? 'Copied!' : 'Press Cmd/Ctrl+C';
+    setTimeout(() => { actionEl.textContent = 'Copy to Clipboard'; }, 1800);
+  } else {
+    try {
+      const parsed = JSON.parse(textEl.value);
+      state = mergeDefaults(parsed);
+      saveState();
+      render();
+      closeJsonModal();
+    } catch {
+      alert('Invalid JSON. Check the formatting and try again.');
+    }
+  }
 });
 
 document.getElementById('resetBtn').addEventListener('click', () => {
