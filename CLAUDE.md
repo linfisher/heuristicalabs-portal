@@ -103,6 +103,40 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 - Atomic writes via temp file + rename; in-memory cache invalidated on write
 - `lib/registry.ts` owns this. `lib/projects.ts` exposes user-facing read helpers. `lib/projects-registry.ts` is a thin facade for backward-compat with admin routes.
 
+## Auto VPS-to-local sync (predev hook)
+- `scripts/sync-from-vps.sh` runs as `npm run sync:vps`, wired in as `predev` so it fires before every `npm run dev`.
+- Pulls `/var/www/portal-content/registry.json` → local `.registry.json` and `/var/www/portal/public/thumbnails/` → local `public/thumbnails/` over SSH (alias `heuristica-vps`).
+- Means: any admin action on VPS (create project, organize sections, upload files, generate thumbnails) shows up on local on the next dev restart. No manual rsync.
+- Fail-soft: if SSH is unreachable (offline, alias missing), warns + leaves existing local copy alone.
+- Skip explicitly: `SKIP_VPS_SYNC=1 npm run dev`.
+
+## Pro Forma Viewer (HiVibe Temple project, page `proforma-dashboard`)
+Single self-contained file: `public/viewers/hivibe-proforma.html`. Loaded into a sandboxed iframe via `srcDoc` from the portal route. Sandbox is `allow-scripts allow-same-origin` — required so Clerk session cookies transmit on fetch (for the SAVE/LOAD scenarios API) and so localStorage works (for auto-save).
+
+**State:**
+- Auto-save: localStorage key `hivibe_proforma_v5` — every keystroke. Browser-local on purpose; auto-save is per-device.
+- Saved scenarios: server-side in Upstash Redis under `proforma-scenarios:<userId>`. `app/api/proforma-scenarios/route.ts` (GET / POST / DELETE, admin-only via `isAdminEmail`). Same scenarios visible across every browser/device the admin uses. One-time migration on viewer load pushes any pre-existing localStorage scenarios up and clears the local key.
+- Default state lives in `DEFAULT_STATE` constant inside the viewer file.
+- Migrations run from `mergeDefaults(state)` on every load (idempotent, gated by flags on state):
+  - `migrated_arena_v1` — moves Arena from OPEX → `state.investments[]`
+  - `migrated_hvt_variants_v1` — adds Mat B + Mat C bundles
+  - `migrated_magtile_floor_rename_v1` — renames "MagTile Floor Kit (4×4)" → "Amplified & Connected MagTile Kits"
+  - `migrated_hvt_mat_a_rename_v1` — renames "HVT Experience · Mat Version" → "HVT Experience · Mat A"
+  - `migrated_bundle_order_v1` — Mat A/B/C contiguous at the front of `state.bundles[]`
+  - `migrated_amp_1000w_v1` — injects 1000W Amplifier solo right after BridgeBox group
+
+**Money inputs**: `type="text" inputmode="numeric"`, formatted with commas via `formatCommas()` / `parseCommas()` / `readMoneyInput()` helpers. Cursor-preserving on each keystroke.
+
+**EXPORT / IMPORT JSON**: copy-paste modal (file-download is blocked by the iframe sandbox). `document.execCommand('copy')` is used because `navigator.clipboard.writeText` is policy-blocked inside sandboxed iframes.
+
+**SPV Ask card**: `Peak (red, computed) + Contingency (gold, editable, stored as `state.assumptions.contingency`) = Capital Raise Target (green, computed)`. Default contingency = $279,352. Use-of-proceeds prose alongside, refreshed live by the input handler.
+
+**Solo / Bundle rollup tables**: lock `table-layout: fixed` with explicit widths on the unit (48px) and revenue (92px) columns so every year column renders identically regardless of digit width.
+
+**Layout — solo grid**: 2 cols at desktop. BridgeBox group card in col 1; remaining single-solo cards (1000W Amp, MagTile, Cushion) wrapped in `.solo-col-stack` flex container in col 2 so they pack tight independent of grid auto-row sizing.
+
+**Layout — bundle grid**: 2 cols. HVT Experience Mat A/B/C in `.bundle-col-left` (gold accent, 16px gap). HVT MagTile Version + Amplified & Connected MagTile Kits in `.bundle-col-right` (purple accent, 48px gap). Driven by `data-bundle-col="left|right"` set in render based on bundle id pattern.
+
 ## Admin UX Rules
 - **Uniform treatment**: all projects behave the same — static seed data and user-created projects are indistinguishable after seed. Rename, Archive, Delete available on every project.
 - **Slug is permanent**: rename changes display name only. Slug = URL = identity.
