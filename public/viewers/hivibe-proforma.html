@@ -360,12 +360,16 @@
     .bundle-col-right { gap: 28px; }
   }
 
-  /* Rollup panel — small list inside each kpi-year column */
-  .rollup-mini { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 12px; }
+  /* Rollup panel — small list inside each kpi-year column. table-layout
+     fixed + explicit widths on the unit + revenue cells so every year's
+     table renders with the same column proportions; name column always
+     gets the same amount of room regardless of how many digits a year's
+     numbers happen to use. */
+  .rollup-mini { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 12px; table-layout: fixed; }
   .rollup-mini td { padding: 4px 0; color: var(--text-dim); vertical-align: baseline; }
-  .rollup-mini td.name { text-align: left; padding-right: 6px; }
-  .rollup-mini td.u { text-align: right; color: var(--text-faint); font-feature-settings: 'tnum'; padding-right: 8px; white-space: nowrap; }
-  .rollup-mini td.r { text-align: right; color: var(--text); font-feature-settings: 'tnum'; white-space: nowrap; }
+  .rollup-mini td.name { text-align: left; padding-right: 6px; word-break: break-word; }
+  .rollup-mini td.u { width: 48px; text-align: right; color: var(--text-faint); font-feature-settings: 'tnum'; padding-right: 8px; white-space: nowrap; }
+  .rollup-mini td.r { width: 92px; text-align: right; color: var(--text); font-feature-settings: 'tnum'; white-space: nowrap; }
   .rollup-mini td.r.gold { color: var(--gold-bright); }
   .rollup-mini td.r.green { color: var(--green); }
   .rollup-mini td.r.red { color: var(--red); }
