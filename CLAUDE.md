@@ -34,8 +34,11 @@ cd heuristicalabs-portal && npm run dev -- -p 8888
 | `/api/proxy/<slug>/<path>` | Auth-gated PDF byte stream from VPS content origin |
 | `/api/support` | Validated support email dispatch |
 | `/api/request`, `/api/access/accept`, `/api/access/deny` | Token flows |
-| `/portal/admin/projects/{create,rename,archive,restore,delete}` | Project CRUD routes |
-| `/portal/admin/{grant,direct-grant,extend,revoke}` | Access grant management |
+| `/portal/admin/projects/{create,rename,archive,restore,delete,reorder}` | Project CRUD + up/down reorder |
+| `/portal/admin/projects/{page-rename,page-delete,page-reorder,page-assign-section,upload,add-link,bulk-page-action}` | Per-page CRUD + section moves + bulk ops |
+| `/portal/admin/projects/{section-create,section-rename,section-delete,section-reorder}` | Section CRUD within a project |
+| `/portal/admin/{grant,direct-grant,extend,revoke,project-access}` | Access grant management |
+| `/api/contact` | Public contact-form POST → Resend email to ADMIN_EMAIL (honeypot + rate limit) |
 
 ## Git
 - Repo rooted at `heuristicalabs-portal/` — run git commands from there
@@ -86,10 +89,11 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 - **Primary production URL**: `https://heuristicalabs.com` (VPS PM2, port 3001; nginx reverse-proxies from apex). `www.heuristicalabs.com` also serves here.
 - **Old subdomain**: `portal.heuristicalabs.com` fully retired Apr 19 2026 — nginx config, SSL cert, and redirect all removed. DNS A record in GoDaddy should be deleted by user.
 - **Vercel (secondary)**: `https://heuristicalabs-portal.vercel.app` — kept as a preview deploy.
-- **VPS deploy**: `ssh heuristica-vps "cd /var/www/portal && git pull && npm ci --prefer-offline && npm run build && pm2 restart portal --update-env && pm2 status"`
+- **Auto-deploy (default)**: Every push to `main` triggers `.github/workflows/deploy.yml` which SSHes into the VPS and runs `git reset --hard origin/main → npm ci → next build → pm2 restart portal`. No manual VPS commands needed. One-time setup documented in `DEPLOY_SETUP.md`. GitHub Secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` (ed25519 deploy key labeled `github-actions-deploy` in `~/.ssh/authorized_keys` on the VPS).
+- **Manual VPS deploy (fallback)**: `ssh heuristica-vps "cd /var/www/portal && git pull && npm ci --prefer-offline && npm run build && pm2 restart portal --update-env && pm2 status"`
 - **Vercel deploy**: use Vercel MCP. When editing env vars via CLI, use `printf` (not `echo`) to avoid trailing `\n` in values.
 - **Critical**: All env vars must be set in both Vercel and VPS `.env.local` — missing Clerk keys cause `MIDDLEWARE_INVOCATION_FAILED` 500 on every request.
-- **Clerk Allowed Origins** (prod instance): set via `PATCH https://api.clerk.com/v1/instance` with `allowed_origins`. Current list includes apex, www, portal subdomain, Vercel URL, `localhost:8888`. Run from VPS so prod key never transits to chat.
+- **Clerk Allowed Origins** (prod instance): set via `PATCH https://api.clerk.com/v1/instance` with `allowed_origins`. Current list includes apex, www, Vercel URL, `localhost:8888`. Run from VPS so prod key never transits to chat.
 
 ## Registry (project data)
 - `registry.json` on disk — single source of truth for projects
@@ -102,9 +106,13 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 ## Admin UX Rules
 - **Uniform treatment**: all projects behave the same — static seed data and user-created projects are indistinguishable after seed. Rename, Archive, Delete available on every project.
 - **Slug is permanent**: rename changes display name only. Slug = URL = identity.
-- **Archive**: hides from users, keeps files on disk, admin can restore.
-- **Delete**: wipes the project from registry AND deletes files at `/var/www/portal-content/projects/<slug>/`. Irreversible. Confirm dialog required.
+- **Archive**: hides from users, keeps files on disk, admin can restore. Archiving cascades: all user grants for that slug are stripped.
+- **Delete**: wipes the project from registry AND deletes files at `/var/www/portal-content/projects/<slug>/`. Irreversible. Confirm dialog required. Grants for the slug are purged from every user's Clerk metadata via the route's cascade.
 - **Archived projects**: admin can view + restore from both `/portal` home (collapsed section) and `/portal/admin`.
+- **Project reorder**: up/down arrows on each active project — available both on `/portal/admin` Projects panel and on each active card's admin bar on `/portal`. Writes `moveProject()` which swaps adjacent entries in `registry.projects[]`. Order propagates everywhere (portal home, admin dashboard, grant checkbox lists).
+- **Admin dashboard users list**: native `<details>` per user with rotating chevron. Default-open for users with at least one live grant, default-collapsed for users with no access. Sort: live-grants first, then alphabetical by first name; revoked / no-access users sink to the bottom.
+- **Current Access**: shows a project badge + days-left + small "Revoke" link per grant, with a row of one-click duration chips (24h / 3d / 7d / 30d / 90d) that POST to `/portal/admin/extend` — each click both extends the grant and sends the user a Resend `grant-confirmation` notification.
+- **Grant Access** (formerly "Direct Grant" + "Email Grant" columns): single flow — pick projects + duration, click Grant Now. Grant is instant AND a confirmation email is queued via Resend to the target user's Clerk email (reply-to set to admin). No separate "Send Email" button anymore; the legacy `/portal/admin/grant` chip-based-invite route still exists for the user-initiated `/portal/request-access` flow.
 
 ## File Uploads (Phase 2 — shipped Apr 19, 2026)
 - **Drag-drop zone + Choose Files + "+ Add Link"** on every project detail page (admin only).
@@ -117,6 +125,13 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 - **Duplicate handling**: server returns 409 with `existingTitle`/`existingPath` if slugified path collides; client shows a confirm modal (Skip/Overwrite). Modal requires explicit button click — backdrop click disabled.
 - **Failure UX**: persistent `ErrorPanel` with per-file reasons + Dismiss button; never auto-reloads on failure. Auto-reload only runs when everything succeeded.
 - **revalidatePath on EVERY mutation**: create/rename/archive/restore/delete project + upload/add-link/page-delete/page-rename. Without this, Next.js Router Cache keeps stale pages until a hard refresh.
+
+## Interactive Viewers (fileType: "viewer")
+For pages that need an interactive HTML embed (e.g. the Three.js CAD viewer), the page entry in `registry.json` uses `fileType: "viewer"` and a `viewerSrc` pointing at a file committed in the repo under `public/viewers/`. The project detail page route (`app/portal/projects/[slug]/[...path]/page.tsx`) reads that file from disk and injects it into a sandboxed iframe via `srcDoc` — bypassing `X-Frame-Options: DENY`. Thumbnails go in `public/thumbnails/<name>.png` and are referenced by the page's `thumbnailSrc`.
+
+Current viewer: `public/viewers/hivibe-floor-assembly.html` — Three.js v19 Rev 4 MagTile floor assembly, loads Three.js from `cdnjs.cloudflare.com` + `cdn.jsdelivr.net` via importmap. Shared between two portal projects (`hivibe-magtile-cads` and `hivibe-temple`) via different page entries both pointing at the same file. Features: 1/4/9/16-tile grid selector, SPREAD slider (magnetize), LID slider (0° closed → 180° flat open), 6 view presets, layer toggles, x-ray mode.
+
+CSP already allows the CDNs used by the existing viewer (next.config.mjs `script-src` / `connect-src`). New viewer scripts from other CDNs need CSP updates.
 
 ## PDF Proxy Architecture
 - Proxy route: `GET /api/proxy/[slug]/[...path]` — verifies Clerk auth + grant (admin bypasses), fetches from VPS
@@ -167,9 +182,14 @@ scp ~/Downloads/file.pdf heuristica-vps:/var/www/portal-content/projects/<slug>/
 | `app/portal/page.tsx` | Portal home — admin sees all projects with CRUD cards; users see granted only |
 | `app/portal/projects/[slug]/page.tsx` | Project detail with thumbnails + admin action bar |
 | `app/portal/projects/[slug]/[...path]/page.tsx` | PDF/HTML/viewer routing |
-| `app/portal/admin/page.tsx` | Admin dashboard — users grid + `AdminProjectsPanel` |
-| `components/AdminProjectsPanel.tsx` | Admin dashboard projects table with rename/archive/restore/delete + confirm modal |
-| `components/ProjectAdminActions.tsx` | Per-card/per-detail admin action bar (shared) |
+| `app/portal/admin/page.tsx` | Admin dashboard — collapsible `<details>` users list + `AdminProjectsPanel` |
+| `components/AdminProjectsPanel.tsx` | Admin dashboard projects table with rename/archive/restore/delete + up/down reorder arrows + confirm modal |
+| `components/ProjectAdminActions.tsx` | Per-card/per-detail admin action bar (shared). Optional `canMoveUp`/`canMoveDown` props enable up/down arrows on portal home cards. |
+| `components/FileAdminActions.tsx` | Per-file action bar (rename/delete/reorder/section). Rename modal surfaces server errors instead of silently closing. |
+| `app/api/contact/route.ts` | Public contact-form backend. Validates input, honeypot, rate-limits per IP via Upstash, sends through Resend. |
+| `emails/contact-inquiry.tsx` | React Email template admin sees when a contact-form submission comes in. |
+| `public/contact.html` | Static contact form with NDA/question mode toggle + project dropdown. Fetches `/api/contact` instead of opening mailto. |
+| `public/viewers/hivibe-floor-assembly.html` | Three.js v19 Rev 4 MagTile floor viewer (shared across HiVibe Temple and HiVibe MagTile CADs - ONLY projects). |
 | `components/AddProjectButton.tsx` | "+ Add Project" button + modal |
 | `components/SupportForm.tsx` | Chip-based multi-choice support form |
 | `components/RequestAccessForm.tsx` | Chip-based project-access request form |
@@ -195,6 +215,8 @@ scp ~/Downloads/file.pdf heuristica-vps:/var/www/portal-content/projects/<slug>/
 8. Middleware bypass rule: the `?forbidden=1` bypass in middleware is ONLY for the exact project slug path (`/portal/projects/{slug}`). Sub-pages are never bypassed.
 9. CSP `unsafe-eval` MUST be dev-only — production stays strict
 10. pdfjs-dist MUST be loaded from CDN via `webpackIgnore` — direct webpack imports break with `Object.defineProperty called on non-object`
+11. `Referrer-Policy` in `next.config.mjs` MUST be `strict-origin-when-cross-origin`, NEVER `no-referrer`. `no-referrer` causes browsers to send `Origin: null` on same-origin form POSTs, which makes `checkSameOrigin` reject every admin form submission silently.
+12. When deleting a project, `app/portal/admin/projects/delete/route.ts` MUST cascade through every Clerk user and strip grants for that slug — otherwise stale "ghost" grants pointing at deleted projects persist in `user.publicMetadata.projects`. Same cascade runs on archive via the shared helper.
 
 ## Common Pitfalls
 - `request.json()` needs try/catch — malformed body returns 500 not 400 without it
