@@ -782,7 +782,7 @@
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 6px;
-    overflow: hidden;
+    overflow-x: auto;
   }
   table.opex {
     width: 100%;
@@ -926,6 +926,26 @@
   .modal h3 { margin: 0 0 10px 0; color: var(--gold); font-size: 14px; letter-spacing: 1px; }
   .modal p { color: var(--text-dim); font-size: 12px; margin-bottom: 18px; }
   .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .scenario-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; background: var(--bg-input);
+    border: 1px solid var(--border); border-radius: 4px;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .scenario-item:hover { border-color: var(--gold); background: var(--bg-card-hover); }
+  .scenario-item .name { flex: 1; color: var(--text); font-size: 12px; font-weight: 500; }
+  .scenario-item .meta { color: var(--text-faint); font-size: 10px; letter-spacing: 0.5px; }
+  .scenario-item .del {
+    background: transparent; border: 1px solid var(--border); color: var(--text-faint);
+    padding: 2px 8px; border-radius: 3px; font-size: 14px; line-height: 1;
+    cursor: pointer; font-family: inherit;
+  }
+  .scenario-item .del:hover { border-color: var(--red); color: var(--red); }
+  .scenario-list-hint {
+    color: var(--text-faint); font-size: 10.5px; letter-spacing: 0.5px;
+    text-transform: uppercase; padding: 0 2px 4px;
+  }
+  .scenario-empty { color: var(--text-faint); font-size: 12px; font-style: italic; padding: 4px 2px; }
 </style>
 </head>
 <body>
@@ -936,6 +956,8 @@
     <span class="rev">REV 6 · BB · MagTile · Cushion · New KPI dashboard</span>
   </div>
   <div class="toolbar">
+    <button id="saveScenarioBtn" class="primary">SAVE MODEL</button>
+    <button id="loadScenarioBtn">LOAD MODEL</button>
     <button id="exportBtn">EXPORT JSON</button>
     <button id="importBtn">IMPORT</button>
     <button id="resetBtn" class="danger">RESET DEFAULTS</button>
@@ -988,6 +1010,20 @@
     <div class="actions">
       <button id="modalCancel">Cancel</button>
       <button id="modalConfirm" class="primary">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="scenarioModal">
+  <div class="modal" style="max-width:480px;">
+    <h3 id="scenarioModalTitle">Save Model</h3>
+    <p id="scenarioModalSub">Give this snapshot a name. Existing names overwrite.</p>
+    <input id="scenarioNameInput" type="text" placeholder="e.g. Conservative · Q2 2026"
+      style="width:100%; box-sizing:border-box; padding:10px 12px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:13px; font-family:inherit; margin-bottom:14px; outline:none;" />
+    <div id="scenarioList" style="max-height:240px; overflow-y:auto; margin-bottom:18px; display:flex; flex-direction:column; gap:6px;"></div>
+    <div class="actions">
+      <button id="scenarioCancel">Cancel</button>
+      <button id="scenarioPrimary" class="primary">Save</button>
     </div>
   </div>
 </div>
@@ -1373,7 +1409,7 @@ function renderKPIs() {
       <div class="kpi">
         <div class="kpi-label">First Production Run</div>
         <div class="kpi-value">${fmt.moneyFull(firstRun)}</div>
-        <div class="kpi-detail">${firstRunUnits} solo units · ${overAllocated > 0 ? `<span style="color:var(--red);">⚠ ${overAllocated} SKU${overAllocated>1?'s':''} short</span>` : '<span style="color:var(--green);">✓ all SKUs covered</span>'}</div>
+        <div class="kpi-detail">${firstRunUnits} solo units · ${overAllocated > 0 ? `<span style="color:var(--red);">[!] ${overAllocated} SKU${overAllocated>1?'s':''} short</span>` : '<span style="color:var(--green);">all SKUs covered</span>'}</div>
       </div>
     </div>`;
 
@@ -2497,6 +2533,145 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     saveState();
     render();
   });
+});
+
+// ============================================================================
+// SAVE / LOAD NAMED SCENARIOS
+// localStorage key holds an object: { [name]: { state: <snapshot>, savedAt: <ms> } }
+// Auto-save (STORAGE_KEY = 'hivibe_proforma_v5') is independent — it tracks
+// whatever you're typing right now. Named scenarios are deliberate snapshots.
+// ============================================================================
+const SCENARIOS_KEY = 'hivibe_proforma_scenarios_v1';
+
+function getScenarios() {
+  try { return JSON.parse(localStorage.getItem(SCENARIOS_KEY) || '{}') || {}; }
+  catch { return {}; }
+}
+function setScenarios(obj) {
+  localStorage.setItem(SCENARIOS_KEY, JSON.stringify(obj));
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatScenarioTime(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  if (sameDay) return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+}
+
+let scenarioMode = 'save';
+
+function openScenarioModal(mode) {
+  scenarioMode = mode;
+  const titleEl = document.getElementById('scenarioModalTitle');
+  const subEl = document.getElementById('scenarioModalSub');
+  const nameEl = document.getElementById('scenarioNameInput');
+  const listEl = document.getElementById('scenarioList');
+  const primary = document.getElementById('scenarioPrimary');
+  const scenarios = getScenarios();
+  const names = Object.keys(scenarios).sort((a, b) =>
+    (scenarios[b].savedAt || 0) - (scenarios[a].savedAt || 0)
+  );
+
+  if (mode === 'save') {
+    titleEl.textContent = 'Save Model';
+    subEl.textContent = 'Name this snapshot. Reusing a name overwrites.';
+    nameEl.style.display = '';
+    nameEl.value = '';
+    primary.style.display = '';
+    primary.textContent = 'Save';
+    listEl.innerHTML = names.length
+      ? '<div class="scenario-list-hint">Click an existing name to overwrite</div>' +
+        names.map(n => `
+          <div class="scenario-item" data-pick="${escapeHtml(n)}">
+            <span class="name">${escapeHtml(n)}</span>
+            <span class="meta">${formatScenarioTime(scenarios[n].savedAt)}</span>
+          </div>`).join('')
+      : '<div class="scenario-empty">No saved models yet.</div>';
+    setTimeout(() => nameEl.focus(), 50);
+  } else {
+    titleEl.textContent = 'Load Model';
+    subEl.textContent = names.length
+      ? 'Click a saved model to load. The current model auto-saves on edits — save it first if you want to keep it.'
+      : 'No saved models yet. Use SAVE MODEL on the toolbar first.';
+    nameEl.style.display = 'none';
+    primary.style.display = 'none';
+    listEl.innerHTML = names.length
+      ? names.map(n => `
+          <div class="scenario-item" data-load="${escapeHtml(n)}">
+            <span class="name">${escapeHtml(n)}</span>
+            <span class="meta">${formatScenarioTime(scenarios[n].savedAt)}</span>
+            <button class="del" data-delete="${escapeHtml(n)}" title="Delete">&times;</button>
+          </div>`).join('')
+      : '<div class="scenario-empty">No saved models.</div>';
+  }
+
+  document.getElementById('scenarioModal').classList.add('open');
+}
+function closeScenarioModal() {
+  document.getElementById('scenarioModal').classList.remove('open');
+}
+
+document.getElementById('saveScenarioBtn').addEventListener('click', () => openScenarioModal('save'));
+document.getElementById('loadScenarioBtn').addEventListener('click', () => openScenarioModal('load'));
+document.getElementById('scenarioCancel').addEventListener('click', closeScenarioModal);
+document.getElementById('scenarioModal').addEventListener('click', e => {
+  if (e.target.id === 'scenarioModal') closeScenarioModal();
+});
+
+document.getElementById('scenarioPrimary').addEventListener('click', () => {
+  if (scenarioMode !== 'save') return;
+  const name = document.getElementById('scenarioNameInput').value.trim();
+  if (!name) {
+    document.getElementById('scenarioNameInput').focus();
+    return;
+  }
+  const scenarios = getScenarios();
+  scenarios[name] = { state: JSON.parse(JSON.stringify(state)), savedAt: Date.now() };
+  setScenarios(scenarios);
+  closeScenarioModal();
+});
+
+document.getElementById('scenarioNameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('scenarioPrimary').click();
+  } else if (e.key === 'Escape') {
+    closeScenarioModal();
+  }
+});
+
+document.getElementById('scenarioList').addEventListener('click', e => {
+  // Delete button takes precedence over the row click
+  const delName = e.target.closest('[data-delete]')?.getAttribute('data-delete');
+  if (delName) {
+    e.stopPropagation();
+    if (!confirm(`Delete saved model "${delName}"?`)) return;
+    const scenarios = getScenarios();
+    delete scenarios[delName];
+    setScenarios(scenarios);
+    openScenarioModal(scenarioMode);  // refresh list
+    return;
+  }
+  const item = e.target.closest('.scenario-item');
+  if (!item) return;
+  const pickName = item.getAttribute('data-pick');
+  const loadName = item.getAttribute('data-load');
+  if (pickName && scenarioMode === 'save') {
+    document.getElementById('scenarioNameInput').value = pickName;
+    document.getElementById('scenarioNameInput').focus();
+  } else if (loadName && scenarioMode === 'load') {
+    const scenarios = getScenarios();
+    const snap = scenarios[loadName];
+    if (!snap || !snap.state) return;
+    state = mergeDefaults(JSON.parse(JSON.stringify(snap.state)));
+    saveState();
+    render();
+    closeScenarioModal();
+  }
 });
 
 // ============================================================================
