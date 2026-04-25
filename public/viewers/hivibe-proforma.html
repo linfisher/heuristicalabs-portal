@@ -331,14 +331,24 @@
     .solo-col-stack { gap: 28px; }
   }
 
-  /* Bundle grid: 2 cols, HVT Experience variants pinned to col 1, others to col 2.
-     Falls back to 1-col on mobile. */
+  /* Bundle grid: 2 cols. HVT Experience Mat variants live in a tight stack
+     in col 1 (gold accent — they're versions of the same product). HVT
+     MagTile + Amplified MagTile Kits live in a looser stack in col 2
+     (purple accent — different products, more breathing room). */
   .product-grid.bundle-grid { grid-template-columns: 1fr 1fr; align-items: start; }
-  .product-grid.bundle-grid .product-card[data-bundle-col="left"]  { grid-column: 1; }
-  .product-grid.bundle-grid .product-card[data-bundle-col="right"] { grid-column: 2; }
+  .bundle-col-left  { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .bundle-col-right { display: flex; flex-direction: column; gap: 48px; min-width: 0; }
+  .product-card.bundle[data-bundle-col="left"]  {
+    border-left-color: var(--gold);
+    background: rgba(201, 155, 58, 0.04);
+  }
+  .product-card.bundle[data-bundle-col="right"] {
+    border-left-color: #8b4ac4;
+    background: rgba(139, 74, 196, 0.05);
+  }
   @media (max-width: 900px) {
     .product-grid.bundle-grid { grid-template-columns: 1fr; }
-    .product-grid.bundle-grid .product-card[data-bundle-col] { grid-column: auto; }
+    .bundle-col-right { gap: 28px; }
   }
 
   /* Rollup panel — small list inside each kpi-year column */
@@ -2032,7 +2042,10 @@ function renderBundleCards() {
   const grid = document.getElementById('bundleGrid');
   const soloOptions = state.solos.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
-  grid.innerHTML = state.bundles.map((b, bi) => {
+  // Split bundles into two flex columns: HVT Mat variants on the left
+  // (gold accent, tight stack — versions of the same product), everything
+  // else on the right (purple accent, looser stack — different products).
+  const cardHtmls = state.bundles.map((b, bi) => {
     const cogs = bundleUnitCOGS(b);
     const margin = unitMargin(b);
 
@@ -2071,7 +2084,7 @@ function renderBundleCards() {
     const isMatVariant = /^hvt_experience_mat(_[abc])?$/i.test(b.id || '');
     const colHint = isMatVariant ? 'left' : 'right';
 
-    return `
+    const cardHtml = `
     <div class="product-card bundle" data-bundle-col="${colHint}">
       <div class="pc-header">
         <div>
@@ -2141,7 +2154,16 @@ function renderBundleCards() {
         </div>
       </div>
     </div>`;
-  }).join('');
+    return { bi, col: colHint, html: cardHtml };
+  });
+
+  // Wrap left + right columns in flex stacks so each side controls its own
+  // gap independently of the grid auto-row sizing.
+  const leftHtml  = cardHtmls.filter(c => c.col === 'left').map(c => c.html).join('');
+  const rightHtml = cardHtmls.filter(c => c.col === 'right').map(c => c.html).join('');
+  grid.innerHTML =
+    (leftHtml  ? `<div class="bundle-col-left">${leftHtml}</div>`   : '') +
+    (rightHtml ? `<div class="bundle-col-right">${rightHtml}</div>` : '');
 }
 
 // ============================================================================
