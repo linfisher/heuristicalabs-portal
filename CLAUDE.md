@@ -131,11 +131,23 @@ Single self-contained file: `public/viewers/hivibe-proforma.html`. Loaded into a
 
 **SPV Ask card**: `Peak (red, computed) + Contingency (gold, editable, stored as `state.assumptions.contingency`) = Capital Raise Target (green, computed)`. Default contingency = $279,352. Use-of-proceeds prose alongside, refreshed live by the input handler.
 
-**Solo / Bundle rollup tables**: lock `table-layout: fixed` with explicit widths on the unit (48px) and revenue (92px) columns so every year column renders identically regardless of digit width.
+**Solo / Bundle rollup tables**: lock `table-layout: fixed` with explicit widths on the unit (38px) and revenue (78px) columns so every year column renders identically regardless of digit width. Names use `white-space: nowrap; text-overflow: ellipsis`.
+
+**Inventory Allocation table** (between Solo Rollup and Bundles section): single consolidated `inv-alloc-table` showing per-SKU allocation: `For Dev / Proto · Used by Bundles · Available for Solo` plus a TOTAL row. SHORT alert appears inline when bundle production demand exceeds first-run inventory. Replaces the old per-card "Proto Allocation" / "First-Run Allocation" rows that were removed (they were confusing). Allocation rules: when proto = 0 inventory, never SHORT (user explicitly chose 0). First-run "used" capped at inventory; SHORT shown as the demand shortfall.
+
+**Editable Pro Forma table (Step 5)**: unit cells (Y1/Y2/Y3 columns) are editable inputs that hook into the same `data-solo` / `data-bundle` `data-f="yN_units"` handlers as the cards above. Edit either surface; both stay in sync via `updateSoloDerivedDisplay` / `updateBundleDerivedDisplay` (which now also push state values back into the card's input fields, skipping whichever input is currently focused). `softRefreshTotals` captures + restores focus on the typing input so cursor stays put. Unit inputs are `type="text" inputmode="numeric"` (not `type="number"` — that caused input-event bugs on this surface). Display = `yN_units` directly; proto is a separate inventory line and is never touched by edits in this table.
+
+**Cumulative cash chart (Step 6)** has a "How to read this chart" explainer card above it (`.cash-explainer`, same `rgba(255,255,255,0.05)` tint as the zebra rows). Explains Y0 dip = capital deployment, operating cash flow refill, deepest trough = Peak Cash Need, crossing zero = break-even.
 
 **Layout — solo grid**: 2 cols at desktop. BridgeBox group card in col 1; remaining single-solo cards (1000W Amp, MagTile, Cushion) wrapped in `.solo-col-stack` flex container in col 2 so they pack tight independent of grid auto-row sizing.
 
 **Layout — bundle grid**: 2 cols. HVT Experience Mat A/B/C in `.bundle-col-left` (gold accent, 16px gap). HVT MagTile Version + Amplified & Connected MagTile Kits in `.bundle-col-right` (purple accent, 48px gap). Driven by `data-bundle-col="left|right"` set in render based on bundle id pattern.
+
+**Breakpoint**: 850px. Below this, the 2-col solo + 2-col bundle + 2-col SPV-ask layouts collapse to single-column. KPI rows do the same.
+
+**Per-card collapse**: every solo / bundle / BridgeBox group card has a chevron toggle (`.pc-toggle`) in its header. Click toggles `.product-card.collapsed` (which hides `.pc-body`). State persists per card in `localStorage[hivibe_proforma_collapsed:<id>]` where id is `solo:<id>` / `bundle:<id>` / `group:<group>`.
+
+**Zebra rows**: every other row in OPEX, Pro Forma, Inventory Allocation, BOM, and rollup mini tables gets `rgba(255,255,255,0.05)` tint.
 
 ## Admin UX Rules
 - **Uniform treatment**: all projects behave the same — static seed data and user-created projects are indistinguishable after seed. Rename, Archive, Delete available on every project.
