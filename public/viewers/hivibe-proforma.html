@@ -554,7 +554,7 @@
   .rollup-mini tbody tr:nth-child(even) td { background: rgba(255,255,255,0.05); }
   .bom-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.05); }
 
-  /* Inventory Allocation summary table — clean per-SKU breakdown. */
+  /* First Run Order panel — per-SKU breakdown of the manufacturing run. */
   .inv-alloc-wrapper {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
     overflow-x: auto;
@@ -570,9 +570,9 @@
   table.inv-alloc-table td:first-child { text-align: left; color: var(--text); font-weight: 500; }
   table.inv-alloc-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.05); }
   table.inv-alloc-table td.proto-col { color: var(--gold-bright); }
-  table.inv-alloc-table td.bundle-col { color: #b880e0; }
   table.inv-alloc-table td.solo-col { color: #4ac46a; }
-  table.inv-alloc-table td.short { color: var(--red); font-weight: 600; }
+  table.inv-alloc-table td.bundle-col { color: #b880e0; }
+  table.inv-alloc-table td.order-col { color: var(--text); font-weight: 600; }
   table.inv-alloc-table tfoot tr.total-row td {
     background: rgba(201, 155, 58, 0.05); border-top: 2px solid var(--border-strong);
     font-weight: 600; color: var(--text); padding-top: 10px;
@@ -1202,11 +1202,6 @@
     <div class="kpi-year-grid" id="soloRollupGrid"></div>
   </div>
 
-  <h2 class="section">Inventory Allocation <span class="hint">Where each SKU's inventory goes &mdash; protos for dev / testing, first-run drawn down by bundle production, remainder available for solo retail or future bundles</span></h2>
-  <div class="inv-alloc-wrapper">
-    <table class="inv-alloc-table" id="invAllocTable"></table>
-  </div>
-
   <h2 class="section"><span class="step">STEP 2</span> Bundles <span class="hint">Compose solo products via dropdown · Set quantities · COGS auto-computes</span></h2>
   <div class="product-grid bundle-grid" id="bundleGrid"></div>
   <div style="margin-top:10px;">
@@ -1216,6 +1211,11 @@
   <div class="kpi-block" id="bundleRollupBlock" style="margin-top:14px;">
     <div class="kpi-block-label">Bundles · 3-Year Rollup</div>
     <div class="kpi-year-grid" id="bundleRollupGrid"></div>
+  </div>
+
+  <h2 class="section">First Run Order <span class="hint">The manufacturing batch sized to cover prototypes, Y1 solo sales, and first-run bundle production &mdash; derived from your inputs above</span></h2>
+  <div class="inv-alloc-wrapper">
+    <table class="inv-alloc-table" id="firstRunOrderTable"></table>
   </div>
 
   <h2 class="section"><span class="step">STEP 3</span> Pre-Revenue Capital <span class="hint">Dev / integration costs paid up front, expensed evenly across N years instead of hitting Y1</span></h2>
@@ -1233,6 +1233,9 @@
   <div style="margin-top:8px;">
     <button id="addOpexBtn" class="add-component-btn" style="max-width:240px;">+ ADD OPEX LINE</button>
   </div>
+
+  <h2 class="section">Model Assumptions <span class="hint">Knobs that drive cash flow shape and profitability &mdash; tune carefully</span></h2>
+  <div id="assumptionsBlock"></div>
 
   <h2 class="section"><span class="step">STEP 5</span> 3-Year Pro Forma <span class="hint">Solo and bundle revenue → COGS → Gross Profit → OPEX → Operating Income</span></h2>
   <div class="proforma-wrapper">
@@ -1311,7 +1314,7 @@ const DEFAULT_STATE = {
       group_label: 'BridgeBox',
       group_desc: 'Audio + 5.8GHz wireless distribution kit · 3 offer tiers · All include 9 inHarmony cushions',
       unit_cost: 8459,
-      sell_price: 17500,
+      sell_price: 16918,
       proto_units: 1,
       first_run_units: 5,
       y1_units: 5,
@@ -1329,7 +1332,7 @@ const DEFAULT_STATE = {
       category: 'audio',
       group: 'bb',
       unit_cost: 7014,
-      sell_price: 12500,
+      sell_price: 14028,
       proto_units: 1,
       first_run_units: 3,
       y1_units: 3,
@@ -1347,7 +1350,7 @@ const DEFAULT_STATE = {
       category: 'audio',
       group: 'bb',
       unit_cost: 6318,
-      sell_price: 10000,
+      sell_price: 12636,
       proto_units: 1,
       first_run_units: 3,
       y1_units: 4,
@@ -1495,7 +1498,7 @@ const DEFAULT_STATE = {
         { solo_id: 'magtile', qty: 16 },
         { solo_id: 'bb_c', qty: 1 },
       ],
-      sell_price: 14500,
+      sell_price: 22812,
       proto_units: 0,
       first_run_units: 3,
       y1_units: 5,
@@ -1522,9 +1525,11 @@ const DEFAULT_STATE = {
   assumptions: {
     y0_opex_burn_ratio: 0.5,
     // Contingency cushion the SPV raises ON TOP of the computed 3Y Peak
-    // Cash Demand. SPV Ask = peak + contingency. Default puts the ask at
-    // ~$750k against a default-state peak of ~$470k. User-editable.
+    // Cash Demand. SPV Ask = peak + contingency. User-editable.
     contingency: 279352,
+    // Federal corporate income tax rate, applied to positive EBIT only
+    // (no NOL carryforward modeled — losses cannot offset future profits).
+    tax_rate: 0.21,
   },
 };
 
@@ -1553,6 +1558,8 @@ function mergeDefaults(s) {
   if (!s.bundles) s.bundles = structuredClone(DEFAULT_STATE.bundles);
   if (!s.opex) s.opex = structuredClone(DEFAULT_STATE.opex);
   if (!s.assumptions) s.assumptions = structuredClone(DEFAULT_STATE.assumptions);
+  // Backfill any newer keys missing from older saved states.
+  if (s.assumptions.tax_rate == null) s.assumptions.tax_rate = DEFAULT_STATE.assumptions.tax_rate;
 
   // One-time migration: previously Arena Integration was an OPEX line that
   // hit Y1 hard. It's now treated as pre-revenue dev capital amortized
@@ -1661,6 +1668,51 @@ function mergeDefaults(s) {
     s.migrated_amp_1000w_v1 = true;
   }
 
+  // Reprice BridgeBox tiers and Amplified & Connected MagTile Kits to a
+  // uniform 50% gross margin. Bundle COGS is computed from the user's actual
+  // components so a customized bundle composition still lands at 50%, not
+  // some hardcoded number derived from the default composition.
+  if (!s.migrated_pricing_50pct_v2) {
+    const soloTargets = new Set(['bb_a', 'bb_b', 'bb_c']);
+    s.solos.forEach(solo => {
+      if (soloTargets.has(solo.id) && (+solo.unit_cost || 0) > 0) {
+        solo.sell_price = (+solo.unit_cost) * 2;
+      }
+    });
+    const bundleTargets = new Set(['magtile_floor']);
+    s.bundles.forEach(b => {
+      if (!bundleTargets.has(b.id)) return;
+      const cogs = (b.components || []).reduce((acc, c) => {
+        const solo = s.solos.find(x => x.id === c.solo_id);
+        return acc + (solo ? (+solo.unit_cost || 0) * (+c.qty || 0) : 0);
+      }, 0);
+      if (cogs > 0) b.sell_price = cogs * 2;
+    });
+    s.migrated_pricing_50pct_v2 = true;
+    s.migrated_pricing_50pct_v1 = true;  // mark v1 too so any older state is consistent
+    console.info('[migration] Repriced BB A/B/C + MagTile Kits to 50% margin (v2 — dynamic COGS)');
+  }
+
+  // First Run Order is now derived (proto + Y1 solo + bundle demand) instead
+  // of user-editable. Wipe any manually-set values on first load so display
+  // matches the formula.
+  if (!s.migrated_first_run_computed_v1) {
+    s.solos.forEach(solo => {
+      const proto = +solo.proto_units || 0;
+      const y1 = +solo.y1_units || 0;
+      const bundleNeed = (s.bundles || []).reduce((acc, b) => {
+        const bQty = +b.first_run_units || 0;
+        if (!bQty) return acc;
+        const usage = (b.components || [])
+          .filter(c => c.solo_id === solo.id)
+          .reduce((u, c) => u + (+c.qty || 0), 0);
+        return acc + bQty * usage;
+      }, 0);
+      solo.first_run_units = proto + y1 + bundleNeed;
+    });
+    s.migrated_first_run_computed_v1 = true;
+  }
+
   return s;
 }
 state = mergeDefaults(state);
@@ -1754,6 +1806,20 @@ function bundleConsumptionOfSolo(soloId, phase) {
     return s + qty * usage;
   }, 0);
 }
+
+// First Run Order is a derived value (not user-set). It is the manufacturing
+// run size required to cover everything pulling from the solo's first batch:
+//   proto inventory + Y1 solo sales target + first-run bundle demand
+// Edits to any of those three drivers automatically resize the order.
+function computedFirstRun(s) {
+  const proto = +s.proto_units || 0;
+  const y1 = +s.y1_units || 0;
+  const bundleNeed = bundleConsumptionOfSolo(s.id, 'first_run_units');
+  return proto + y1 + bundleNeed;
+}
+function recomputeAllFirstRuns() {
+  state.solos.forEach(s => { s.first_run_units = computedFirstRun(s); });
+}
 function soloAvailableForSolo(soloId, phase) {
   const solo = getSolo(soloId);
   if (!solo) return 0;
@@ -1777,11 +1843,6 @@ function amortizedYearExpense(year) {
   }, 0);
 }
 
-function totalYearAmortized() {
-  // Sum across years 1-3 — used in the 3-year EBIT roll-up
-  return amortizedYearExpense(1) + amortizedYearExpense(2) + amortizedYearExpense(3);
-}
-
 // EBIT = GP minus OPEX minus amortized capital (Arena, etc.)
 function totalYearOpIncome(year) {
   return totalYearGP(year) - totalYearOpex(year) - amortizedYearExpense(year);
@@ -1791,17 +1852,53 @@ function totalInvestments() {
   return (state.investments || []).reduce((s, inv) => s + (+inv.total || 0), 0);
 }
 
+// Federal corporate income tax — applied to positive EBIT only. Losses don't
+// create a tax benefit and do not carry forward in this simplified model.
+function taxYear(year) {
+  const ebit = totalYearOpIncome(year);
+  const rate = +state.assumptions.tax_rate || 0;
+  return ebit > 0 ? ebit * rate : 0;
+}
+function netIncomeYear(year) {
+  return totalYearOpIncome(year) - taxYear(year);
+}
+
+// COGS for Y1 sales whose inventory was already paid in Y0's first-run order.
+// By formula, first_run_units = proto + y1_solo + bundle_demand, so:
+//   - all Y1 solo COGS is prepaid
+//   - bundle COGS is prepaid only up to b.first_run_units; any Y1 bundle volume
+//     beyond first-run requires new components produced in Y1 (cash out then).
+function y1PrepaidCOGS() {
+  const soloPaid = state.solos.reduce((acc, solo) => {
+    return acc + (+solo.y1_units || 0) * (+solo.unit_cost || 0);
+  }, 0);
+  const bundlePaid = state.bundles.reduce((acc, b) => {
+    const fr = +b.first_run_units || 0;
+    const y1 = +b.y1_units || 0;
+    const covered = Math.min(fr, y1);
+    return acc + covered * bundleUnitCOGS(b);
+  }, 0);
+  return soloPaid + bundlePaid;
+}
+
 function cashFlowYear(year) {
   if (year === 0) {
-    // Y0 = build inventory + lump-sum cash for amortized capital + a
-    // half-year of Y1 operating burn during the build phase.
+    // Y0 cash out: the entire first-run manufacturing batch (which already
+    // includes proto inventory by formula), full pre-revenue capex, and a
+    // fraction of Y1 OPEX burn during the build phase.
     const burnRatio = +state.assumptions.y0_opex_burn_ratio || 0;
-    return -(totalPrototypeCost() + totalFirstRunCost() + totalInvestments() + burnRatio * totalYearOpex(1));
+    return -(totalFirstRunCost() + totalInvestments() + burnRatio * totalYearOpex(1));
   }
-  // In years 1+, amortized capital is already paid in cash in Y0; add it back
-  // so the cash chart doesn't double-count. (Op income subtracts it for P&L
-  // accounting; cash basis says we've already spent that money.)
-  return totalYearOpIncome(year) + amortizedYearExpense(year);
+  // Y1+: EBIT plus amort (amort is non-cash; capex was paid in Y0), minus
+  // income tax on positive EBIT.
+  let cf = totalYearOpIncome(year) + amortizedYearExpense(year) - taxYear(year);
+  if (year === 1) {
+    // Add back COGS already paid for via Y0 first-run inventory so Y1 cash
+    // flow only reflects new Y1 production (i.e. Y1 bundle volume above the
+    // bundle's first-run assembly count).
+    cf += y1PrepaidCOGS();
+  }
+  return cf;
 }
 
 function cumulativeCash(year) {
@@ -1817,6 +1914,33 @@ function peakCashNeed() {
     if (c < lowest) lowest = c;
   }
   return Math.abs(lowest);
+}
+
+// First moment cumulative cash crosses ≥ 0 from below. Linear interpolation
+// gives a within-year fraction. If never positive within Y0-Y3, extrapolate
+// using the Y2→Y3 slope; if still not reachable, declare it out of horizon.
+function breakEvenLabel() {
+  const series = [cumulativeCash(0), cumulativeCash(1), cumulativeCash(2), cumulativeCash(3)];
+  for (let y = 1; y <= 3; y++) {
+    if (series[y - 1] < 0 && series[y] >= 0) {
+      const frac = -series[y - 1] / (series[y] - series[y - 1]);
+      const months = Math.max(1, Math.min(12, Math.round(frac * 12)));
+      return `Y${y}, month ${months}`;
+    }
+  }
+  if (series[0] >= 0 && series[3] >= 0) return 'Y0 (cash positive throughout)';
+  // Past Y3 — extrapolate using Y2→Y3 slope.
+  const slope = series[3] - series[2];
+  if (slope > 0) {
+    const yrs = -series[3] / slope;
+    if (yrs < 5) {
+      const totalYears = 3 + yrs;
+      const wholeY = Math.floor(totalYears);
+      const months = Math.max(1, Math.min(12, Math.round((totalYears - wholeY) * 12)));
+      return `~Y${wholeY}, month ${months} (extrapolated)`;
+    }
+  }
+  return `Not within 3-year horizon (${fmt.moneyFull(Math.abs(series[3]))} short at Y3)`;
 }
 
 // Per-card collapse state — keyed by card id ("solo:<id>", "bundle:<id>",
@@ -1865,20 +1989,20 @@ function spvAskFigures(peak) {
   return { ask, contingency, cover, peak };
 }
 
-// 3-year operating return on the SPV ask. Return = sum of EBIT across
-// Y1-Y3 (the operating profit the business generates). MoM = return / ask.
+// 3-year return on the SPV ask. Return = sum of post-tax net income across
+// Y1-Y3. MoM = return / ask (multiple on money). True ROI = (return − ask) / ask,
+// only positive when the business returns more than the SPV put in over 3 years.
 function spvReturnFigures(peak) {
   const { ask } = spvAskFigures(peak);
-  const ret = totalYearOpIncome(1) + totalYearOpIncome(2) + totalYearOpIncome(3);
+  const ret = netIncomeYear(1) + netIncomeYear(2) + netIncomeYear(3);
   const mom = ask > 0 ? (ret / ask) : 0;
-  const roiPct = ask > 0 ? ((ret / ask) * 100) : 0;
-  return { ret, mom, roiPct, ask };
+  return { ret, mom, ask };
 }
 function formatSpvReturnDetail(peak) {
-  const { ret, mom, roiPct, ask } = spvReturnFigures(peak);
+  const { ret, mom, ask } = spvReturnFigures(peak);
   if (ask <= 0) return `Set inputs above to compute return.`;
-  if (ret <= 0) return `${(mom).toFixed(2)}× on ${fmt.moneyFull(ask)} ask · operating loss across Y1-Y3`;
-  return `${mom.toFixed(2)}× MoM on ${fmt.moneyFull(ask)} ask · ${roiPct.toFixed(0)}% ROI`;
+  if (ret <= 0) return `${mom.toFixed(2)}× MoM on ${fmt.moneyFull(ask)} ask · net loss across Y1-Y3`;
+  return `${mom.toFixed(2)}× MoM on ${fmt.moneyFull(ask)} ask · ${fmt.moneyFull(ret)} 3Y net income`;
 }
 
 // Render the "Peak need · X.XX× cover" stat line under the contingency input.
@@ -1891,28 +2015,55 @@ function formatSpvAskDetail(peak) {
 // Use-of-proceeds prose for the SPV Ask card. References live numbers
 // (peak demand, ask, contingency, cover) so the narrative stays accurate
 // as the user tunes inputs.
+// Decompose the SPV ask into the categories of capital it funds, so the
+// narrative shows where every dollar goes rather than a paragraph of prose.
+function useOfProceedsBreakdown(peak) {
+  const burnRatio = +state.assumptions.y0_opex_burn_ratio || 0;
+  const inventory = totalFirstRunCost();
+  const capex = totalInvestments();
+  const y0Burn = burnRatio * totalYearOpex(1);
+  const y0Total = inventory + capex + y0Burn;
+  const y1PlusReserve = Math.max(0, peak - y0Total);
+  const contingency = Math.max(0, +state.assumptions.contingency || 0);
+  return { inventory, capex, y0Burn, y0Total, y1PlusReserve, contingency, peak, ask: peak + contingency };
+}
+
 function formatSpvAskNarrative(peak) {
   const { ask, contingency, cover } = spvAskFigures(peak);
   const askStr = fmt.moneyFull(ask);
   const peakStr = fmt.moneyFull(peak);
 
   if (peak <= 0) {
-    return `<p><b>Use of Proceeds.</b> Set inputs above so the model can compute the 3Y Peak Cash Demand and a sized raise.</p>`;
+    return `<p style="margin:0;">Set inputs above so the model can compute the 3Y Peak Cash Demand and a sized raise.</p>`;
   }
 
-  if (contingency < 0) {
-    return `
-      <p><b>Use of Proceeds.</b> The raise is sized to fund the SPV through the deepest cumulative cash trough — the <b>3Y Peak Cash Demand of ${peakStr}</b>. The current ask of ${askStr} sits <b style="color:var(--red);">${fmt.moneyFull(-contingency)} below</b> that demand, which means the SPV would run out of cash before reaching break-even. Increase the ask or lower the burn upstream.</p>`;
-  }
+  const b = useOfProceedsBreakdown(peak);
+
+  const row = (label, hint, amount, opts) => `
+    <div style="display:flex; justify-content:space-between; gap:8px; align-items:baseline; padding:5px 0; ${opts && opts.borderTop ? 'border-top:1px solid var(--border-strong); margin-top:6px;' : ''}">
+      <div style="font-size:11px; line-height:1.35;">
+        <div style="${opts && opts.bold ? 'font-weight:600;' : ''} color:var(--text);">${label}</div>
+        ${hint ? `<div style="color:var(--text-faint); font-size:10px;">${hint}</div>` : ''}
+      </div>
+      <div style="${opts && opts.bold ? 'font-weight:700; font-size:13px;' : 'font-size:12px;'} ${opts && opts.color ? 'color:' + opts.color + ';' : 'color:var(--text);'} font-feature-settings:'tnum' 1; white-space:nowrap;">
+        ${amount}
+      </div>
+    </div>`;
+
+  const undersized = contingency < 0
+    ? `<div style="color:var(--red); font-size:11px; padding:6px 0 0;">[!] Ask is <b>${fmt.moneyFull(-contingency)}</b> below peak need &mdash; SPV runs out of cash before break-even.</div>`
+    : '';
 
   return `
-    <p style="margin:0 0 10px;"><b>Use of Proceeds.</b> The SPV raises <b>${askStr}</b>. Of that, <b>${peakStr}</b> directly funds operations through the cumulative cash trough — covering Year 0 build (prototypes, first production run, the Arena CapEx), Year 1 operating runway, and the second-year ramp before sales clear back to break-even.</p>
-    <p style="margin:0 0 10px;"><b>Capital Reserves.</b> The remaining <b>${fmt.moneyFull(contingency)}</b> is held in cash reserve to absorb the three risks that typically take down a hardware launch:
-      <span style="display:block; padding:4px 0 0 14px; opacity:0.85;">&middot; sales running 6&ndash;9 months behind plan,</span>
-      <span style="display:block; padding:0 0 0 14px; opacity:0.85;">&middot; supply-chain disruption forcing re-orders at higher unit cost,</span>
-      <span style="display:block; padding:0 0 4px 14px; opacity:0.85;">&middot; one quarter of stretched receivables.</span>
-    </p>
-    <p style="margin:0;"><b>Cover Ratio.</b> ${askStr} &divide; ${peakStr} = <b>${cover.toFixed(2)}&times;</b> cover against peak need. The deck position: meaningful cushion without overshooting.</p>
+    <div style="font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:var(--text-faint); padding-bottom:6px;">Use of Proceeds</div>
+    ${row('First-Run Inventory', 'Manufacturing batch &middot; proto + Y1 + bundle assembly', fmt.moneyFull(b.inventory))}
+    ${row('Pre-Revenue CapEx', 'Arena and other amortized capital', fmt.moneyFull(b.capex))}
+    ${row('Y0 Operating Burn', `${((+state.assumptions.y0_opex_burn_ratio || 0) * 100).toFixed(0)}% of Y1 OPEX during build phase`, fmt.moneyFull(b.y0Burn))}
+    ${b.y1PlusReserve > 0 ? row('Y1+ Operating Reserve', 'Additional drawdown after Y0 until cash-positive', fmt.moneyFull(b.y1PlusReserve)) : ''}
+    ${row('3Y Peak Cash Demand', '', fmt.moneyFull(b.peak), { bold: true, color: 'var(--red)', borderTop: true })}
+    ${row('Contingency Reserve', 'Unforeseen costs &middot; downside buffer', `+ ${fmt.moneyFull(contingency)}`, { color: 'var(--gold-bright)' })}
+    ${row('Capital Raise Target', `${cover.toFixed(2)}× cover ratio against peak`, fmt.moneyFull(ask), { bold: true, color: 'var(--green)', borderTop: true })}
+    ${undersized}
   `;
 }
 
@@ -1966,12 +2117,12 @@ function renderKPIs() {
       <div class="kpi">
         <div class="kpi-label">Prototype Build</div>
         <div class="kpi-value">${fmt.moneyFull(proto)}</div>
-        <div class="kpi-detail">${protoUnits} solo units ordered · bundles draw from this</div>
+        <div class="kpi-detail">${protoUnits} solo units · subset of First Run, dev / testing only</div>
       </div>
       <div class="kpi">
         <div class="kpi-label">First Production Run</div>
         <div class="kpi-value">${fmt.moneyFull(firstRun)}</div>
-        <div class="kpi-detail">${firstRunUnits} solo units · ${overAllocated > 0 ? `<span style="color:var(--red);">[!] ${overAllocated} SKU${overAllocated>1?'s':''} short</span>` : '<span style="color:var(--green);">all SKUs covered</span>'}</div>
+        <div class="kpi-detail">${firstRunUnits} solo units total · covers proto + Y1 + bundle assembly</div>
       </div>
       <div class="kpi">
         <div class="kpi-label">CapEx for Community Tech Stack &middot; Arena</div>
@@ -2018,7 +2169,7 @@ function renderKPIs() {
       <div class="kpi kpi-raise">
         <div class="kpi-label">3Y Peak Cash Demand</div>
         <div class="kpi-value red">${fmt.moneyFull(peak)}</div>
-        <div class="kpi-detail">Deepest cumulative cash trough across Y0&ndash;Y3</div>
+        <div class="kpi-detail">Deepest trough across Y0&ndash;Y3 &middot; Cash break-even: <b>${breakEvenLabel()}</b></div>
       </div>
     </div>
 
@@ -2060,27 +2211,6 @@ function renderKPIs() {
 // ----- Per-solo content (used by both single cards and group cards) -----
 function renderSoloFields(s, i) {
   const margin = unitMargin(s);
-  // Allocation rules:
-  // - PROTO: prototypes are NEVER sold solo (dev/testing only). All protos
-  //   shown as "used" with 0 for solo. SHORT only fires when proto inventory
-  //   is > 0 AND bundle proto demand exceeds it. If proto inventory = 0, we
-  //   don't flag SHORT — user explicitly chose 0, no expectation to fulfill.
-  // - FIRST-RUN: bundles draw from solo inventory first; whatever's left goes
-  //   to solo retail. "used" is capped at inventory (you can't consume more
-  //   than you ordered) and SHORT shows the bundle shortfall separately.
-  const protoTotal = +s.proto_units || 0;
-  const protoBundleNeed = bundleConsumptionOfSolo(s.id, 'proto_units');
-  const protoShort = protoTotal > 0 ? Math.max(0, protoBundleNeed - protoTotal) : 0;
-  const protoUsedDisplay = protoTotal;
-  const protoAvailDisplay = 0;
-  const protoCls = protoShort > 0 ? 'negative' : (protoTotal > 0 ? 'positive' : '');
-
-  const frInventory = +s.first_run_units || 0;
-  const frBundleDemand = bundleConsumptionOfSolo(s.id, 'first_run_units');
-  const frUsed = Math.min(frInventory, frBundleDemand);
-  const frAvail = Math.max(0, frInventory - frBundleDemand);
-  const frShort = Math.max(0, frBundleDemand - frInventory);
-  const frCls = frShort > 0 ? 'negative' : (frUsed > 0 ? 'positive' : '');
   return `
     <div class="field-grid">
       <div class="field">
@@ -2092,23 +2222,18 @@ function renderSoloFields(s, i) {
         <div class="field-inline"><span class="prefix">$</span><input type="text" inputmode="numeric" data-solo="${i}" data-f="sell_price" value="${formatCommas(s.sell_price)}"></div>
       </div>
     </div>
-    <div class="field-grid three" style="margin-top:8px;">
+    <div class="field-grid" style="margin-top:8px;">
       <div class="field">
         <div class="label">Proto Order</div>
         <input type="number" step="1" min="0" data-solo="${i}" data-f="proto_units" value="${s.proto_units}">
-      </div>
-      <div class="field">
-        <div class="label">First Run Order</div>
-        <input type="number" step="1" min="0" data-solo="${i}" data-f="first_run_units" value="${s.first_run_units}">
       </div>
       <div class="field">
         <div class="label">Margin</div>
         <input type="text" class="derived" value="${fmt.pct(margin)}" readonly>
       </div>
     </div>
-    <!-- Per-card allocation rows replaced by the consolidated Inventory
-         Allocation summary section below the solo rollup — one clean table
-         showing the proto + bundle + solo split per SKU. -->
+    <!-- First Run Order is derived from proto + Y1 solo + bundle demand,
+         shown in the centralized panel below the bundles section. -->
 
     <div class="field-grid three" style="margin-top:8px;">
       <div class="field">
@@ -2406,26 +2531,55 @@ function renderBundleCards() {
 // RENDER — Model Assumptions
 // ============================================================================
 function renderAssumptions() {
+  const block = document.getElementById('assumptionsBlock');
+  if (!block) return;
   const a = state.assumptions;
-  const burnPct = (+a.y0_opex_burn_ratio * 100).toFixed(0);
+  const burnPct = ((+a.y0_opex_burn_ratio || 0) * 100).toFixed(0);
   const y1Opex = totalYearOpex(1);
   const burnDollars = (+a.y0_opex_burn_ratio || 0) * y1Opex;
+  const taxPct = ((+a.tax_rate || 0) * 100).toFixed(0);
 
-  document.getElementById('assumptionsBlock').innerHTML = `
+  // Preserve focus + cursor when this re-renders mid-typing (softRefreshTotals
+  // fires on every keystroke). If the active element is one of our inputs,
+  // capture which one + cursor position, rebuild, then restore.
+  const active = document.activeElement;
+  const focusedKey = (active && active.dataset && active.dataset.assumption) ? active.dataset.assumption : null;
+  const focusedCursor = focusedKey ? active.selectionStart : null;
+
+  block.innerHTML = `
     <div class="assumptions-grid">
       <div class="assumption">
         <div class="assumption-label">Y0 OPEX BURN RATIO</div>
         <div class="assumption-input-row">
-          <input type="number" step="0.05" min="0" max="2" data-assumption="y0_opex_burn_ratio" value="${a.y0_opex_burn_ratio}">
-          <span class="assumption-unit">× Y1 opex</span>
+          <input type="number" step="0.05" min="0" max="2" data-assumption="y0_opex_burn_ratio" value="${+a.y0_opex_burn_ratio || 0}">
+          <span class="assumption-unit">&times; Y1 OPEX</span>
         </div>
         <div class="assumption-detail">
-          Pre-revenue burn during Y0 build phase = <b>${burnPct}%</b> of Y1 opex = <b>${fmt.moneyFull(burnDollars)}</b>
-          <br>Default 0.5 ≈ 6 months of Y1 burn during prototype + first-run phase.
+          Pre-revenue burn during Y0 build phase = <b>${burnPct}%</b> of Y1 OPEX = <b>${fmt.moneyFull(burnDollars)}</b>.
+          <br>Default 0.5 &asymp; 6 months of Y1 burn during prototype + first-run phase.
+        </div>
+      </div>
+      <div class="assumption">
+        <div class="assumption-label">INCOME TAX RATE</div>
+        <div class="assumption-input-row">
+          <input type="number" step="0.01" min="0" max="0.5" data-assumption="tax_rate" value="${+a.tax_rate || 0}">
+          <span class="assumption-unit">on positive EBIT</span>
+        </div>
+        <div class="assumption-detail">
+          Federal corporate income tax = <b>${taxPct}%</b> applied to positive EBIT only.
+          <br>No NOL carryforward modeled &mdash; losses cannot offset future profits in this view.
         </div>
       </div>
     </div>
   `;
+
+  if (focusedKey) {
+    const restore = block.querySelector(`input[data-assumption="${focusedKey}"]`);
+    if (restore) {
+      restore.focus();
+      try { restore.setSelectionRange(focusedCursor, focusedCursor); } catch {}
+    }
+  }
 }
 
 // ============================================================================
@@ -2647,12 +2801,30 @@ function renderProforma() {
       </tr>` : ''}
 
       <tr class="total-row">
-        <td>OPERATING INCOME</td>
+        <td>OPERATING INCOME (EBIT)</td>
         <td class="year-start"></td><td></td><td class="year-end"></td>
         <td class="year-start"></td><td></td><td class="year-end"></td>
         <td class="year-start ${totalYearOpIncome(1) >= 0 ? 'positive' : 'negative'}">${fmt.moneyFull(totalYearOpIncome(1))}</td>
         <td class="${totalYearOpIncome(2) >= 0 ? 'positive' : 'negative'}">${fmt.moneyFull(totalYearOpIncome(2))}</td>
         <td class="year-end ${totalYearOpIncome(3) >= 0 ? 'positive' : 'negative'}">${fmt.moneyFull(totalYearOpIncome(3))}</td>
+      </tr>
+
+      <tr class="opex-row">
+        <td>Income tax (${((+state.assumptions.tax_rate || 0) * 100).toFixed(0)}% on positive EBIT)</td>
+        <td class="year-start"></td><td></td><td class="year-end"></td>
+        <td class="year-start"></td><td></td><td class="year-end"></td>
+        <td class="year-start ${taxYear(1) > 0 ? 'negative' : ''}">${taxYear(1) > 0 ? `(${fmt.moneyFull(taxYear(1))})` : '—'}</td>
+        <td class="${taxYear(2) > 0 ? 'negative' : ''}">${taxYear(2) > 0 ? `(${fmt.moneyFull(taxYear(2))})` : '—'}</td>
+        <td class="year-end ${taxYear(3) > 0 ? 'negative' : ''}">${taxYear(3) > 0 ? `(${fmt.moneyFull(taxYear(3))})` : '—'}</td>
+      </tr>
+
+      <tr class="total-row">
+        <td>NET INCOME</td>
+        <td class="year-start"></td><td></td><td class="year-end"></td>
+        <td class="year-start"></td><td></td><td class="year-end"></td>
+        <td class="year-start ${netIncomeYear(1) >= 0 ? 'positive' : 'negative'}">${fmt.moneyFull(netIncomeYear(1))}</td>
+        <td class="${netIncomeYear(2) >= 0 ? 'positive' : 'negative'}">${fmt.moneyFull(netIncomeYear(2))}</td>
+        <td class="year-end ${netIncomeYear(3) >= 0 ? 'positive' : 'negative'}">${fmt.moneyFull(netIncomeYear(3))}</td>
       </tr>
     </tbody>`;
 }
@@ -2805,35 +2977,42 @@ function renderSoloRollup() {
 }
 
 // ============================================================================
-// RENDER — Inventory Allocation
-// One table summarizing where each solo SKU's ordered inventory ends up:
-//   - For Dev / Proto    = solo.proto_units (set aside for prototypes / testing)
-//   - Used by Bundles    = bundle production consumption from solo first-run
-//   - Available for Solo = first_run_units − bundle production consumption
-//   - SHORT (red)        = bundle production demand exceeds first-run inventory
+// RENDER — First Run Order
+// Per-SKU breakdown of the manufacturing run size. Each row is fully derived
+// from inputs above (proto + Y1 solo + bundle demand). No edits, no shortfalls
+// possible — the order is sized exactly to satisfy everything that pulls from
+// the first batch.
 // ============================================================================
-function renderInventoryAllocation() {
-  const table = document.getElementById('invAllocTable');
+function renderFirstRunOrder() {
+  const table = document.getElementById('firstRunOrderTable');
   if (!table) return;
 
-  let totalProto = 0, totalBundle = 0, totalAvail = 0, totalShort = 0;
+  let totalProto = 0, totalY1 = 0, totalBundle = 0, totalOrder = 0;
+
+  // Build a group → label lookup. group_label is only set on the first
+  // variant of a group, so peers need to look it up.
+  const groupLabel = {};
+  state.solos.forEach(s => { if (s.group && s.group_label) groupLabel[s.group] = s.group_label; });
 
   const rows = state.solos.map(s => {
     const proto = +s.proto_units || 0;
-    const fr = +s.first_run_units || 0;
-    const bundleFR = bundleConsumptionOfSolo(s.id, 'first_run_units');
-    const used = Math.min(fr, bundleFR);
-    const avail = Math.max(0, fr - bundleFR);
-    const short = Math.max(0, bundleFR - fr);
+    const y1 = +s.y1_units || 0;
+    const bundleNeed = bundleConsumptionOfSolo(s.id, 'first_run_units');
+    const order = proto + y1 + bundleNeed;
     totalProto += proto;
-    totalBundle += used;
-    totalAvail += avail;
-    totalShort += short;
+    totalY1 += y1;
+    totalBundle += bundleNeed;
+    totalOrder += order;
+
+    const label = s.group ? groupLabel[s.group] : null;
+    const fullName = label ? `${label} &middot; ${s.name}` : s.name;
+
     return `<tr>
-      <td>${s.name}</td>
+      <td>${fullName}</td>
       <td class="proto-col">${fmt.int(proto)}</td>
-      <td class="bundle-col">${fmt.int(used)}${short > 0 ? ` <span class="short">⚠ ${fmt.int(short)} short</span>` : ''}</td>
-      <td class="solo-col">${fmt.int(avail)}</td>
+      <td class="solo-col">${fmt.int(y1)}</td>
+      <td class="bundle-col">${fmt.int(bundleNeed)}</td>
+      <td class="order-col">${fmt.int(order)}</td>
     </tr>`;
   }).join('');
 
@@ -2841,18 +3020,20 @@ function renderInventoryAllocation() {
     <thead>
       <tr>
         <th>SKU</th>
-        <th>For Dev / Proto</th>
-        <th>Used by Bundles</th>
-        <th>Available for Solo</th>
+        <th>Proto</th>
+        <th>Y1 Solo Sales</th>
+        <th>Bundle Demand</th>
+        <th>First Run Order</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
     <tfoot>
       <tr class="total-row">
-        <td>TOTAL ITEMS</td>
+        <td>TOTAL UNITS</td>
         <td class="proto-col">${fmt.int(totalProto)}</td>
-        <td class="bundle-col">${fmt.int(totalBundle)}${totalShort > 0 ? ` <span class="short">⚠ ${fmt.int(totalShort)} short</span>` : ''}</td>
-        <td class="solo-col">${fmt.int(totalAvail)}</td>
+        <td class="solo-col">${fmt.int(totalY1)}</td>
+        <td class="bundle-col">${fmt.int(totalBundle)}</td>
+        <td class="order-col">${fmt.int(totalOrder)}</td>
       </tr>
     </tfoot>`;
 }
@@ -2907,14 +3088,16 @@ function renderBundleRollup() {
 // RENDER ALL
 // ============================================================================
 function render() {
+  recomputeAllFirstRuns();
   renderKPIs();
   renderSoloCards();
   renderSoloRollup();
-  renderInventoryAllocation();
   renderBundleCards();
   renderBundleRollup();
+  renderFirstRunOrder();
   renderInvestments();
   renderOpex();
+  renderAssumptions();
   renderProforma();
   renderCashChart();
 }
@@ -2925,6 +3108,18 @@ function render() {
 document.addEventListener('input', e => {
   const t = e.target;
   if (!t.matches('input, select')) return;
+
+  // Model assumption edit (Y0 burn ratio, tax rate, etc.). Floor at 0; the
+  // upper bound comes from the input's HTML max attribute. Triggers a full
+  // refresh because cash flow + tax + KPIs all depend on these.
+  if (t.dataset.assumption) {
+    const key = t.dataset.assumption;
+    const raw = parseFloat(t.value);
+    state.assumptions[key] = isFinite(raw) ? Math.max(0, raw) : 0;
+    saveState();
+    softRefreshTotals();
+    return;
+  }
 
   // Contingency cushion edit — surgical update so the typing input keeps
   // cursor focus, and the computed SPV Ask + narrative refresh live.
@@ -2963,11 +3158,12 @@ document.addEventListener('input', e => {
     return;
   }
 
-  // Solo top-level field edit
+  // Solo top-level field edit. All numeric solo fields floor at 0 — pasted
+  // negatives or weird values silently coerce up rather than corrupt totals.
   if (t.dataset.solo !== undefined && t.dataset.f) {
     const i = +t.dataset.solo;
     const field = t.dataset.f;
-    state.solos[i][field] = readMoneyInput(t);
+    state.solos[i][field] = Math.max(0, readMoneyInput(t));
     saveState();
     softRefreshTotals();
     updateSoloDerivedDisplay(i);
@@ -2976,12 +3172,11 @@ document.addEventListener('input', e => {
     return;
   }
 
-  // Bundle component qty edit (typing) — surgical update only
+  // Bundle component qty edit (typing) — surgical update only. Floor at 0.
   if (t.dataset.bundle !== undefined && t.dataset.comp !== undefined && t.dataset.compF === 'qty') {
     const bi = +t.dataset.bundle;
     const ci = +t.dataset.comp;
-    // Floor at zero — a negative qty would silently subtract from bundle cost.
-    state.bundles[bi].components[ci].qty = Math.max(0, +t.value || 0);
+    state.bundles[bi].components[ci].qty = Math.max(0, readMoneyInput(t));
     saveState();
     softRefreshTotals();
     updateBundleDerivedDisplay(bi);
@@ -2989,11 +3184,11 @@ document.addEventListener('input', e => {
     return;
   }
 
-  // Bundle top-level field edit
+  // Bundle top-level field edit. Floor at 0 (same reasoning as solo).
   if (t.dataset.bundle !== undefined && t.dataset.f) {
     const bi = +t.dataset.bundle;
     const field = t.dataset.f;
-    state.bundles[bi][field] = readMoneyInput(t);
+    state.bundles[bi][field] = Math.max(0, readMoneyInput(t));
     saveState();
     softRefreshTotals();
     updateBundleDerivedDisplay(bi);
@@ -3086,10 +3281,12 @@ function softRefreshTotals() {
     };
   }
 
+  recomputeAllFirstRuns();
   renderKPIs();
   renderSoloRollup();
-  renderInventoryAllocation();
   renderBundleRollup();
+  renderFirstRunOrder();
+  renderAssumptions();
   renderProforma();
   renderCashChart();
 
@@ -3116,7 +3313,7 @@ function updateSoloDerivedDisplay(i) {
   // touch the input the user is currently typing into (focused element).
   // This keeps the cards in sync when state changes elsewhere (e.g. when
   // the user edits the same Y1/Y2/Y3 figure from the Pro Forma table).
-  const fieldsToSync = ['unit_cost', 'sell_price', 'proto_units', 'first_run_units', 'y1_units', 'y2_units', 'y3_units'];
+  const fieldsToSync = ['unit_cost', 'sell_price', 'proto_units', 'y1_units', 'y2_units', 'y3_units'];
   fieldsToSync.forEach(f => {
     card.querySelectorAll(`input[data-solo="${i}"][data-f="${f}"]:not(.proforma-unit-input)`).forEach(inp => {
       if (document.activeElement === inp) return;
@@ -3130,7 +3327,7 @@ function updateSoloDerivedDisplay(i) {
   const marginEl = card.querySelector('input.derived');
   if (marginEl) marginEl.value = fmt.pct(unitMargin(s));
 
-  // (Per-card allocation rows removed — see Inventory Allocation summary
+  // (Per-card allocation rows removed — see First Run Order panel
   // table below the solo rollup for the consolidated view.)
 
   // Single-card summary rows (for non-grouped solos only)
@@ -3177,26 +3374,10 @@ function updateGroupTotals(groupId) {
 
 function updateAllSoloAllocationDisplays() {
   // Called when bundle qtys change — refresh per-solo derived bits + the
-  // consolidated Inventory Allocation table (which is the canonical view).
+  // First Run Order table (which is the canonical view of the run size).
+  recomputeAllFirstRuns();
   state.solos.forEach((_, i) => updateSoloDerivedDisplay(i));
-  renderInventoryAllocation();
-}
-
-function updateAssumptionDetail() {
-  // Surgical update — refresh just the detail text under each assumption input.
-  // Never rebuilds the inputs themselves.
-  const a = state.assumptions;
-  const burnPct = (+a.y0_opex_burn_ratio * 100).toFixed(0);
-  const burnDollars = (+a.y0_opex_burn_ratio || 0) * totalYearOpex(1);
-  const block = document.getElementById('assumptionsBlock');
-  if (!block) return;
-  const detail = block.querySelector('.assumption-detail');
-  if (detail) {
-    detail.innerHTML = `
-      Pre-revenue burn during Y0 build phase = <b>${burnPct}%</b> of Y1 opex = <b>${fmt.moneyFull(burnDollars)}</b>
-      <br>Default 0.5 ≈ 6 months of Y1 burn during prototype + first-run phase.
-    `;
-  }
+  renderFirstRunOrder();
 }
 
 function updateBundleDerivedDisplay(bi) {
