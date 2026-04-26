@@ -280,11 +280,12 @@
     .kpi-year-grid { grid-template-columns: 1fr; }
   }
   .kpi-year {
-    padding: 0 10px;
+    padding: 0 6px;
     border-left: 1px solid var(--border);
     min-width: 0;
   }
   .kpi-year:first-child { padding-left: 0; border-left: none; }
+  .kpi-year:last-child { padding-right: 0; }
   .kpi-year-head {
     font-size: 10px;
     letter-spacing: 2px;
@@ -546,11 +547,12 @@
   .alloc-row + .alloc-row { border-top: 1px solid var(--border); padding-top: 4px; margin-top: 3px; }
   .alloc-short { color: var(--red); font-weight: 600; }
 
-  /* Zebra rows on the larger tables — every other row gets a faint tint. */
-  table.opex tbody tr:nth-child(even) { background: rgba(255,255,255,0.018); }
-  table.proforma tbody tr:nth-child(even) { background: rgba(255,255,255,0.018); }
-  .rollup-mini tbody tr:nth-child(even) td { background: rgba(255,255,255,0.018); }
-  .bom-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.018); }
+  /* Zebra rows on the larger tables — every other row gets a tint that
+     stays subtle but is bright enough to scan at a glance. */
+  table.opex tbody tr:nth-child(even) { background: rgba(255,255,255,0.05); }
+  table.proforma tbody tr:nth-child(even) { background: rgba(255,255,255,0.05); }
+  .rollup-mini tbody tr:nth-child(even) td { background: rgba(255,255,255,0.05); }
+  .bom-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.05); }
 
   /* Editable unit cells in the Pro Forma table — hooks into existing
      data-solo / data-bundle handlers. */
@@ -1802,6 +1804,22 @@ function spvAskFigures(peak) {
   return { ask, contingency, cover, peak };
 }
 
+// 3-year operating return on the SPV ask. Return = sum of EBIT across
+// Y1-Y3 (the operating profit the business generates). MoM = return / ask.
+function spvReturnFigures(peak) {
+  const { ask } = spvAskFigures(peak);
+  const ret = totalYearOpIncome(1) + totalYearOpIncome(2) + totalYearOpIncome(3);
+  const mom = ask > 0 ? (ret / ask) : 0;
+  const roiPct = ask > 0 ? ((ret / ask) * 100) : 0;
+  return { ret, mom, roiPct, ask };
+}
+function formatSpvReturnDetail(peak) {
+  const { ret, mom, roiPct, ask } = spvReturnFigures(peak);
+  if (ask <= 0) return `Set inputs above to compute return.`;
+  if (ret <= 0) return `${(mom).toFixed(2)}× on ${fmt.moneyFull(ask)} ask · operating loss across Y1-Y3`;
+  return `${mom.toFixed(2)}× MoM on ${fmt.moneyFull(ask)} ask · ${roiPct.toFixed(0)}% ROI`;
+}
+
 // Render the "Peak need · X.XX× cover" stat line under the contingency input.
 function formatSpvAskDetail(peak) {
   const { ask, contingency, cover } = spvAskFigures(peak);
@@ -2030,11 +2048,19 @@ function renderSoloFields(s, i) {
     <div class="alloc-block">
       <div class="alloc-row">
         <span class="alloc-label">Proto allocation</span>
-        <span class="alloc-num"><span class="alloc-used ${protoCls}">${fmt.int(protoUsedDisplay)} used</span> · <span class="alloc-avail">${fmt.int(protoAvailDisplay)} solo</span>${protoShort > 0 ? ` · <span class="alloc-short">⚠ ${fmt.int(protoShort)} short for bundles</span>` : ''}</span>
+        <span class="alloc-num">${
+          protoShort > 0
+            ? `<span class="alloc-used ${protoCls}">${fmt.int(protoTotal)} ordered</span> · <span class="alloc-need">${fmt.int(protoBundleNeed)} needed by bundles</span> · <span class="alloc-short">⚠ ${fmt.int(protoShort)} short</span>`
+            : `<span class="alloc-used ${protoCls}">${fmt.int(protoTotal)} used</span> · <span class="alloc-avail">0 solo</span>`
+        }</span>
       </div>
       <div class="alloc-row">
         <span class="alloc-label">First-run allocation</span>
-        <span class="alloc-num"><span class="alloc-used ${frCls}">${fmt.int(frUsed)} used</span> · <span class="alloc-avail">${fmt.int(frAvail)} solo</span>${frShort > 0 ? ` · <span class="alloc-short">⚠ ${fmt.int(frShort)} short for bundles</span>` : ''}</span>
+        <span class="alloc-num">${
+          frShort > 0
+            ? `<span class="alloc-used ${frCls}">${fmt.int(frInventory)} ordered</span> · <span class="alloc-need">${fmt.int(frBundleDemand)} needed by bundles</span> · <span class="alloc-short">⚠ ${fmt.int(frShort)} short</span>`
+            : `<span class="alloc-used ${frCls}">${fmt.int(frUsed)} used</span> · <span class="alloc-avail">${fmt.int(frAvail)} solo</span>`
+        }</span>
       </div>
     </div>
     <div class="field-grid three" style="margin-top:8px;">
