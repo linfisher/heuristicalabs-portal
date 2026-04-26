@@ -554,6 +554,30 @@
   .rollup-mini tbody tr:nth-child(even) td { background: rgba(255,255,255,0.05); }
   .bom-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.05); }
 
+  /* Inventory Allocation summary table — clean per-SKU breakdown. */
+  .inv-alloc-wrapper {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+    overflow-x: auto;
+  }
+  table.inv-alloc-table { width: 100%; border-collapse: collapse; font-size: 12px; font-feature-settings: 'tnum' 1; }
+  table.inv-alloc-table th {
+    text-align: right; padding: 10px 12px; font-size: 9.5px; letter-spacing: 1.5px;
+    color: var(--text-dim); text-transform: uppercase; font-weight: 500;
+    border-bottom: 1px solid var(--border-strong); background: #2a2a2e;
+  }
+  table.inv-alloc-table th:first-child { text-align: left; }
+  table.inv-alloc-table td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text); }
+  table.inv-alloc-table td:first-child { text-align: left; color: var(--text); font-weight: 500; }
+  table.inv-alloc-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.05); }
+  table.inv-alloc-table td.proto-col { color: var(--gold-bright); }
+  table.inv-alloc-table td.bundle-col { color: #b880e0; }
+  table.inv-alloc-table td.solo-col { color: #4ac46a; }
+  table.inv-alloc-table td.short { color: var(--red); font-weight: 600; }
+  table.inv-alloc-table tfoot tr.total-row td {
+    background: rgba(201, 155, 58, 0.05); border-top: 2px solid var(--border-strong);
+    font-weight: 600; color: var(--text); padding-top: 10px;
+  }
+
   /* Cash chart "how to read this" explainer card. Same tint as the
      alternating zebra rows so it sits visually with the other tables. */
   .cash-explainer {
@@ -1176,6 +1200,11 @@
   <div class="kpi-block" id="soloRollupBlock" style="margin-top:14px;">
     <div class="kpi-block-label">Solo Products · 3-Year Rollup</div>
     <div class="kpi-year-grid" id="soloRollupGrid"></div>
+  </div>
+
+  <h2 class="section">Inventory Allocation <span class="hint">Where each SKU's inventory goes &mdash; protos for dev / testing, first-run drawn down by bundle production, remainder available for solo retail or future bundles</span></h2>
+  <div class="inv-alloc-wrapper">
+    <table class="inv-alloc-table" id="invAllocTable"></table>
   </div>
 
   <h2 class="section"><span class="step">STEP 2</span> Bundles <span class="hint">Compose solo products via dropdown · Set quantities · COGS auto-computes</span></h2>
@@ -2077,24 +2106,10 @@ function renderSoloFields(s, i) {
         <input type="text" class="derived" value="${fmt.pct(margin)}" readonly>
       </div>
     </div>
-    <div class="alloc-block">
-      <div class="alloc-row">
-        <span class="alloc-label">Proto allocation</span>
-        <span class="alloc-num">${
-          protoShort > 0
-            ? `<span class="alloc-used ${protoCls}">${fmt.int(protoTotal)} ordered</span> · <span class="alloc-need">${fmt.int(protoBundleNeed)} needed by bundles</span> · <span class="alloc-short">⚠ ${fmt.int(protoShort)} short</span>`
-            : `<span class="alloc-used ${protoCls}">${fmt.int(protoTotal)} used</span> · <span class="alloc-avail">0 solo</span>`
-        }</span>
-      </div>
-      <div class="alloc-row">
-        <span class="alloc-label">First-run allocation</span>
-        <span class="alloc-num">${
-          frShort > 0
-            ? `<span class="alloc-used ${frCls}">${fmt.int(frInventory)} ordered</span> · <span class="alloc-need">${fmt.int(frBundleDemand)} needed by bundles</span> · <span class="alloc-short">⚠ ${fmt.int(frShort)} short</span>`
-            : `<span class="alloc-used ${frCls}">${fmt.int(frUsed)} used</span> · <span class="alloc-avail">${fmt.int(frAvail)} solo</span>`
-        }</span>
-      </div>
-    </div>
+    <!-- Per-card allocation rows replaced by the consolidated Inventory
+         Allocation summary section below the solo rollup — one clean table
+         showing the proto + bundle + solo split per SKU. -->
+
     <div class="field-grid three" style="margin-top:8px;">
       <div class="field">
         <div class="label">Y1 Solo Sales</div>
@@ -2499,20 +2514,15 @@ function renderOpex() {
 // New layout: Years sit ADJACENT under unified Units / Revenue / Gross Profit headers.
 // ============================================================================
 function renderProforma() {
-  // Editable unit cells. The Y1 column displays the COMBINED total
-  // (proto + y1_units) and on edit the proto count stays fixed —
-  // we subtract proto from the entered value to derive the new
-  // y1_units. Y2 and Y3 don't include proto (it's a Y0/Y1 event)
-  // so they edit yN_units directly.
+  // Editable unit cells. Direct edit of yN_units — what the user types
+  // is what gets saved. Proto is a separate inventory line and is never
+  // touched by edits in this table.
   const unitInput = (item, year, isSolo) => {
     const arr = isSolo ? state.solos : state.bundles;
     const idx = arr.findIndex(x => x.id === item.id);
     const dataAttr = isSolo ? `data-solo="${idx}"` : `data-bundle="${idx}"`;
-    const proto = +item.proto_units || 0;
     const yVal = +item['y' + year + '_units'] || 0;
-    const displayVal = year === 1 ? proto + yVal : yVal;
-    const totalAttr = year === 1 ? ' data-y1-total="1"' : '';
-    return `<input type="text" inputmode="numeric" ${dataAttr} data-f="y${year}_units"${totalAttr} value="${formatCommas(displayVal)}" class="proforma-unit-input">`;
+    return `<input type="text" inputmode="numeric" ${dataAttr} data-f="y${year}_units" value="${formatCommas(yVal)}" class="proforma-unit-input">`;
   };
   const yearCell = (item, year, kind, isSolo) => {
     if (kind === 'units') return unitInput(item, year, isSolo);
@@ -2795,6 +2805,59 @@ function renderSoloRollup() {
 }
 
 // ============================================================================
+// RENDER — Inventory Allocation
+// One table summarizing where each solo SKU's ordered inventory ends up:
+//   - For Dev / Proto    = solo.proto_units (set aside for prototypes / testing)
+//   - Used by Bundles    = bundle production consumption from solo first-run
+//   - Available for Solo = first_run_units − bundle production consumption
+//   - SHORT (red)        = bundle production demand exceeds first-run inventory
+// ============================================================================
+function renderInventoryAllocation() {
+  const table = document.getElementById('invAllocTable');
+  if (!table) return;
+
+  let totalProto = 0, totalBundle = 0, totalAvail = 0, totalShort = 0;
+
+  const rows = state.solos.map(s => {
+    const proto = +s.proto_units || 0;
+    const fr = +s.first_run_units || 0;
+    const bundleFR = bundleConsumptionOfSolo(s.id, 'first_run_units');
+    const used = Math.min(fr, bundleFR);
+    const avail = Math.max(0, fr - bundleFR);
+    const short = Math.max(0, bundleFR - fr);
+    totalProto += proto;
+    totalBundle += used;
+    totalAvail += avail;
+    totalShort += short;
+    return `<tr>
+      <td>${s.name}</td>
+      <td class="proto-col">${fmt.int(proto)}</td>
+      <td class="bundle-col">${fmt.int(used)}${short > 0 ? ` <span class="short">⚠ ${fmt.int(short)} short</span>` : ''}</td>
+      <td class="solo-col">${fmt.int(avail)}</td>
+    </tr>`;
+  }).join('');
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>For Dev / Proto</th>
+        <th>Used by Bundles</th>
+        <th>Available for Solo</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td>TOTAL ITEMS</td>
+        <td class="proto-col">${fmt.int(totalProto)}</td>
+        <td class="bundle-col">${fmt.int(totalBundle)}${totalShort > 0 ? ` <span class="short">⚠ ${fmt.int(totalShort)} short</span>` : ''}</td>
+        <td class="solo-col">${fmt.int(totalAvail)}</td>
+      </tr>
+    </tfoot>`;
+}
+
+// ============================================================================
 // RENDER — Bundles Rollup (mirrors Solo Rollup; lives below the bundle grid)
 // ============================================================================
 function renderBundleRollup() {
@@ -2847,6 +2910,7 @@ function render() {
   renderKPIs();
   renderSoloCards();
   renderSoloRollup();
+  renderInventoryAllocation();
   renderBundleCards();
   renderBundleRollup();
   renderInvestments();
@@ -2903,16 +2967,7 @@ document.addEventListener('input', e => {
   if (t.dataset.solo !== undefined && t.dataset.f) {
     const i = +t.dataset.solo;
     const field = t.dataset.f;
-    // Pro Forma Y1 unit cells display COMBINED total = proto + y1_units.
-    // When user edits the combined total, subtract proto so proto stays put
-    // and the new y1_units = (entered total) - proto.
-    if (t.dataset.y1Total === '1' && field === 'y1_units') {
-      const entered = readMoneyInput(t);
-      const proto = +state.solos[i].proto_units || 0;
-      state.solos[i].y1_units = Math.max(0, entered - proto);
-    } else {
-      state.solos[i][field] = readMoneyInput(t);
-    }
+    state.solos[i][field] = readMoneyInput(t);
     saveState();
     softRefreshTotals();
     updateSoloDerivedDisplay(i);
@@ -2938,13 +2993,7 @@ document.addEventListener('input', e => {
   if (t.dataset.bundle !== undefined && t.dataset.f) {
     const bi = +t.dataset.bundle;
     const field = t.dataset.f;
-    if (t.dataset.y1Total === '1' && field === 'y1_units') {
-      const entered = readMoneyInput(t);
-      const proto = +state.bundles[bi].proto_units || 0;
-      state.bundles[bi].y1_units = Math.max(0, entered - proto);
-    } else {
-      state.bundles[bi][field] = readMoneyInput(t);
-    }
+    state.bundles[bi][field] = readMoneyInput(t);
     saveState();
     softRefreshTotals();
     updateBundleDerivedDisplay(bi);
@@ -3039,6 +3088,7 @@ function softRefreshTotals() {
 
   renderKPIs();
   renderSoloRollup();
+  renderInventoryAllocation();
   renderBundleRollup();
   renderProforma();
   renderCashChart();
@@ -3080,34 +3130,8 @@ function updateSoloDerivedDisplay(i) {
   const marginEl = card.querySelector('input.derived');
   if (marginEl) marginEl.value = fmt.pct(unitMargin(s));
 
-  // Update inventory allocation block. Same rules as renderSoloFields:
-  // proto = 0 → never SHORT; first-run "used" capped at inventory; SHORT
-  // shown as a separate "short for bundles" alert when bundle demand exceeds.
-  const allocRows = card.querySelectorAll('.alloc-row');
-  const protoTotal = +s.proto_units || 0;
-  const protoBundleNeed = bundleConsumptionOfSolo(s.id, 'proto_units');
-  const protoShort = protoTotal > 0 ? Math.max(0, protoBundleNeed - protoTotal) : 0;
-  const frInventory = +s.first_run_units || 0;
-  const frBundleDemand = bundleConsumptionOfSolo(s.id, 'first_run_units');
-  const frUsed = Math.min(frInventory, frBundleDemand);
-  const frAvail = Math.max(0, frInventory - frBundleDemand);
-  const frShort = Math.max(0, frBundleDemand - frInventory);
-  if (allocRows[0]) {
-    const num = allocRows[0].querySelector('.alloc-num');
-    if (num) {
-      const cls = protoShort > 0 ? 'negative' : (protoTotal > 0 ? 'positive' : '');
-      num.innerHTML = `<span class="alloc-used ${cls}">${fmt.int(protoTotal)} used</span> · <span class="alloc-avail">0 solo</span>` +
-        (protoShort > 0 ? ` · <span class="alloc-short">⚠ ${fmt.int(protoShort)} short for bundles</span>` : '');
-    }
-  }
-  if (allocRows[1]) {
-    const num = allocRows[1].querySelector('.alloc-num');
-    if (num) {
-      const cls = frShort > 0 ? 'negative' : (frUsed > 0 ? 'positive' : '');
-      num.innerHTML = `<span class="alloc-used ${cls}">${fmt.int(frUsed)} used</span> · <span class="alloc-avail">${fmt.int(frAvail)} solo</span>` +
-        (frShort > 0 ? ` · <span class="alloc-short">⚠ ${fmt.int(frShort)} short for bundles</span>` : '');
-    }
-  }
+  // (Per-card allocation rows removed — see Inventory Allocation summary
+  // table below the solo rollup for the consolidated view.)
 
   // Single-card summary rows (for non-grouped solos only)
   // (Group cards have their own group-totals which we update via updateGroupTotals)
@@ -3152,8 +3176,10 @@ function updateGroupTotals(groupId) {
 }
 
 function updateAllSoloAllocationDisplays() {
-  // Called when bundle qtys change — refresh all solo allocation displays
+  // Called when bundle qtys change — refresh per-solo derived bits + the
+  // consolidated Inventory Allocation table (which is the canonical view).
   state.solos.forEach((_, i) => updateSoloDerivedDisplay(i));
+  renderInventoryAllocation();
 }
 
 function updateAssumptionDetail() {
