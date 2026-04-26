@@ -554,6 +554,31 @@
   .rollup-mini tbody tr:nth-child(even) td { background: rgba(255,255,255,0.05); }
   .bom-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.05); }
 
+  /* Cash chart "how to read this" explainer card. Same tint as the
+     alternating zebra rows so it sits visually with the other tables. */
+  .cash-explainer {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--gold);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    color: var(--text-dim);
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+  .cash-explainer-title {
+    font-size: 9.5px;
+    letter-spacing: 1.8px;
+    color: var(--gold);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .cash-explainer p { margin: 0 0 8px; }
+  .cash-explainer p:last-child { margin-bottom: 0; }
+  .cash-explainer b { color: var(--text); font-weight: 600; }
+
   /* Editable unit cells in the Pro Forma table — hooks into existing
      data-solo / data-bundle handlers. */
   input.proforma-unit-input {
@@ -885,11 +910,11 @@
     border-collapse: collapse;
     font-size: 12px;
     font-feature-settings: "tnum" 1;
-    min-width: 1100px;
+    min-width: 880px;
   }
   table.proforma th {
     text-align: right;
-    padding: 9px 10px;
+    padding: 9px 4px;
     font-size: 9.5px;
     letter-spacing: 1.5px;
     color: var(--text-dim);
@@ -898,25 +923,25 @@
     border-bottom: 1px solid var(--border-strong);
     background: #2a2a2e;
   }
-  table.proforma th:first-child { text-align: left; }
+  table.proforma th:first-child { text-align: left; padding-left: 12px; }
   table.proforma th.metric-group {
     background: var(--bg-card);
     border-bottom: 1px solid var(--border);
     color: var(--gold);
     letter-spacing: 2px;
     font-weight: 600;
-    padding: 6px 10px 4px;
+    padding: 6px 4px 4px;
   }
   table.proforma th.metric-group.first-col { border-right: 1px solid var(--border); }
   table.proforma td {
-    padding: 7px 10px;
+    padding: 7px 4px;
     text-align: right;
     border-bottom: 1px solid var(--border);
   }
-  table.proforma td:first-child { text-align: left; color: var(--text); font-weight: 500; }
-  table.proforma td.year-end { padding-right: 14px; }
-  table.proforma td.year-start { padding-left: 14px; border-left: 1px solid var(--border); }
-  table.proforma th.year-start { border-left: 1px solid var(--border); padding-left: 14px; }
+  table.proforma td:first-child { text-align: left; color: var(--text); font-weight: 500; padding-left: 12px; }
+  table.proforma td.year-end { padding-right: 6px; }
+  table.proforma td.year-start { padding-left: 6px; border-left: 1px solid var(--border); }
+  table.proforma th.year-start { border-left: 1px solid var(--border); padding-left: 6px; }
   table.proforma tr:hover td { background: rgba(255,255,255,0.015); }
   table.proforma tr.total-row td {
     border-top: 1px solid var(--border-strong);
@@ -1190,6 +1215,13 @@
   </div>
 
   <h2 class="section"><span class="step">STEP 6</span> Cumulative Cash Position <span class="hint">The low point is the SPV target</span></h2>
+  <div class="cash-explainer">
+    <div class="cash-explainer-title">How to read this chart</div>
+    <p><b>Cumulative Cash Position</b> is the SPV's running bank balance across the deployment period — start at $0, deploy capital, see the trough, and watch operations refill it.</p>
+    <p>The <b style="color:var(--red);">Y0 dip</b> is when the SPV puts capital to work: prototype builds, the first production run of inventory, the Arena platform integration, and a half-year of operating runway.</p>
+    <p>Each subsequent year, <b style="color:#4ac46a;">operating cash flow</b> pays back into the balance. The deepest trough is the <b>Peak Cash Need</b> — the floor of the swimming pool, and the minimum the SPV must raise.</p>
+    <p>Crossing back above $0 is the <b>break-even moment</b>. Anything above is retained operating profit available for reinvestment, distribution, or runway extension.</p>
+  </div>
   <div class="chart-wrapper">
     <svg id="cashChart" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
@@ -2467,13 +2499,20 @@ function renderOpex() {
 // New layout: Years sit ADJACENT under unified Units / Revenue / Gross Profit headers.
 // ============================================================================
 function renderProforma() {
-  // Editable unit cells — typing here updates state and re-renders, same
-  // input handler as the cards above, so "latest update wins" naturally.
+  // Editable unit cells. The Y1 column displays the COMBINED total
+  // (proto + y1_units) and on edit the proto count stays fixed —
+  // we subtract proto from the entered value to derive the new
+  // y1_units. Y2 and Y3 don't include proto (it's a Y0/Y1 event)
+  // so they edit yN_units directly.
   const unitInput = (item, year, isSolo) => {
     const arr = isSolo ? state.solos : state.bundles;
     const idx = arr.findIndex(x => x.id === item.id);
     const dataAttr = isSolo ? `data-solo="${idx}"` : `data-bundle="${idx}"`;
-    return `<input type="number" min="0" step="1" ${dataAttr} data-f="y${year}_units" value="${item['y'+year+'_units']||0}" class="proforma-unit-input">`;
+    const proto = +item.proto_units || 0;
+    const yVal = +item['y' + year + '_units'] || 0;
+    const displayVal = year === 1 ? proto + yVal : yVal;
+    const totalAttr = year === 1 ? ' data-y1-total="1"' : '';
+    return `<input type="text" inputmode="numeric" ${dataAttr} data-f="y${year}_units"${totalAttr} value="${formatCommas(displayVal)}" class="proforma-unit-input">`;
   };
   const yearCell = (item, year, kind, isSolo) => {
     if (kind === 'units') return unitInput(item, year, isSolo);
@@ -2864,7 +2903,16 @@ document.addEventListener('input', e => {
   if (t.dataset.solo !== undefined && t.dataset.f) {
     const i = +t.dataset.solo;
     const field = t.dataset.f;
-    state.solos[i][field] = readMoneyInput(t);
+    // Pro Forma Y1 unit cells display COMBINED total = proto + y1_units.
+    // When user edits the combined total, subtract proto so proto stays put
+    // and the new y1_units = (entered total) - proto.
+    if (t.dataset.y1Total === '1' && field === 'y1_units') {
+      const entered = readMoneyInput(t);
+      const proto = +state.solos[i].proto_units || 0;
+      state.solos[i].y1_units = Math.max(0, entered - proto);
+    } else {
+      state.solos[i][field] = readMoneyInput(t);
+    }
     saveState();
     softRefreshTotals();
     updateSoloDerivedDisplay(i);
@@ -2890,7 +2938,13 @@ document.addEventListener('input', e => {
   if (t.dataset.bundle !== undefined && t.dataset.f) {
     const bi = +t.dataset.bundle;
     const field = t.dataset.f;
-    state.bundles[bi][field] = readMoneyInput(t);
+    if (t.dataset.y1Total === '1' && field === 'y1_units') {
+      const entered = readMoneyInput(t);
+      const proto = +state.bundles[bi].proto_units || 0;
+      state.bundles[bi].y1_units = Math.max(0, entered - proto);
+    } else {
+      state.bundles[bi][field] = readMoneyInput(t);
+    }
     saveState();
     softRefreshTotals();
     updateBundleDerivedDisplay(bi);
@@ -3008,6 +3062,20 @@ function updateSoloDerivedDisplay(i) {
   const card = document.querySelector(`[data-solo-card="${i}"]`);
   if (!card) return;
 
+  // Sync the card's editable input fields with current state — but never
+  // touch the input the user is currently typing into (focused element).
+  // This keeps the cards in sync when state changes elsewhere (e.g. when
+  // the user edits the same Y1/Y2/Y3 figure from the Pro Forma table).
+  const fieldsToSync = ['unit_cost', 'sell_price', 'proto_units', 'first_run_units', 'y1_units', 'y2_units', 'y3_units'];
+  fieldsToSync.forEach(f => {
+    card.querySelectorAll(`input[data-solo="${i}"][data-f="${f}"]:not(.proforma-unit-input)`).forEach(inp => {
+      if (document.activeElement === inp) return;
+      const v = s[f];
+      const formatted = (inp.type === 'text' && inp.inputMode === 'numeric') ? formatCommas(v) : String(v);
+      if (inp.value !== formatted) inp.value = formatted;
+    });
+  });
+
   // Update margin (derived input is read-only)
   const marginEl = card.querySelector('input.derived');
   if (marginEl) marginEl.value = fmt.pct(unitMargin(s));
@@ -3109,6 +3177,17 @@ function updateBundleDerivedDisplay(bi) {
   const b = state.bundles[bi];
   const card = document.querySelectorAll('#bundleGrid .product-card')[bi];
   if (!card) return;
+
+  // Sync card inputs to state (skip the focused one to preserve typing).
+  const bFieldsToSync = ['sell_price', 'proto_units', 'first_run_units', 'y1_units', 'y2_units', 'y3_units'];
+  bFieldsToSync.forEach(f => {
+    card.querySelectorAll(`input[data-bundle="${bi}"][data-f="${f}"]:not(.proforma-unit-input)`).forEach(inp => {
+      if (document.activeElement === inp) return;
+      const v = b[f];
+      const formatted = (inp.type === 'text' && inp.inputMode === 'numeric') ? formatCommas(v) : String(v);
+      if (inp.value !== formatted) inp.value = formatted;
+    });
+  });
 
   const cogs = bundleUnitCOGS(b);
 
