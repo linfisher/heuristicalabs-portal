@@ -158,7 +158,7 @@
   }
   .kpi-row-2col { grid-template-columns: 1fr 1fr; }
   .kpi-row-3col { grid-template-columns: 1fr 1fr 1fr; }
-  @media (max-width: 900px) {
+  @media (max-width: 850px) {
     .kpi-row-2col, .kpi-row-3col { grid-template-columns: 1fr; }
   }
 
@@ -192,13 +192,13 @@
   /* SPV Ask card — full-width with editable raise on the left + use-of-proceeds prose on the right */
   .kpi-block.kpi-spv-ask-block { border-left-color: #4ac46a; background: rgba(74, 196, 106, 0.05); }
   .spv-ask-row { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 28px; align-items: start; padding-top: 8px; }
-  @media (max-width: 880px) { .spv-ask-row { grid-template-columns: 1fr; gap: 18px; } }
+  @media (max-width: 850px) { .spv-ask-row { grid-template-columns: 1fr; gap: 18px; } }
   .spv-ask-figure { min-width: 0; }
   .spv-ask-narrative {
     color: var(--text-dim); font-size: 12.5px; line-height: 1.55;
     border-left: 1px solid var(--border); padding-left: 22px;
   }
-  @media (max-width: 880px) { .spv-ask-narrative { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 14px; } }
+  @media (max-width: 850px) { .spv-ask-narrative { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 14px; } }
   .spv-ask-narrative b { color: var(--text); font-weight: 600; }
   .spv-ask-narrative p { margin: 0; }
 
@@ -276,12 +276,13 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 0;
   }
-  @media (max-width: 900px) {
+  @media (max-width: 850px) {
     .kpi-year-grid { grid-template-columns: 1fr; }
   }
   .kpi-year {
-    padding: 0 18px;
+    padding: 0 10px;
     border-left: 1px solid var(--border);
+    min-width: 0;
   }
   .kpi-year:first-child { padding-left: 0; border-left: none; }
   .kpi-year-head {
@@ -339,7 +340,7 @@
      pushed apart by BridgeBox's height. */
   .product-grid.solo-grid { grid-template-columns: 1fr 1fr; align-items: start; }
   .solo-col-stack { display: flex; flex-direction: column; gap: 48px; min-width: 0; }
-  @media (max-width: 900px) {
+  @media (max-width: 850px) {
     .product-grid.solo-grid { grid-template-columns: 1fr; }
     .solo-col-stack { gap: 28px; }
   }
@@ -359,7 +360,7 @@
     border-left-color: #8b4ac4;
     background: rgba(139, 74, 196, 0.05);
   }
-  @media (max-width: 900px) {
+  @media (max-width: 850px) {
     .product-grid.bundle-grid { grid-template-columns: 1fr; }
     .bundle-col-right { gap: 28px; }
   }
@@ -371,9 +372,12 @@
      numbers happen to use. */
   .rollup-mini { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 12px; table-layout: fixed; }
   .rollup-mini td { padding: 4px 0; color: var(--text-dim); vertical-align: baseline; }
-  .rollup-mini td.name { text-align: left; padding-right: 6px; word-break: break-word; }
-  .rollup-mini td.u { width: 48px; text-align: right; color: var(--text-faint); font-feature-settings: 'tnum'; padding-right: 8px; white-space: nowrap; }
-  .rollup-mini td.r { width: 92px; text-align: right; color: var(--text); font-feature-settings: 'tnum'; white-space: nowrap; }
+  .rollup-mini td.name {
+    text-align: left; padding-right: 4px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .rollup-mini td.u { width: 38px; text-align: right; color: var(--text-faint); font-feature-settings: 'tnum'; padding-right: 6px; white-space: nowrap; }
+  .rollup-mini td.r { width: 78px; text-align: right; color: var(--text); font-feature-settings: 'tnum'; white-space: nowrap; }
   .rollup-mini td.r.gold { color: var(--gold-bright); }
   .rollup-mini td.r.green { color: var(--green); }
   .rollup-mini td.r.red { color: var(--red); }
@@ -398,7 +402,20 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    gap: 8px;
   }
+  /* Chevron toggle to collapse / expand a card. */
+  .pc-toggle {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-faint); font-size: 12px; line-height: 1;
+    padding: 4px 6px; border-radius: 3px;
+    transition: transform 0.15s, color 0.15s, background 0.15s;
+    flex: 0 0 auto; align-self: flex-start;
+  }
+  .pc-toggle:hover { color: var(--gold); background: rgba(255,255,255,0.04); }
+  .product-card.collapsed .pc-body { display: none; }
+  .product-card.collapsed .pc-toggle { transform: rotate(-90deg); }
+  .product-card.collapsed .pc-header { border-bottom: none; }
   .pc-name {
     font-size: 13px;
     font-weight: 600;
@@ -527,6 +544,34 @@
     padding: 2px 0;
   }
   .alloc-row + .alloc-row { border-top: 1px solid var(--border); padding-top: 4px; margin-top: 3px; }
+  .alloc-short { color: var(--red); font-weight: 600; }
+
+  /* Zebra rows on the larger tables — every other row gets a faint tint. */
+  table.opex tbody tr:nth-child(even) { background: rgba(255,255,255,0.018); }
+  table.proforma tbody tr:nth-child(even) { background: rgba(255,255,255,0.018); }
+  .rollup-mini tbody tr:nth-child(even) td { background: rgba(255,255,255,0.018); }
+  .bom-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.018); }
+
+  /* Editable unit cells in the Pro Forma table — hooks into existing
+     data-solo / data-bundle handlers. */
+  input.proforma-unit-input {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: inherit;
+    padding: 2px 4px;
+    border-radius: 3px;
+    text-align: right;
+    font-feature-settings: "tnum" 1;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+  }
+  input.proforma-unit-input::-webkit-outer-spin-button,
+  input.proforma-unit-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input.proforma-unit-input:hover { background: var(--bg-input); border-color: var(--border); }
+  input.proforma-unit-input:focus { outline: none; background: var(--bg-input); border-color: var(--gold); }
   .alloc-label {
     font-size: 9.5px;
     letter-spacing: 1.2px;
@@ -1711,6 +1756,17 @@ function peakCashNeed() {
   return Math.abs(lowest);
 }
 
+// Per-card collapse state — keyed by card id ("solo:<id>", "bundle:<id>",
+// "group:<group>"). Persists to localStorage so a closed card stays closed
+// across reloads. Used by the chevron in .pc-header.
+function isCardCollapsed(id) {
+  try { return localStorage.getItem('hivibe_proforma_collapsed:' + id) === '1'; }
+  catch { return false; }
+}
+function setCardCollapsedStorage(id, collapsed) {
+  try { localStorage.setItem('hivibe_proforma_collapsed:' + id, collapsed ? '1' : '0'); } catch {}
+}
+
 // Comma helpers for money inputs (parse on input, format on display).
 function formatCommas(n) {
   const v = +n || 0;
@@ -1925,19 +1981,27 @@ function renderKPIs() {
 // ----- Per-solo content (used by both single cards and group cards) -----
 function renderSoloFields(s, i) {
   const margin = unitMargin(s);
-  // Prototypes are NEVER sold solo — they're consumed by bundle protos and/or
-  // held for dev/testing/showcase. Display: all protos as "used", 0 for solo.
-  // Only break out the SHORT case (bundle proto demand > proto inventory ordered).
+  // Allocation rules:
+  // - PROTO: prototypes are NEVER sold solo (dev/testing only). All protos
+  //   shown as "used" with 0 for solo. SHORT only fires when proto inventory
+  //   is > 0 AND bundle proto demand exceeds it. If proto inventory = 0, we
+  //   don't flag SHORT — user explicitly chose 0, no expectation to fulfill.
+  // - FIRST-RUN: bundles draw from solo inventory first; whatever's left goes
+  //   to solo retail. "used" is capped at inventory (you can't consume more
+  //   than you ordered) and SHORT shows the bundle shortfall separately.
   const protoTotal = +s.proto_units || 0;
   const protoBundleNeed = bundleConsumptionOfSolo(s.id, 'proto_units');
-  const protoShort = Math.max(0, protoBundleNeed - protoTotal);
+  const protoShort = protoTotal > 0 ? Math.max(0, protoBundleNeed - protoTotal) : 0;
   const protoUsedDisplay = protoTotal;
-  const protoAvailDisplay = protoShort > 0 ? -protoShort : 0;
+  const protoAvailDisplay = 0;
   const protoCls = protoShort > 0 ? 'negative' : (protoTotal > 0 ? 'positive' : '');
 
-  const frUsed = bundleConsumptionOfSolo(s.id, 'first_run_units');
-  const frAvail = (s.first_run_units || 0) - frUsed;
-  const frCls = frAvail < 0 ? 'negative' : (frUsed > 0 ? 'positive' : '');
+  const frInventory = +s.first_run_units || 0;
+  const frBundleDemand = bundleConsumptionOfSolo(s.id, 'first_run_units');
+  const frUsed = Math.min(frInventory, frBundleDemand);
+  const frAvail = Math.max(0, frInventory - frBundleDemand);
+  const frShort = Math.max(0, frBundleDemand - frInventory);
+  const frCls = frShort > 0 ? 'negative' : (frUsed > 0 ? 'positive' : '');
   return `
     <div class="field-grid">
       <div class="field">
@@ -1966,11 +2030,11 @@ function renderSoloFields(s, i) {
     <div class="alloc-block">
       <div class="alloc-row">
         <span class="alloc-label">Proto allocation</span>
-        <span class="alloc-num"><span class="alloc-used ${protoCls}">${fmt.int(protoUsedDisplay)} used</span> · <span class="alloc-avail ${protoAvailDisplay < 0 ? 'negative' : ''}">${fmt.int(protoAvailDisplay)} solo${protoAvailDisplay < 0 ? ' SHORT' : ''}</span></span>
+        <span class="alloc-num"><span class="alloc-used ${protoCls}">${fmt.int(protoUsedDisplay)} used</span> · <span class="alloc-avail">${fmt.int(protoAvailDisplay)} solo</span>${protoShort > 0 ? ` · <span class="alloc-short">⚠ ${fmt.int(protoShort)} short for bundles</span>` : ''}</span>
       </div>
       <div class="alloc-row">
         <span class="alloc-label">First-run allocation</span>
-        <span class="alloc-num"><span class="alloc-used ${frCls}">${fmt.int(frUsed)} used</span> · <span class="alloc-avail ${frAvail < 0 ? 'negative' : ''}">${fmt.int(frAvail)} solo${frAvail < 0 ? ' SHORT' : ''}</span></span>
+        <span class="alloc-num"><span class="alloc-used ${frCls}">${fmt.int(frUsed)} used</span> · <span class="alloc-avail">${fmt.int(frAvail)} solo</span>${frShort > 0 ? ` · <span class="alloc-short">⚠ ${fmt.int(frShort)} short for bundles</span>` : ''}</span>
       </div>
     </div>
     <div class="field-grid three" style="margin-top:8px;">
@@ -2037,10 +2101,13 @@ function renderSoloCards() {
     } else {
       // Single solo cards stack tight in column 2 (separate flex container so
       // they don't get spaced out by the grid auto-row sized to BridgeBox).
+      const collapseId = 'solo:' + s.id;
+      const collapsed = isCardCollapsed(collapseId);
       stackHtml += `
-      <div class="product-card solo" data-solo-card="${i}">
+      <div class="product-card solo${collapsed ? ' collapsed' : ''}" data-solo-card="${i}">
         <div class="pc-header">
-          <div>
+          <button type="button" class="pc-toggle" data-card-toggle="${collapseId}" aria-label="Toggle">▾</button>
+          <div style="flex:1; min-width:0;">
             <div class="pc-name">${s.name}</div>
             <div class="pc-desc">${s.desc}</div>
           </div>
@@ -2100,10 +2167,13 @@ function renderGroupSoloCard(startIdx, endIdx) {
 
   // Group totals moved to consolidated Solo Rollup panel below the grid;
   // intentionally keep the variants in the card without an inline summary.
+  const groupCollapseId = 'group:' + first.group;
+  const groupCollapsed = isCardCollapsed(groupCollapseId);
   return `
-    <div class="product-card solo group-card" data-group="${first.group}">
+    <div class="product-card solo group-card${groupCollapsed ? ' collapsed' : ''}" data-group="${first.group}">
       <div class="pc-header">
-        <div>
+        <button type="button" class="pc-toggle" data-card-toggle="${groupCollapseId}" aria-label="Toggle">▾</button>
+        <div style="flex:1; min-width:0;">
           <div class="pc-name">${groupName}</div>
           <div class="pc-desc">${groupDesc}</div>
         </div>
@@ -2174,10 +2244,13 @@ function renderBundleCards() {
     const isMatVariant = /^hvt_experience_mat(_[abc])?$/i.test(b.id || '');
     const colHint = isMatVariant ? 'left' : 'right';
 
+    const bundleCollapseId = 'bundle:' + b.id;
+    const bundleCollapsed = isCardCollapsed(bundleCollapseId);
     const cardHtml = `
-    <div class="product-card bundle" data-bundle-col="${colHint}">
+    <div class="product-card bundle${bundleCollapsed ? ' collapsed' : ''}" data-bundle-col="${colHint}">
       <div class="pc-header">
-        <div>
+        <button type="button" class="pc-toggle" data-card-toggle="${bundleCollapseId}" aria-label="Toggle">▾</button>
+        <div style="flex:1; min-width:0;">
           <div class="pc-name">${b.name}</div>
           <div class="pc-desc">${b.desc}</div>
         </div>
@@ -2325,7 +2398,13 @@ function renderInvestments() {
 }
 
 function renderOpex() {
-  const rows = state.opex.map((o, i) => `
+  // Display order: largest 3-year total first. Original indices preserved
+  // in the data-opex attribute so input handlers still resolve to the
+  // right entry in state.opex regardless of display position.
+  const sorted = state.opex
+    .map((o, i) => ({ o, i, total: (+o.y1 || 0) + (+o.y2 || 0) + (+o.y3 || 0) }))
+    .sort((a, b) => b.total - a.total);
+  const rows = sorted.map(({ o, i }) => `
     <tr>
       <td><input type="text" data-opex="${i}" data-opex-f="name" value="${o.name}" style="text-align:left;width:100%;max-width:none;"></td>
       <td><input type="text" inputmode="numeric" data-opex="${i}" data-opex-f="y1" value="${formatCommas(o.y1)}"></td>
@@ -2362,34 +2441,47 @@ function renderOpex() {
 // New layout: Years sit ADJACENT under unified Units / Revenue / Gross Profit headers.
 // ============================================================================
 function renderProforma() {
-  const yearCell = (item, year, kind) => {
-    if (kind === 'units') return fmt.int(item['y' + year + '_units'] || 0);
+  // Editable unit cells — typing here updates state and re-renders, same
+  // input handler as the cards above, so "latest update wins" naturally.
+  const unitInput = (item, year, isSolo) => {
+    const arr = isSolo ? state.solos : state.bundles;
+    const idx = arr.findIndex(x => x.id === item.id);
+    const dataAttr = isSolo ? `data-solo="${idx}"` : `data-bundle="${idx}"`;
+    return `<input type="number" min="0" step="1" ${dataAttr} data-f="y${year}_units" value="${item['y'+year+'_units']||0}" class="proforma-unit-input">`;
+  };
+  const yearCell = (item, year, kind, isSolo) => {
+    if (kind === 'units') return unitInput(item, year, isSolo);
     if (kind === 'rev') return fmt.moneyFull(itemYearRevenue(item, year));
     if (kind === 'gp') return `<span class="ytotal">${fmt.moneyFull(itemYearGP(item, year))}</span>`;
   };
 
-  const itemRow = (item, indent) => `
-    <tr ${indent ? 'class="indent"' : ''}>
+  const itemRow = (item, indent, isSolo) => `
+    <tr ${indent ? 'class="indent"' : ''} data-proforma-row="${item.id}">
       <td>${item.name}</td>
-      <td class="year-start">${yearCell(item, 1, 'units')}</td>
-      <td>${yearCell(item, 2, 'units')}</td>
-      <td class="year-end">${yearCell(item, 3, 'units')}</td>
-      <td class="year-start">${yearCell(item, 1, 'rev')}</td>
-      <td>${yearCell(item, 2, 'rev')}</td>
-      <td class="year-end">${yearCell(item, 3, 'rev')}</td>
-      <td class="year-start">${yearCell(item, 1, 'gp')}</td>
-      <td>${yearCell(item, 2, 'gp')}</td>
-      <td class="year-end">${yearCell(item, 3, 'gp')}</td>
+      <td class="year-start">${yearCell(item, 1, 'units', isSolo)}</td>
+      <td>${yearCell(item, 2, 'units', isSolo)}</td>
+      <td class="year-end">${yearCell(item, 3, 'units', isSolo)}</td>
+      <td class="year-start">${yearCell(item, 1, 'rev', isSolo)}</td>
+      <td>${yearCell(item, 2, 'rev', isSolo)}</td>
+      <td class="year-end">${yearCell(item, 3, 'rev', isSolo)}</td>
+      <td class="year-start">${yearCell(item, 1, 'gp', isSolo)}</td>
+      <td>${yearCell(item, 2, 'gp', isSolo)}</td>
+      <td class="year-end">${yearCell(item, 3, 'gp', isSolo)}</td>
     </tr>`;
 
-  const soloRows = state.solos.map(s => itemRow(s, true)).join('');
-  const bundleRows = state.bundles.map(b => itemRow(b, true)).join('');
+  const soloRows = state.solos.map(s => itemRow(s, true, true)).join('');
+  const bundleRows = state.bundles.map(b => itemRow(b, true, false)).join('');
 
   // TOTAL REVENUE units column intentionally blank: solo SKUs and bundles
   // are different things to count (kits vs components) — adding them gives
   // a misleading number. See per-category subtotal rows above.
 
-  const opexRows = state.opex.map(o => `
+  // Sort OPEX rows by 3-year total descending — same order the OPEX
+  // table above uses, so the two views stay visually consistent.
+  const opexSorted = [...state.opex].sort((a, b) =>
+    ((+b.y1||0)+(+b.y2||0)+(+b.y3||0)) - ((+a.y1||0)+(+a.y2||0)+(+a.y3||0))
+  );
+  const opexRows = opexSorted.map(o => `
     <tr class="opex-row">
       <td>${o.name}</td>
       <td class="year-start"></td><td></td><td class="year-end"></td>
@@ -2850,11 +2942,34 @@ document.addEventListener('change', e => {
 });
 
 function softRefreshTotals() {
+  // Capture which proforma input was focused (if any) so we can restore
+  // it after re-render — prevents cursor jumping to the start of the
+  // page when typing in the Pro Forma table's unit cells.
+  const a = document.activeElement;
+  const wasProformaInput = a && a.matches && a.matches('input.proforma-unit-input');
+  let restore = null;
+  if (wasProformaInput) {
+    restore = {
+      attr: a.dataset.solo !== undefined
+        ? `[data-solo="${a.dataset.solo}"][data-f="${a.dataset.f}"]`
+        : `[data-bundle="${a.dataset.bundle}"][data-f="${a.dataset.f}"]`,
+      cursor: a.selectionStart,
+    };
+  }
+
   renderKPIs();
   renderSoloRollup();
   renderBundleRollup();
   renderProforma();
   renderCashChart();
+
+  if (restore) {
+    const el = document.querySelector(`input.proforma-unit-input${restore.attr}`);
+    if (el) {
+      el.focus();
+      try { el.setSelectionRange(restore.cursor, restore.cursor); } catch {}
+    }
+  }
 }
 
 // ============================================================================
@@ -2871,39 +2986,32 @@ function updateSoloDerivedDisplay(i) {
   const marginEl = card.querySelector('input.derived');
   if (marginEl) marginEl.value = fmt.pct(unitMargin(s));
 
-  // Update inventory allocation block.
-  // Proto: protos are never sold solo — show all as "used" (dev/testing/bundle protos).
+  // Update inventory allocation block. Same rules as renderSoloFields:
+  // proto = 0 → never SHORT; first-run "used" capped at inventory; SHORT
+  // shown as a separate "short for bundles" alert when bundle demand exceeds.
   const allocRows = card.querySelectorAll('.alloc-row');
+  const protoTotal = +s.proto_units || 0;
+  const protoBundleNeed = bundleConsumptionOfSolo(s.id, 'proto_units');
+  const protoShort = protoTotal > 0 ? Math.max(0, protoBundleNeed - protoTotal) : 0;
+  const frInventory = +s.first_run_units || 0;
+  const frBundleDemand = bundleConsumptionOfSolo(s.id, 'first_run_units');
+  const frUsed = Math.min(frInventory, frBundleDemand);
+  const frAvail = Math.max(0, frInventory - frBundleDemand);
+  const frShort = Math.max(0, frBundleDemand - frInventory);
   if (allocRows[0]) {
-    const protoTotal = +s.proto_units || 0;
-    const protoBundleNeed = bundleConsumptionOfSolo(s.id, 'proto_units');
-    const protoShort = Math.max(0, protoBundleNeed - protoTotal);
-    const protoAvail = protoShort > 0 ? -protoShort : 0;
-    const used = allocRows[0].querySelector('.alloc-used');
-    const avail = allocRows[0].querySelector('.alloc-avail');
-    if (used) {
-      used.textContent = fmt.int(protoTotal) + ' used';
-      used.classList.toggle('positive', protoShort === 0 && protoTotal > 0);
-      used.classList.toggle('negative', protoShort > 0);
-    }
-    if (avail) {
-      avail.textContent = fmt.int(protoAvail) + ' solo' + (protoShort > 0 ? ' SHORT' : '');
-      avail.classList.toggle('negative', protoShort > 0);
+    const num = allocRows[0].querySelector('.alloc-num');
+    if (num) {
+      const cls = protoShort > 0 ? 'negative' : (protoTotal > 0 ? 'positive' : '');
+      num.innerHTML = `<span class="alloc-used ${cls}">${fmt.int(protoTotal)} used</span> · <span class="alloc-avail">0 solo</span>` +
+        (protoShort > 0 ? ` · <span class="alloc-short">⚠ ${fmt.int(protoShort)} short for bundles</span>` : '');
     }
   }
   if (allocRows[1]) {
-    const frUsed = bundleConsumptionOfSolo(s.id, 'first_run_units');
-    const frAvail = (s.first_run_units || 0) - frUsed;
-    const used = allocRows[1].querySelector('.alloc-used');
-    const avail = allocRows[1].querySelector('.alloc-avail');
-    if (used) {
-      used.textContent = fmt.int(frUsed) + ' used';
-      used.classList.toggle('positive', frAvail >= 0 && frUsed > 0);
-      used.classList.toggle('negative', frAvail < 0);
-    }
-    if (avail) {
-      avail.textContent = fmt.int(frAvail) + ' solo' + (frAvail < 0 ? ' SHORT' : '');
-      avail.classList.toggle('negative', frAvail < 0);
+    const num = allocRows[1].querySelector('.alloc-num');
+    if (num) {
+      const cls = frShort > 0 ? 'negative' : (frUsed > 0 ? 'positive' : '');
+      num.innerHTML = `<span class="alloc-used ${cls}">${fmt.int(frUsed)} used</span> · <span class="alloc-avail">${fmt.int(frAvail)} solo</span>` +
+        (frShort > 0 ? ` · <span class="alloc-short">⚠ ${fmt.int(frShort)} short for bundles</span>` : '');
     }
   }
 
@@ -3030,6 +3138,18 @@ function updateAllBundleDisplaysSurgical() {
 
 // Click handlers
 document.addEventListener('click', e => {
+  // Card collapse / expand chevron — toggles class + persists to localStorage.
+  const cardToggle = e.target.closest('[data-card-toggle]');
+  if (cardToggle) {
+    const card = cardToggle.closest('.product-card');
+    if (card) {
+      const willCollapse = !card.classList.contains('collapsed');
+      card.classList.toggle('collapsed', willCollapse);
+      setCardCollapsedStorage(cardToggle.dataset.cardToggle, willCollapse);
+    }
+    return;
+  }
+
   // Solo BOM toggle
   const sbomT = e.target.closest('[data-solo-bom]');
   if (sbomT) {
