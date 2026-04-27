@@ -1505,7 +1505,7 @@ const DEFAULT_STATE = {
         { solo_id: 'magtile', qty: 16 },
         { solo_id: 'bb_c', qty: 1 },
       ],
-      sell_price: 22812,
+      sell_price: 14500,
       proto_units: 0,
       first_run_units: 3,
       y1_units: 5,
@@ -1678,29 +1678,35 @@ function mergeDefaults(s) {
     s.migrated_amp_1000w_v1 = true;
   }
 
-  // Reprice BridgeBox tiers and Amplified & Connected MagTile Kits to a
-  // uniform 50% gross margin. Bundle COGS is computed from the user's actual
-  // components so a customized bundle composition still lands at 50%, not
-  // some hardcoded number derived from the default composition.
-  if (!s.migrated_pricing_50pct_v2) {
+  // Reprice BridgeBox tiers to a uniform 50% gross margin. Bundle pricing is
+  // intentionally NOT auto-set — bundle margin depends on whatever components
+  // the user assembles, and "50% target" was the wrong heuristic for kits
+  // that already ran lean on assembly cost (v2's mistake).
+  if (!s.migrated_pricing_50pct_v3) {
     const soloTargets = new Set(['bb_a', 'bb_b', 'bb_c']);
     s.solos.forEach(solo => {
       if (soloTargets.has(solo.id) && (+solo.unit_cost || 0) > 0) {
         solo.sell_price = (+solo.unit_cost) * 2;
       }
     });
-    const bundleTargets = new Set(['magtile_floor']);
+    // Restore Amplified & Connected MagTile Kits to its pre-v2 sell price
+    // ($14,500) if v2 had clobbered it. Detection: v2 set sell to exactly
+    // 2× current COGS. Only restore in that case so the user's manual
+    // customization (if any) wins.
     s.bundles.forEach(b => {
-      if (!bundleTargets.has(b.id)) return;
+      if (b.id !== 'magtile_floor') return;
       const cogs = (b.components || []).reduce((acc, c) => {
         const solo = s.solos.find(x => x.id === c.solo_id);
         return acc + (solo ? (+solo.unit_cost || 0) * (+c.qty || 0) : 0);
       }, 0);
-      if (cogs > 0) b.sell_price = cogs * 2;
+      if (cogs > 0 && Math.abs((+b.sell_price || 0) - cogs * 2) < 1) {
+        b.sell_price = 14500;
+      }
     });
+    s.migrated_pricing_50pct_v1 = true;
     s.migrated_pricing_50pct_v2 = true;
-    s.migrated_pricing_50pct_v1 = true;  // mark v1 too so any older state is consistent
-    console.info('[migration] Repriced BB A/B/C + MagTile Kits to 50% margin (v2 — dynamic COGS)');
+    s.migrated_pricing_50pct_v3 = true;
+    console.info('[migration] Repriced BB A/B/C to 50% margin · restored MagTile Kits to $14,500 (v3)');
   }
 
   // First Run Order is now derived (proto + Y1 solo + bundle demand) instead
@@ -2067,9 +2073,22 @@ function formatSpvAskNarrative(peak) {
     ? `<div style="color:var(--red); font-size:11px; padding:6px 0 0;">[!] Ask is <b>${fmt.moneyFull(-contingency)}</b> below peak need &mdash; SPV runs out of cash before break-even.</div>`
     : '';
 
+  // Peak tuner hint — shows which knobs move peak the most, with their
+  // currently-set magnitude so the user can see the size of each lever.
+  const tunerHint = `
+    <div style="margin-top:14px; padding:10px 12px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:6px; font-size:10.5px; line-height:1.5; color:var(--text-faint);">
+      <div style="color:var(--gold-bright); font-weight:600; letter-spacing:1.3px; text-transform:uppercase; margin-bottom:6px;">Tune the Peak</div>
+      Peak = the three Y0 cash-out lines above.<br>
+      &middot; <b style="color:var(--text);">Lower Y0 burn ratio</b> in Model Assumptions (currently ${((+state.assumptions.y0_opex_burn_ratio || 0) * 100).toFixed(0)}%) &mdash; each &minus;0.1 saves $${fmt.moneyFull(0.1 * totalYearOpex(1)).replace('$','')}.<br>
+      &middot; <b style="color:var(--text);">Trim bundle first-run units</b> (Step 2 cards) &mdash; reduces solo inventory pulled in.<br>
+      &middot; <b style="color:var(--text);">Trim Y1 solo sales targets</b> &mdash; first run shrinks proportionally.<br>
+      &middot; <b style="color:var(--text);">Reduce Pre-Revenue CapEx</b> in Step 3 &mdash; full amount is a Y0 cash event.
+    </div>
+  `;
+
   return `
     <div style="font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:var(--text-faint); padding-bottom:6px;">Use of Proceeds</div>
-    ${row('First-Run Inventory', 'Manufacturing batch &middot; proto + Y1 + bundle assembly', fmt.moneyFull(b.inventory))}
+    ${row('First-Run Inventory', 'Manufacturing batch &middot; proto + Y1 + bundle assembly + extra inventory', fmt.moneyFull(b.inventory))}
     ${row('Pre-Revenue CapEx', 'Arena and other amortized capital', fmt.moneyFull(b.capex))}
     ${row('Y0 Operating Burn', `${((+state.assumptions.y0_opex_burn_ratio || 0) * 100).toFixed(0)}% of Y1 OPEX during build phase`, fmt.moneyFull(b.y0Burn))}
     ${b.y1PlusReserve > 0 ? row('Y1+ Operating Reserve', 'Additional drawdown after Y0 until cash-positive', fmt.moneyFull(b.y1PlusReserve)) : ''}
@@ -2077,6 +2096,7 @@ function formatSpvAskNarrative(peak) {
     ${row('Contingency Reserve', 'Unforeseen costs &middot; downside buffer', `+ ${fmt.moneyFull(contingency)}`, { color: 'var(--gold-bright)' })}
     ${row('Capital Raise Target', `${cover.toFixed(2)}× cover ratio against peak`, fmt.moneyFull(ask), { bold: true, color: 'var(--green)', borderTop: true })}
     ${undersized}
+    ${tunerHint}
   `;
 }
 
