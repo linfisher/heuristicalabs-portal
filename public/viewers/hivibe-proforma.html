@@ -963,7 +963,7 @@
     text-align: right;
     border-bottom: 1px solid var(--border);
   }
-  table.proforma td:first-child { text-align: left; color: var(--text); font-weight: 500; padding-left: 12px; }
+  table.proforma td:first-child { text-align: left; color: var(--text); font-weight: 500; padding-left: 12px; white-space: nowrap; min-width: 200px; }
   table.proforma td.year-end { padding-right: 6px; }
   table.proforma td.year-start { padding-left: 6px; border-left: 1px solid var(--border); }
   table.proforma th.year-start { border-left: 1px solid var(--border); padding-left: 6px; }
@@ -1214,7 +1214,7 @@
     <div class="kpi-year-grid" id="bundleRollupGrid"></div>
   </div>
 
-  <h2 class="section">First Run Order <span class="hint">The manufacturing batch sized to cover prototypes, Y1 solo sales, and first-run bundle production &mdash; derived from your inputs above</span></h2>
+  <h2 class="section">First Run Order <span class="hint">The initial manufacturing run sized to cover prototypes, first-run bundle assembly, and any extra inventory you set &mdash; Y1 solo sales are produced mid-year, not pre-built</span></h2>
   <div class="inv-alloc-wrapper">
     <table class="inv-alloc-table" id="firstRunOrderTable"></table>
   </div>
@@ -1823,18 +1823,17 @@ function bundleConsumptionOfSolo(soloId, phase) {
   }, 0);
 }
 
-// First Run Order is a derived value (not user-set). It is the manufacturing
-// run size required to cover everything pulling from the solo's first batch:
-//   proto units + Y1 solo sales target + first-run bundle demand + extra
-//   inventory the user wants to hold beyond strict Y1 demand (safety stock,
-//   demos, future-period buffer).
-// Edits to any of those four drivers automatically resize the order.
+// First Run Order is a derived value (not user-set). It is the size of the
+// initial manufacturing run — sized to cover only what we MUST commit to
+// upfront: prototypes, first-run bundle assembly, and any extra inventory
+// the user wants to hold (safety stock, demos, future-period buffer).
+// Y1 solo sales are intentionally NOT in this number — those will be
+// produced mid-year via incremental ordering, not pre-built in Y0.
 function computedFirstRun(s) {
   const proto = +s.proto_units || 0;
-  const y1 = +s.y1_units || 0;
   const inventory = +s.inventory_units || 0;
   const bundleNeed = bundleConsumptionOfSolo(s.id, 'first_run_units');
-  return proto + y1 + inventory + bundleNeed;
+  return proto + inventory + bundleNeed;
 }
 function recomputeAllFirstRuns() {
   state.solos.forEach(s => { s.first_run_units = computedFirstRun(s); });
@@ -1883,39 +1882,37 @@ function netIncomeYear(year) {
 }
 
 // COGS for Y1 sales whose inventory was already paid in Y0's first-run order.
-// By formula, first_run_units = proto + y1_solo + bundle_demand, so:
-//   - all Y1 solo COGS is prepaid
-//   - bundle COGS is prepaid only up to b.first_run_units; any Y1 bundle volume
-//     beyond first-run requires new components produced in Y1 (cash out then).
+// Solo Y1 sales are NOT prepaid (production happens during Y1, not in Y0).
+// Bundle assemblies up to b.first_run_units consume Y0-paid solo components,
+// so the COGS for those bundles is the only prepaid portion.
 function y1PrepaidCOGS() {
-  const soloPaid = state.solos.reduce((acc, solo) => {
-    return acc + (+solo.y1_units || 0) * (+solo.unit_cost || 0);
-  }, 0);
-  const bundlePaid = state.bundles.reduce((acc, b) => {
+  return state.bundles.reduce((acc, b) => {
     const fr = +b.first_run_units || 0;
     const y1 = +b.y1_units || 0;
     const covered = Math.min(fr, y1);
     return acc + covered * bundleUnitCOGS(b);
   }, 0);
-  return soloPaid + bundlePaid;
 }
 
 function cashFlowYear(year) {
   if (year === 0) {
-    // Y0 cash out: the entire first-run manufacturing batch (which already
-    // includes proto inventory by formula), full pre-revenue capex, and a
-    // fraction of Y1 OPEX burn during the build phase.
+    // Y0 cash out: first-run manufacturing batch (proto + bundle assembly +
+    // extra inventory) and a fraction of Y1 OPEX burn during the build
+    // phase. Pre-revenue CapEx is paid in Y1 (per cash) — for tax purposes
+    // it's still amortized over N years inside EBIT, but the full cheque
+    // leaves the bank when work begins (Y1).
     const burnRatio = +state.assumptions.y0_opex_burn_ratio || 0;
-    return -(totalFirstRunCost() + totalInvestments() + burnRatio * totalYearOpex(1));
+    return -(totalFirstRunCost() + burnRatio * totalYearOpex(1));
   }
-  // Y1+: EBIT plus amort (amort is non-cash; capex was paid in Y0), minus
-  // income tax on positive EBIT.
+  // Y1+: EBIT plus amort (amort is non-cash; treated separately from cash),
+  // minus income tax on positive EBIT.
   let cf = totalYearOpIncome(year) + amortizedYearExpense(year) - taxYear(year);
   if (year === 1) {
-    // Add back COGS already paid for via Y0 first-run inventory so Y1 cash
-    // flow only reflects new Y1 production (i.e. Y1 bundle volume above the
-    // bundle's first-run assembly count).
+    // Y1 cash flow: add back any COGS already paid via Y0 first-run inventory
+    // (bundle first-run portion only), and subtract the full pre-revenue
+    // CapEx — the cheque clears in Y1 even though the P&L spreads it.
     cf += y1PrepaidCOGS();
+    cf -= totalInvestments();
   }
   return cf;
 }
@@ -2036,15 +2033,17 @@ function formatSpvAskDetail(peak) {
 // as the user tunes inputs.
 // Decompose the SPV ask into the categories of capital it funds, so the
 // narrative shows where every dollar goes rather than a paragraph of prose.
+// Y0 cash needs: first-run inventory + Y0 burn.
+// Y1 cash hit: pre-revenue CapEx (full cheque), plus any operating shortfall.
 function useOfProceedsBreakdown(peak) {
   const burnRatio = +state.assumptions.y0_opex_burn_ratio || 0;
   const inventory = totalFirstRunCost();
   const capex = totalInvestments();
   const y0Burn = burnRatio * totalYearOpex(1);
-  const y0Total = inventory + capex + y0Burn;
-  const y1PlusReserve = Math.max(0, peak - y0Total);
+  const y0Total = inventory + y0Burn;
+  const beyondY0 = Math.max(0, peak - y0Total);
   const contingency = Math.max(0, +state.assumptions.contingency || 0);
-  return { inventory, capex, y0Burn, y0Total, y1PlusReserve, contingency, peak, ask: peak + contingency };
+  return { inventory, capex, y0Burn, y0Total, beyondY0, contingency, peak, ask: peak + contingency };
 }
 
 function formatSpvAskNarrative(peak) {
@@ -2078,20 +2077,20 @@ function formatSpvAskNarrative(peak) {
   const tunerHint = `
     <div style="margin-top:14px; padding:10px 12px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:6px; font-size:10.5px; line-height:1.5; color:var(--text-faint);">
       <div style="color:var(--gold-bright); font-weight:600; letter-spacing:1.3px; text-transform:uppercase; margin-bottom:6px;">Tune the Peak</div>
-      Peak = the three Y0 cash-out lines above.<br>
+      Peak = deepest cumulative cash trough, driven by the items above.<br>
       &middot; <b style="color:var(--text);">Lower Y0 burn ratio</b> in Model Assumptions (currently ${((+state.assumptions.y0_opex_burn_ratio || 0) * 100).toFixed(0)}%) &mdash; each &minus;0.1 saves $${fmt.moneyFull(0.1 * totalYearOpex(1)).replace('$','')}.<br>
       &middot; <b style="color:var(--text);">Trim bundle first-run units</b> (Step 2 cards) &mdash; reduces solo inventory pulled in.<br>
-      &middot; <b style="color:var(--text);">Trim Y1 solo sales targets</b> &mdash; first run shrinks proportionally.<br>
-      &middot; <b style="color:var(--text);">Reduce Pre-Revenue CapEx</b> in Step 3 &mdash; full amount is a Y0 cash event.
+      &middot; <b style="color:var(--text);">Trim Inventory buffer</b> on solo cards &mdash; less pre-built stock.<br>
+      &middot; <b style="color:var(--text);">Reduce Pre-Revenue CapEx</b> in Step 3 &mdash; full amount is a Y1 cash event.
     </div>
   `;
 
   return `
     <div style="font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:var(--text-faint); padding-bottom:6px;">Use of Proceeds</div>
-    ${row('First-Run Inventory', 'Manufacturing batch &middot; proto + Y1 + bundle assembly + extra inventory', fmt.moneyFull(b.inventory))}
-    ${row('Pre-Revenue CapEx', 'Arena and other amortized capital', fmt.moneyFull(b.capex))}
+    ${row('First-Run Inventory', 'Manufacturing batch &middot; proto + bundle assembly + extra inventory', fmt.moneyFull(b.inventory))}
     ${row('Y0 Operating Burn', `${((+state.assumptions.y0_opex_burn_ratio || 0) * 100).toFixed(0)}% of Y1 OPEX during build phase`, fmt.moneyFull(b.y0Burn))}
-    ${b.y1PlusReserve > 0 ? row('Y1+ Operating Reserve', 'Additional drawdown after Y0 until cash-positive', fmt.moneyFull(b.y1PlusReserve)) : ''}
+    ${row('Pre-Revenue CapEx (Y1 cash)', 'Arena and other capital &middot; full cheque clears Y1; P&amp;L spreads it via amort', fmt.moneyFull(b.capex))}
+    ${b.beyondY0 - b.capex > 0 ? row('Operating Reserve', 'Additional Y1+ drawdown until cash-positive', fmt.moneyFull(Math.max(0, b.beyondY0 - b.capex))) : ''}
     ${row('3Y Peak Cash Demand', '', fmt.moneyFull(b.peak), { bold: true, color: 'var(--red)', borderTop: true })}
     ${row('Contingency Reserve', 'Unforeseen costs &middot; downside buffer', `+ ${fmt.moneyFull(contingency)}`, { color: 'var(--gold-bright)' })}
     ${row('Capital Raise Target', `${cover.toFixed(2)}× cover ratio against peak`, fmt.moneyFull(ask), { bold: true, color: 'var(--green)', borderTop: true })}
@@ -2156,7 +2155,7 @@ function renderKPIs() {
       <div class="kpi">
         <div class="kpi-label">First Production Run</div>
         <div class="kpi-value">${fmt.moneyFull(firstRun)}</div>
-        <div class="kpi-detail">${firstRunUnits} solo units total · covers proto + Y1 + bundle assembly</div>
+        <div class="kpi-detail">${firstRunUnits} solo units · proto + bundle assembly + reserve inventory</div>
       </div>
       <div class="kpi">
         <div class="kpi-label">CapEx for Community Tech Stack &middot; Arena</div>
@@ -3025,7 +3024,7 @@ function renderFirstRunOrder() {
   const table = document.getElementById('firstRunOrderTable');
   if (!table) return;
 
-  let totalProto = 0, totalY1 = 0, totalInventory = 0, totalBundle = 0, totalOrder = 0;
+  let totalProto = 0, totalInventory = 0, totalBundle = 0, totalOrder = 0;
 
   // Build a group → label lookup. group_label is only set on the first
   // variant of a group, so peers need to look it up.
@@ -3034,12 +3033,10 @@ function renderFirstRunOrder() {
 
   const rows = state.solos.map(s => {
     const proto = +s.proto_units || 0;
-    const y1 = +s.y1_units || 0;
     const inventory = +s.inventory_units || 0;
     const bundleNeed = bundleConsumptionOfSolo(s.id, 'first_run_units');
-    const order = proto + y1 + inventory + bundleNeed;
+    const order = proto + inventory + bundleNeed;
     totalProto += proto;
-    totalY1 += y1;
     totalInventory += inventory;
     totalBundle += bundleNeed;
     totalOrder += order;
@@ -3050,7 +3047,6 @@ function renderFirstRunOrder() {
     return `<tr>
       <td>${fullName}</td>
       <td class="proto-col">${fmt.int(proto)}</td>
-      <td class="solo-col">${fmt.int(y1)}</td>
       <td class="inventory-col">${fmt.int(inventory)}</td>
       <td class="bundle-col">${fmt.int(bundleNeed)}</td>
       <td class="order-col">${fmt.int(order)}</td>
@@ -3062,7 +3058,6 @@ function renderFirstRunOrder() {
       <tr>
         <th>SKU</th>
         <th>Proto</th>
-        <th>Y1 Solo Sales</th>
         <th>Inventory</th>
         <th>Bundle Demand</th>
         <th>First Run Order</th>
@@ -3073,7 +3068,6 @@ function renderFirstRunOrder() {
       <tr class="total-row">
         <td>TOTAL UNITS</td>
         <td class="proto-col">${fmt.int(totalProto)}</td>
-        <td class="solo-col">${fmt.int(totalY1)}</td>
         <td class="inventory-col">${fmt.int(totalInventory)}</td>
         <td class="bundle-col">${fmt.int(totalBundle)}</td>
         <td class="order-col">${fmt.int(totalOrder)}</td>
