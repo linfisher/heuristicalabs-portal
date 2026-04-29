@@ -9,6 +9,7 @@ import DOMPurify from "isomorphic-dompurify"
 import { getProjectBySlug, resolveContentRoot } from "@/lib/registry"
 import { verifyShareToken } from "@/lib/share-tokens"
 import PDFProxyIframe from "@/components/PDFProxyIframe"
+import IframePrintBridge from "@/components/IframePrintBridge"
 
 export const dynamic = "force-dynamic"
 
@@ -132,6 +133,7 @@ export default async function SharedFilePage({ params }: Props) {
       <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
         <ShareHeader title={page.title} expiresAt={expiresAt} />
         <iframe srcDoc={viewerHtml} title={page.title} sandbox="allow-scripts allow-same-origin allow-modals allow-downloads" style={{ width: "100%", flex: 1, border: "none", display: "block" }} />
+        <IframePrintBridge />
       </div>
     )
   }

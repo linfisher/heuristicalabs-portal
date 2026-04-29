@@ -11,6 +11,7 @@ import { getProject, getProjectPage } from "@/lib/projects";
 import { getProjectBySlug, resolveContentRoot } from "@/lib/registry";
 import { fetchPage } from "@/lib/vps";
 import PDFProxyIframe from "@/components/PDFProxyIframe";
+import IframePrintBridge from "@/components/IframePrintBridge";
 
 export const dynamic = "force-dynamic";
 
@@ -173,6 +174,7 @@ export default async function ProjectContentPage({ params }: Props) {
           sandbox="allow-scripts allow-same-origin allow-modals allow-downloads"
           style={{ width: "100%", height: "100%", border: "none", display: "block" }}
         />
+        <IframePrintBridge />
       </div>
     )
   }

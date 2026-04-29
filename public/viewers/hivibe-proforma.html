@@ -3716,14 +3716,24 @@ document.getElementById('importBtn').addEventListener('click', () => openJsonMod
 // "Save as PDF" (or printer) and chooses where to save. The @media print
 // CSS strips chrome and forces background colors so the PDF matches the
 // on-screen dark deliverable look.
+//
+// CRITICAL: window.print() must be called SYNCHRONOUSLY inside the click
+// handler. Wrapping it in setTimeout drops the user-gesture context and
+// most browsers silently block the print dialog. Title swap + restore
+// happen synchronously around the call.
 document.getElementById('exportPdfBtn').addEventListener('click', () => {
   const stamp = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
   const original = document.title;
   document.title = `HiVibe Pro Forma · ${stamp}`;
-  setTimeout(() => {
-    try { window.print(); }
-    finally { setTimeout(() => { document.title = original; }, 500); }
-  }, 50);
+  try {
+    window.print();
+  } catch (err) {
+    // Fallback: ask the parent (the portal page) to handle print, in case
+    // the iframe sandbox blocks it on this browser.
+    try { window.parent.postMessage({ type: 'proforma-print-request' }, '*'); } catch {}
+  }
+  // Restore title on the next tick (after the modal opens).
+  setTimeout(() => { document.title = original; }, 1000);
 });
 document.getElementById('jsonModalCancel').addEventListener('click', closeJsonModal);
 document.getElementById('jsonModal').addEventListener('click', e => {
