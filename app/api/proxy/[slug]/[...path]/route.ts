@@ -7,19 +7,15 @@ import { getProject, getProjectPage } from "@/lib/projects"
 import { getProjectBySlug, resolveContentRoot } from "@/lib/registry"
 import { isAdminEmail } from "@/lib/auth"
 import { VPS_SECRET_HEADER } from "@/lib/constants"
+import { verifyShareToken } from "@/lib/share-tokens"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: { slug: string; path: string[] } }
 ) {
-  const { userId } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
   const { slug, path: pathSegments } = params
   const filePath = pathSegments.join("/")
 
@@ -28,7 +24,32 @@ export async function GET(
     return NextResponse.json({ error: "Invalid path" }, { status: 400 })
   }
 
-  // Auth check: admin bypasses grant check; regular users need a valid grant
+  // Path A: share-link bypass. ?share=<jwt> grants anonymous access to one
+  // specific file when the token's slug + pagePath match this request.
+  const shareTokenParam = new URL(request.url).searchParams.get("share")
+  if (shareTokenParam) {
+    let shareTokenPayload
+    try {
+      shareTokenPayload = await verifyShareToken(shareTokenParam)
+    } catch {
+      return NextResponse.json({ error: "Invalid or expired share link" }, { status: 403 })
+    }
+    if (shareTokenPayload.slug !== slug || shareTokenPayload.pagePath !== filePath) {
+      return NextResponse.json({ error: "Share link does not authorize this file" }, { status: 403 })
+    }
+    const stored = getProjectBySlug(slug)
+    if (!stored) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const page = stored.pages.find((p) => p.path === filePath)
+    if (!page) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    return await streamFile({ slug, vpsPath: stored.vpsPath, filePath, page })
+  }
+
+  // Path B: standard Clerk-authed access (admin or grant-bearing user).
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   let user
   try {
     user = await clerkClient.users.getUser(userId)
@@ -38,8 +59,6 @@ export async function GET(
   const email = user.primaryEmailAddress?.emailAddress ?? ""
   const admin = isAdminEmail(email)
 
-  // Validate project and page exist in registry.
-  // Admin: lookup via registry (covers archived); Regular: via active-only helper.
   const stored = admin ? getProjectBySlug(slug) : undefined
   const project = stored
     ? { slug: stored.slug, name: stored.name, description: stored.description ?? "", vpsPath: stored.vpsPath, pages: stored.pages }
@@ -61,6 +80,23 @@ export async function GET(
     }
   }
 
+  return await streamFile({ slug, vpsPath: project.vpsPath, filePath, page })
+}
+
+// Stream the requested file: local content root first (covers fresh uploads
+// in dev and VPS), then fall back to the VPS content origin. Same byte path
+// for share-link viewers and Clerk-authed users.
+async function streamFile({
+  slug,
+  vpsPath,
+  filePath,
+  page,
+}: {
+  slug: string
+  vpsPath: string
+  filePath: string
+  page: { fileType: string; mimeType?: string }
+}) {
   let contentType: string
   if (page.mimeType) {
     contentType = page.mimeType
@@ -72,7 +108,6 @@ export async function GET(
     contentType = "application/octet-stream"
   }
 
-  // Try local content root first — covers newly uploaded files (dev + VPS)
   try {
     const localPath = path.join(resolveContentRoot(), "projects", slug, filePath)
     const buffer = await readFile(localPath)
@@ -90,13 +125,12 @@ export async function GET(
     // fall through to VPS fetch
   }
 
-  // Fall back to VPS content origin
   if (!process.env.VPS_ORIGIN) {
     return NextResponse.json({ error: "File not found" }, { status: 404 })
   }
   const origin = process.env.VPS_ORIGIN.trim()
   const secret = (process.env.VPS_SECRET ?? "").trim()
-  const url = `${origin}${project.vpsPath}/${filePath}`
+  const url = `${origin}${vpsPath}/${filePath}`
 
   let vpsResponse: Response
   try {

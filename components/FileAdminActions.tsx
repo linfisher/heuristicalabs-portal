@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import ShareFileButton from "./ShareFileButton"
 
 interface Props {
   slug: string
@@ -130,6 +131,7 @@ export default function FileAdminActions({ slug, pagePath, title, sections = [],
       >
         Rename
       </button>
+      <ShareFileButton slug={slug} pagePath={pagePath} title={title} />
       <button
         type="button"
         onClick={(e) => { stopProp(e); setConfirmDelete(true) }}

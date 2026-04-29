@@ -13,6 +13,11 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
     return NextResponse.next()
   }
 
+  // /portal/share/** — public, gated by share token in URL (route validates)
+  if (pathname.startsWith("/portal/share/")) {
+    return NextResponse.next()
+  }
+
   // /api/access/** — public (routes validate their own tokens)
   if (pathname.startsWith("/api/access/")) {
     return NextResponse.next()
