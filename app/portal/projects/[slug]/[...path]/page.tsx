@@ -170,7 +170,7 @@ export default async function ProjectContentPage({ params }: Props) {
         <iframe
           srcDoc={viewerHtml}
           title={pageTitle}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts allow-same-origin allow-modals allow-downloads"
           style={{ width: "100%", height: "100%", border: "none", display: "block" }}
         />
       </div>
