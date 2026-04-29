@@ -1173,6 +1173,56 @@
     text-transform: uppercase; padding: 0 2px 4px;
   }
   .scenario-empty { color: var(--text-faint); font-size: 12px; font-style: italic; padding: 4px 2px; }
+
+  /* ======================================================================
+     PRINT / EXPORT PDF
+     Native browser print is the fastest path: user clicks Export PDF, browser
+     opens its print dialog, they pick "Save as PDF" + filename + location.
+     Strip on-screen chrome (toolbar, delete buttons, hover bits) and force
+     background colors so the printed PDF matches the dark deliverable look.
+     ====================================================================== */
+  @media print {
+    @page { size: letter; margin: 0.45in 0.4in; }
+
+    html, body {
+      background: var(--bg) !important;
+      color: var(--text) !important;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+    .toolbar, .remove-btn, .pc-toggle, .add-component-btn,
+    #addOpexBtn, #addInvestmentBtn, #addBundleBtn,
+    .bom-toggle { display: none !important; }
+
+    /* Inputs render as flat text — drop borders/backgrounds, keep value visible. */
+    input, select, textarea {
+      border: none !important;
+      background: transparent !important;
+      color: inherit !important;
+      box-shadow: none !important;
+      -webkit-appearance: none;
+      appearance: none;
+      padding: 0 !important;
+    }
+
+    /* Section breaks — keep cards together where possible. */
+    .product-card, .kpi, .kpi-block, .kpi-spv-ask-block,
+    .inv-alloc-wrapper, .opex-wrapper, .proforma-wrapper {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    h2.section { break-after: avoid; page-break-after: avoid; }
+
+    /* Pro Forma table — print landscape-ish by letting it span full width. */
+    .proforma-wrapper { overflow: visible !important; }
+    table.proforma { min-width: 0 !important; font-size: 9px; }
+    table.proforma td:first-child { min-width: 140px !important; }
+
+    /* Cash chart — keep the SVG visible and full width. */
+    svg { max-width: 100% !important; height: auto !important; }
+  }
 </style>
 </head>
 <body>
@@ -1187,6 +1237,7 @@
     <button id="loadScenarioBtn">LOAD MODEL</button>
     <button id="exportBtn">EXPORT JSON</button>
     <button id="importBtn">IMPORT</button>
+    <button id="exportPdfBtn">EXPORT PDF</button>
     <button id="resetBtn" class="danger">RESET DEFAULTS</button>
   </div>
 </header>
@@ -3660,6 +3711,20 @@ function closeJsonModal() {
 
 document.getElementById('exportBtn').addEventListener('click', () => openJsonModal('export'));
 document.getElementById('importBtn').addEventListener('click', () => openJsonModal('import'));
+
+// Export PDF — uses the browser's native print dialog so the user picks
+// "Save as PDF" (or printer) and chooses where to save. The @media print
+// CSS strips chrome and forces background colors so the PDF matches the
+// on-screen dark deliverable look.
+document.getElementById('exportPdfBtn').addEventListener('click', () => {
+  const stamp = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+  const original = document.title;
+  document.title = `HiVibe Pro Forma · ${stamp}`;
+  setTimeout(() => {
+    try { window.print(); }
+    finally { setTimeout(() => { document.title = original; }, 500); }
+  }, 50);
+});
 document.getElementById('jsonModalCancel').addEventListener('click', closeJsonModal);
 document.getElementById('jsonModal').addEventListener('click', e => {
   if (e.target.id === 'jsonModal') closeJsonModal();
