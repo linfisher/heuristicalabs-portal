@@ -27,17 +27,19 @@ cd heuristicalabs-portal && npm run dev -- -p 8888
 | `/portal` | Password wall. Admin sees all projects (cards) with inline CRUD and archived section; users see only granted projects |
 | `/portal/projects/<slug>` | Project detail: PDF thumbnail grid + admin action bar (Rename / Archive / Delete) |
 | `/portal/projects/<slug>/<path>` | PDF viewer (blob-URL iframe) or HTML viewer (CAD) |
+| `/portal/share/<token>` | **Public share-link viewer** — no Clerk required, JWT in URL is the only credential, single file scope |
 | `/portal/admin` | User access grid, grant/revoke, direct grant, project management panel |
 | `/portal/support` | Multi-choice support form → emails `ADMIN_EMAIL` via Resend |
 | `/portal/request-access` | User requests access to a project (chip-based picker) |
 | `/portal/sign-in/[[...sign-in]]` | Clerk SignIn widget |
-| `/api/proxy/<slug>/<path>` | Auth-gated PDF byte stream from VPS content origin |
+| `/api/proxy/<slug>/<path>` | Auth-gated PDF byte stream from VPS content origin. Accepts `?share=<token>` to bypass Clerk for share-link recipients. |
 | `/api/support` | Validated support email dispatch |
 | `/api/request`, `/api/access/accept`, `/api/access/deny` | Token flows |
 | `/portal/admin/projects/{create,rename,archive,restore,delete,reorder}` | Project CRUD + up/down reorder |
 | `/portal/admin/projects/{page-rename,page-delete,page-reorder,page-assign-section,upload,add-link,bulk-page-action}` | Per-page CRUD + section moves + bulk ops |
 | `/portal/admin/projects/{section-create,section-rename,section-delete,section-reorder}` | Section CRUD within a project |
 | `/portal/admin/{grant,direct-grant,extend,revoke,project-access}` | Access grant management |
+| `/portal/admin/share-file` | POST mints a share token for one file. Body: `{slug, pagePath, durationMs}`. Returns `{url, expiresAt}`. |
 | `/api/contact` | Public contact-form POST → Resend email to ADMIN_EMAIL (honeypot + rate limit) |
 
 ## Git
@@ -81,9 +83,11 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 ## Redis Key Patterns
 | Key | Purpose |
 |---|---|
-| `token:{jti}` | Single-use marker; DEL'd on accept/deny |
+| `token:{jti}` | Project access token, single-use marker; DEL'd on accept/deny |
 | `grant-group:{userId}:{slug}` | List of all jtis in a batch; DEL'd to invalidate siblings |
 | `req:{userId}:{slug}` | Rate-limit key; 24h TTL; set AFTER successful email send |
+| `share-token:{jti}` | Per-file share token; TTL = duration on creation; multi-use within window; `redis.del()` to revoke |
+| `proforma-scenarios:{userId}` | Saved Pro Forma scenarios (admin-only, server-side via `/api/proforma-scenarios`) |
 
 ## Deploy
 - **Primary production URL**: `https://heuristicalabs.com` (VPS PM2, port 3001; nginx reverse-proxies from apex). `www.heuristicalabs.com` also serves here.
@@ -110,8 +114,20 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 - Fail-soft: if SSH is unreachable (offline, alias missing), warns + leaves existing local copy alone.
 - Skip explicitly: `SKIP_VPS_SYNC=1 npm run dev`.
 
+## Per-File Share Links (admin only, no Clerk required for recipient)
+Admin can mint a single-file share token from any file's admin bar (`ShareFileButton` opens a modal — pick duration 24h/3d/7d/30d → Generate → Copy). Recipient opens `/portal/share/<token>` and sees just the file viewer (no portal nav, no breadcrumb, no admin chrome).
+
+- `lib/share-tokens.ts` — `signShareToken`, `verifyShareToken`, `revokeShareToken`. JWT (jose, HS256) carries `{type: "share", slug, pagePath, jti, iat, exp}`. Redis key `share-token:<jti>` set with TTL = duration on creation; `verifyShareToken` checks both signature AND Redis presence so admin can revoke by `redis.del`. Multi-use within window (does NOT delete on verify, unlike project access tokens in `lib/tokens.ts`).
+- `app/portal/admin/share-file/route.ts` — POST endpoint. Admin auth, CSRF check, validates slug + pagePath against registry, mints token, returns share URL.
+- `app/portal/share/[token]/page.tsx` — public viewer. No Clerk required. Renders the same file viewer types as the authed project route (PDF, image, video, audio, markdown, link, embed, viewer, generic file). Bad/expired/revoked token shows a friendly error screen.
+- `app/api/proxy/[slug]/[...path]/route.ts` — accepts `?share=<token>` query param. When present, calls `verifyShareToken` and bypasses Clerk auth if the token's slug+pagePath match the request. Byte-streaming logic was lifted into a `streamFile()` helper so authed and share paths share the same VPS / local-disk lookup.
+- `middleware.ts` — `/portal/share/*` is whitelisted (passes through without Clerk session check). The route itself validates the token.
+- `components/ShareFileButton.tsx` — modal UI. Default duration: 3 days.
+
+**Distinct from project access tokens**: those tokens (`lib/tokens.ts`, key `token:{jti}`) are tied to a Clerk userId and grant project-wide access. Share tokens stand alone and bind to one specific file.
+
 ## Pro Forma Viewer (HiVibe Temple project, page `proforma-dashboard`)
-Single self-contained file: `public/viewers/hivibe-proforma.html`. Loaded into a sandboxed iframe via `srcDoc` from the portal route. Sandbox is `allow-scripts allow-same-origin` — required so Clerk session cookies transmit on fetch (for the SAVE/LOAD scenarios API) and so localStorage works (for auto-save).
+Single self-contained file: `public/viewers/hivibe-proforma.html` (~3,800 lines). Loaded into a sandboxed iframe via `srcDoc` from the portal route. Sandbox is `allow-scripts allow-same-origin allow-modals allow-downloads` — `allow-same-origin` so Clerk session cookies transmit on fetch (SAVE/LOAD scenarios API) and localStorage works (auto-save), `allow-modals` so `window.print()` dialog isn't blocked (EXPORT PDF), `allow-downloads` future-proofs.
 
 **State:**
 - Auto-save: localStorage key `hivibe_proforma_v5` — every keystroke. Browser-local on purpose; auto-save is per-device.
@@ -124,12 +140,26 @@ Single self-contained file: `public/viewers/hivibe-proforma.html`. Loaded into a
   - `migrated_hvt_mat_a_rename_v1` — renames "HVT Experience · Mat Version" → "HVT Experience · Mat A"
   - `migrated_bundle_order_v1` — Mat A/B/C contiguous at the front of `state.bundles[]`
   - `migrated_amp_1000w_v1` — injects 1000W Amplifier solo right after BridgeBox group
+  - `bundle_margin_v2` — 50% margin auto-reset for BB Offer A/B/C + MagTile Kits (computes COGS from user's actual components, not defaults)
+  - `magtile_kit_price_v3` — restores user's MagTile Kits price after v2 over-corrected (detects v2-clobbered states via `sell == 2 × current COGS`); custom user pricing preserved
 
 **Money inputs**: `type="text" inputmode="numeric"`, formatted with commas via `formatCommas()` / `parseCommas()` / `readMoneyInput()` helpers. Cursor-preserving on each keystroke.
 
-**EXPORT / IMPORT JSON**: copy-paste modal (file-download is blocked by the iframe sandbox). `document.execCommand('copy')` is used because `navigator.clipboard.writeText` is policy-blocked inside sandboxed iframes.
+**EXPORT / IMPORT JSON**: copy-paste modal (file-download is still blocked by sandbox even after `allow-downloads` widening — browser policy on `srcDoc`-loaded iframes). `document.execCommand('copy')` is used because `navigator.clipboard.writeText` is policy-blocked inside sandboxed iframes.
 
-**SPV Ask card**: `Peak (red, computed) + Contingency (gold, editable, stored as `state.assumptions.contingency`) = Capital Raise Target (green, computed)`. Default contingency = $279,352. Use-of-proceeds prose alongside, refreshed live by the input handler.
+**EXPORT PDF** (NEW Apr 29 2026): button in the toolbar between IMPORT and RESET. Calls `window.print()` synchronously inside the click handler — MUST NOT be wrapped in `setTimeout` (browsers require user-gesture context and silently block delayed prints). `@media print` rules strip on-screen chrome (toolbar, remove buttons, collapse chevrons, +ADD buttons, BOM toggles); inputs render as flat text; `print-color-adjust: exact` retains the dark theme; `@page letter`, 0.45in margins; `break-inside: avoid` on cards/KPI tiles/tables. Document title pre-stamped "HiVibe Pro Forma · MM-DD-YYYY" so suggested filename is meaningful. Fallback path: `components/IframePrintBridge.tsx` (rendered next to the viewer iframe on both `/portal/projects/<slug>/<path>` and `/portal/share/<token>` routes) listens for `proforma-print-request` postMessage from inside the iframe and calls `iframe.contentWindow.print()` from the parent. Last-resort fallback: prints the parent page itself.
+
+**P&L tax model** (Session 21): 21% federal rate on positive EBIT (`state.assumptions.tax_rate`, editable in Model Assumptions section). NEW NET INCOME row in the Pro Forma table. Post-tax used for the SPV return narrative. ROI label was secretly MoM the whole time — now reads "1.80× MoM · $X 3Y net income".
+
+**Cash model** (Session 22): First Run Order = `proto + inventory + bundle demand` (Y1 solo dropped — those produce mid-year, not pre-built in Y0). `y1PrepaidCOGS` only counts the bundle first-run portion. Pre-Revenue CapEx ($150k Arena) shifted from Y0 to Y1 cash. `amortizedYearExpense()` returns full capex total in Y1, $0 in Y2/Y3 — both cash AND P&L absorb the full cheque in Year 1 per the user's accounting choice (no amortization). `state.investments[].years` retained for backwards-compat but ignored. Step 3 UI dropped Years + Per Year columns; only Line Item + Total $ remain.
+
+**Per-solo Inventory field** (Session 21): extra units beyond Y1 sales + bundle demand, sized by user (safety stock / demos / future-period buffer). Folds into `computedFirstRun` so Y0 cash grows with it. New cyan Inventory column in First Run Order panel between Y1 Solo and Bundle Demand. Default 0; backfilled on older saved states.
+
+**KPI year block**: shows **Gross Profit** (not EBIT). EBIT lives in the Pro Forma table; KPI now pairs cleanly with GM% as the unit-economics view.
+
+**Model Assumptions section** (between Step 4 and Step 5): editable Y0 burn ratio + tax rate. `renderAssumptions()` was previously dead code, resurrected in Session 21.
+
+**SPV Ask card**: `Peak (red, computed) + Contingency (gold, editable, stored as `state.assumptions.contingency`) = Capital Raise Target (green, computed)`. Default contingency = $279,352. Use-of-proceeds prose alongside reads `First-Run Inventory + Pre-Revenue CapEx + Y0 Burn = Peak; + Contingency = Ask`. "Tune the Peak" hint card lists Y0-cash-out levers (burn ratio, bundle first-run, Y1 solo sales, capex). Cash break-even label on the 3Y Peak Cash Demand KPI ("Y2, month 6").
 
 **Solo / Bundle rollup tables**: lock `table-layout: fixed` with explicit widths on the unit (38px) and revenue (78px) columns so every year column renders identically regardless of digit width. Names use `white-space: nowrap; text-overflow: ellipsis`.
 
@@ -173,17 +203,18 @@ Single self-contained file: `public/viewers/hivibe-proforma.html`. Loaded into a
 - **revalidatePath on EVERY mutation**: create/rename/archive/restore/delete project + upload/add-link/page-delete/page-rename. Without this, Next.js Router Cache keeps stale pages until a hard refresh.
 
 ## Interactive Viewers (fileType: "viewer")
-For pages that need an interactive HTML embed (e.g. the Three.js CAD viewer), the page entry in `registry.json` uses `fileType: "viewer"` and a `viewerSrc` pointing at a file committed in the repo under `public/viewers/`. The project detail page route (`app/portal/projects/[slug]/[...path]/page.tsx`) reads that file from disk and injects it into a sandboxed iframe via `srcDoc` — bypassing `X-Frame-Options: DENY`. Thumbnails go in `public/thumbnails/<name>.png` and are referenced by the page's `thumbnailSrc`.
+For pages that need an interactive HTML embed (e.g. the Three.js CAD viewer, the Pro Forma viewer), the page entry in `registry.json` uses `fileType: "viewer"` and a `viewerSrc` pointing at a file committed in the repo under `public/viewers/`. The project detail page route (`app/portal/projects/[slug]/[...path]/page.tsx`) reads that file from disk and injects it into a sandboxed iframe via `srcDoc` — bypassing `X-Frame-Options: DENY`. Sandbox is `allow-scripts allow-same-origin allow-modals allow-downloads`. Thumbnails go in `public/thumbnails/<name>.png` and are referenced by the page's `thumbnailSrc`.
 
 Current viewer: `public/viewers/hivibe-floor-assembly.html` — Three.js v19 Rev 4 MagTile floor assembly, loads Three.js from `cdnjs.cloudflare.com` + `cdn.jsdelivr.net` via importmap. Shared between two portal projects (`hivibe-magtile-cads` and `hivibe-temple`) via different page entries both pointing at the same file. Features: 1/4/9/16-tile grid selector, SPREAD slider (magnetize), LID slider (0° closed → 180° flat open), 6 view presets, layer toggles, x-ray mode.
 
 CSP already allows the CDNs used by the existing viewer (next.config.mjs `script-src` / `connect-src`). New viewer scripts from other CDNs need CSP updates.
 
 ## PDF Proxy Architecture
-- Proxy route: `GET /api/proxy/[slug]/[...path]` — verifies Clerk auth + grant (admin bypasses), fetches from VPS
+- Proxy route: `GET /api/proxy/[slug]/[...path]` — verifies Clerk auth + grant (admin bypasses), fetches from VPS. Also accepts `?share=<token>` to bypass Clerk for share-link recipients (validates token's slug+pagePath match).
 - VPS request: `fetch(VPS_ORIGIN + vpsPath + "/" + filePath, { headers: { "X-Portal-Secret": VPS_SECRET } })`
 - File paths on VPS: no `.pdf` extension — VPS serves files by exact path name
-- Viewer: `components/PDFProxyIframe.tsx` — client component that fetches via the proxy, creates a blob URL, renders in `<iframe>`. Bypasses the app's `X-Frame-Options: DENY` header.
+- Byte-streaming logic factored into `streamFile()` helper so authed and share-link paths share lookup/streaming
+- Viewer: `components/PDFProxyIframe.tsx` — client component that fetches via the proxy, creates a blob URL, renders in `<iframe>`. Bypasses the app's `X-Frame-Options: DENY` header. PDF viewer iframes use sandbox `allow-scripts` only (DO NOT widen — that's reserved for `srcDoc`-loaded interactive viewers like the Pro Forma).
 - Thumbnails: `components/PDFThumbnail.tsx` — loads pdfjs-dist + worker from `cdn.jsdelivr.net` via `webpackIgnore` dynamic import. Webpack has a long-standing ESM interop bug with pdfjs-dist that breaks local imports; CDN sidesteps it. Version pinned to `5.6.205`.
 
 ## VPS Content Setup
@@ -236,6 +267,12 @@ scp ~/Downloads/file.pdf heuristica-vps:/var/www/portal-content/projects/<slug>/
 | `emails/contact-inquiry.tsx` | React Email template admin sees when a contact-form submission comes in. |
 | `public/contact.html` | Static contact form with NDA/question mode toggle + project dropdown. Fetches `/api/contact` instead of opening mailto. |
 | `public/viewers/hivibe-floor-assembly.html` | Three.js v19 Rev 4 MagTile floor viewer (shared across HiVibe Temple and HiVibe MagTile CADs - ONLY projects). |
+| `public/viewers/hivibe-proforma.html` | Pro Forma SPV planning viewer (~3,800 lines). Single-file with auto-save, server-side scenarios, EXPORT PDF, tax model. |
+| `lib/share-tokens.ts` | Mint/verify/revoke per-file share tokens. JWT + Redis-tracked. Distinct from `lib/tokens.ts` project access tokens. |
+| `app/portal/admin/share-file/route.ts` | POST endpoint for minting share tokens. Admin only + CSRF check. |
+| `app/portal/share/[token]/page.tsx` | Public file viewer for share-link recipients. No Clerk required; token in URL is the only credential. |
+| `components/ShareFileButton.tsx` | Modal UI on each file's admin bar — pick duration, generate, copy share URL. |
+| `components/IframePrintBridge.tsx` | postMessage fallback for `window.print()` from inside sandboxed iframe (used on project detail + share viewer pages). |
 | `components/AddProjectButton.tsx` | "+ Add Project" button + modal |
 | `components/SupportForm.tsx` | Chip-based multi-choice support form |
 | `components/RequestAccessForm.tsx` | Chip-based project-access request form |
@@ -256,13 +293,18 @@ scp ~/Downloads/file.pdf heuristica-vps:/var/www/portal-content/projects/<slug>/
 3. `storeGrantGroup` takes a plain `string[]` — do NOT `JSON.stringify` it (Upstash auto-serializes)
 4. `deleteGrantGroup` must be called on BOTH accept AND deny paths (sibling invalidation)
 5. Rate-limit key `req:{userId}:{slug}` must be set AFTER successful email send, not before
-6. iframe sandbox must be `allow-scripts` only — never add `allow-same-origin` (defeats sandbox)
+6. iframe sandbox values are context-dependent — DO NOT over-broaden:
+   - **PDF proxy iframes** (PDFProxyIframe component, blob URL): `allow-scripts` only. Adding `allow-same-origin` here defeats the sandbox.
+   - **`srcDoc`-loaded interactive viewers** (Pro Forma, CAD, share page): `allow-scripts allow-same-origin allow-modals allow-downloads`. `allow-same-origin` is required for fetch with cookies + localStorage; `allow-modals` for `window.print()` dialog; `allow-downloads` future-proofs.
+   - File-based downloads inside `srcDoc` iframes are still blocked by browser policy even with `allow-downloads` — use `document.execCommand('copy')` for export-style flows.
 7. Use `user.primaryEmailAddress?.emailAddress` — NOT `user.emailAddresses[0]`
 8. Middleware bypass rule: the `?forbidden=1` bypass in middleware is ONLY for the exact project slug path (`/portal/projects/{slug}`). Sub-pages are never bypassed.
 9. CSP `unsafe-eval` MUST be dev-only — production stays strict
 10. pdfjs-dist MUST be loaded from CDN via `webpackIgnore` — direct webpack imports break with `Object.defineProperty called on non-object`
 11. `Referrer-Policy` in `next.config.mjs` MUST be `strict-origin-when-cross-origin`, NEVER `no-referrer`. `no-referrer` causes browsers to send `Origin: null` on same-origin form POSTs, which makes `checkSameOrigin` reject every admin form submission silently.
 12. When deleting a project, `app/portal/admin/projects/delete/route.ts` MUST cascade through every Clerk user and strip grants for that slug — otherwise stale "ghost" grants pointing at deleted projects persist in `user.publicMetadata.projects`. Same cascade runs on archive via the shared helper.
+13. `window.print()` MUST be called synchronously inside the click/event handler — wrapping in `setTimeout` silently blocks the dialog (browsers require user-gesture context). If the in-iframe print is unreliable, postMessage out to `IframePrintBridge` rendered next to the iframe.
+14. Share tokens (`lib/share-tokens.ts`) are NOT single-use — they're multi-use within their TTL window. Verify checks signature AND Redis presence so admin can revoke via `redis.del('share-token:<jti>')`. Don't accidentally call `redis.del()` on verify (that's the project access token pattern in `lib/tokens.ts`, which IS single-use).
 
 ## Common Pitfalls
 - `request.json()` needs try/catch — malformed body returns 500 not 400 without it
