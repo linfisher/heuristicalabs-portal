@@ -1182,7 +1182,7 @@
      background colors so the printed PDF matches the dark deliverable look.
      ====================================================================== */
   @media print {
-    @page { size: letter; margin: 0.45in 0.4in; }
+    @page { size: letter; margin: 0.4in 0.35in; }
 
     html, body {
       background: var(--bg) !important;
@@ -1194,7 +1194,8 @@
 
     .toolbar, .remove-btn, .pc-toggle, .add-component-btn,
     #addOpexBtn, #addInvestmentBtn, #addBundleBtn,
-    .bom-toggle { display: none !important; }
+    .bom-toggle,
+    [data-bundle-rename], [data-bundle-remove] { display: none !important; }
 
     /* Inputs render as flat text — drop borders/backgrounds, keep value visible. */
     input, select, textarea {
@@ -1207,21 +1208,89 @@
       padding: 0 !important;
     }
 
-    /* Section breaks — keep cards together where possible. */
+    /* Override responsive 850px breakpoint — print viewport is ~730px wide
+       which would otherwise collapse every multi-col layout to a single
+       stacked column and waste half the page. Force the desktop grid back. */
+    .kpi-row-2col { grid-template-columns: 1fr 1fr !important; }
+    .kpi-row-3col { grid-template-columns: 1fr 1fr 1fr !important; }
+    .kpi-year-grid { grid-template-columns: 1fr 1fr 1fr !important; gap: 8px !important; }
+    .product-grid.solo-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+    .product-grid.bundle-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+    .spv-ask-row { grid-template-columns: minmax(240px, 320px) 1fr !important; gap: 18px !important; }
+    .spv-ask-narrative { border-left: 1px solid var(--border) !important; padding-left: 14px !important; padding-top: 0 !important; border-top: none !important; }
+    .assumptions-grid { grid-template-columns: 1fr 1fr !important; }
+    /* Flex containers don't paginate reliably in Chrome's PDF renderer —
+       switch to block flow so cards inside each column become block-level
+       siblings that can break naturally between cards. */
+    .solo-col-stack, .bundle-col-left, .bundle-col-right {
+      display: block !important;
+    }
+    .solo-col-stack > * + *,
+    .bundle-col-left > * + *,
+    .bundle-col-right > * + * { margin-top: 10px !important; }
+    .product-grid.solo-grid, .product-grid.bundle-grid,
+    .solo-col-stack, .bundle-col-left, .bundle-col-right {
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+    }
+
+    /* Tighten cards/KPIs for print — packs more per page. */
+    .kpi { padding: 8px 11px !important; }
+    .kpi-label { font-size: 8.5px !important; margin-bottom: 4px !important; letter-spacing: 1.4px !important; }
+    .kpi-value { font-size: 18px !important; }
+    .kpi-detail { font-size: 9px !important; margin-top: 3px !important; }
+    .kpi-block { padding: 8px 11px !important; }
+    .kpi-block-label { font-size: 9px !important; margin-bottom: 6px !important; }
+    .kpi-year { padding: 6px 8px !important; }
+    .kpi-year-head { font-size: 9px !important; margin-bottom: 5px !important; }
+    .kpi-year-sublabel { font-size: 8.5px !important; }
+    .kpi-year-subvalue { font-size: 13px !important; }
+    .kpi-year-margin { font-size: 9px !important; margin-top: 4px !important; }
+    .product-card { padding: 8px 11px !important; margin-bottom: 8px !important; }
+    .pc-name { font-size: 12px !important; }
+    .pc-desc { font-size: 9.5px !important; }
+    h2.section { font-size: 13px !important; margin: 14px 0 8px !important; white-space: nowrap; overflow: hidden; }
+    h2.section .hint { font-size: 9.5px !important; }
+    h2.section .step { font-size: 9px !important; padding: 2px 6px !important; }
+
+    /* Each section starts on a fresh page so it gets the full vertical
+       budget — long sections then flow to a 2nd page if needed, but never
+       start mid-page after another section's tail. */
+    h2.section { break-before: page; page-break-before: always; }
+    h2.section:first-of-type { break-before: auto; page-break-before: auto; }
+    h2.section { break-after: avoid; page-break-after: avoid; }
+
+    /* Keep atomic blocks together. */
     .product-card, .kpi, .kpi-block, .kpi-spv-ask-block,
-    .inv-alloc-wrapper, .opex-wrapper, .proforma-wrapper {
+    .inv-alloc-wrapper, .opex-wrapper, .proforma-wrapper,
+    .kpi-row, .kpi-year, .spv-ask-row, .assumptions-grid,
+    .cash-explainer, .field-grid, .field, .bom-table,
+    table.opex tr, table.proforma tr,
+    table.inv-alloc-table tr, table.rollup-mini tr {
       break-inside: avoid;
       page-break-inside: avoid;
     }
-    h2.section { break-after: avoid; page-break-after: avoid; }
 
-    /* Pro Forma table — print landscape-ish by letting it span full width. */
+    /* Pro Forma table — full width, slim font, tight rows so the trailing
+       notes div lands on the same page as the table instead of orphaning. */
     .proforma-wrapper { overflow: visible !important; }
-    table.proforma { min-width: 0 !important; font-size: 9px; }
+    table.proforma { min-width: 0 !important; font-size: 8.5px; }
+    table.proforma td, table.proforma th { padding: 3px 6px !important; }
     table.proforma td:first-child { min-width: 140px !important; }
+    .notes {
+      break-before: avoid;
+      page-break-before: avoid;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      font-size: 9px !important;
+      padding: 8px 10px !important;
+      margin-top: 6px !important;
+    }
 
     /* Cash chart — keep the SVG visible and full width. */
     svg { max-width: 100% !important; height: auto !important; }
+    .cash-explainer { padding: 10px 14px !important; font-size: 10px !important; margin-bottom: 10px !important; }
+    .cash-explainer p { margin: 0 0 4px !important; }
   }
 </style>
 </head>
