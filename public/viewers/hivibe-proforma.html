@@ -3593,8 +3593,10 @@ document.addEventListener('click', e => {
     if (newName && newName.trim()) {
       state.bundles[bi].name = newName.trim();
       saveState();
-      renderBundleCards();
-      renderProforma();
+      // Full render — bundle name appears on the card, in the Pro Forma
+      // table, AND in the Bundles Rollup. Targeted re-renders missed the
+      // rollup, leaving stale "New Bundle" labels behind.
+      render();
     }
     return;
   }
