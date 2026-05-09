@@ -123,7 +123,7 @@ export default function HomePage() {
           <div className="mid-feature-content">
             <span className="project-tag">Wellness Tech</span>
             <h3 className="mid-feature-title">HiVibe Temple</h3>
-            <p className="mid-feature-desc">Immersive light, sound, and full-body vibration. Modular Infinity MagTile floor snaps into any footprint — fixed studio or mobile road case, same vibe anywhere.</p>
+            <p className="mid-feature-desc">Immersive light, sound, and full-body vibration. Modular Infinity MagTile floor snaps into any footprint — fixed studio or mobile road case, same vibe anywhere. Featuring inHarmony Vibroacoustic cushions.</p>
             <div className="project-links">
               <a href="/contact.html?project=HiVibe+Temple&mode=nda" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
               <a href="/contact.html?project=HiVibe+Temple&mode=contact" className="project-link">Contact <span aria-hidden="true">→</span></a>
