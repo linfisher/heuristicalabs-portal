@@ -431,11 +431,11 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
 /* ─── Mid-tier feature (between SPLINTR and 3-card grid) ─── */
 .mid-feature {
   max-width: 1200px;
-  margin: 0 auto 36px;
-  padding: clamp(24px, 2.5vw, 40px);
+  margin: 0 auto 48px;
+  padding: clamp(32px, 4vw, 56px);
   display: grid;
   grid-template-columns: 1.1fr 1fr;
-  gap: clamp(24px, 3vw, 44px);
+  gap: clamp(32px, 4vw, 56px);
   align-items: center;
   background: #0E0E0E;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -448,7 +448,7 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
 }
 .mid-feature-placeholder {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
   border-radius: 14px;
   display: flex;
   flex-direction: column;
@@ -460,56 +460,11 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
   overflow: hidden;
   position: relative;
 }
-.mid-feature-epov {
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  justify-content: space-between;
-  padding: clamp(20px, 2.4vw, 32px);
-  gap: 0;
-}
-.epov-wordmark {
-  font-size: clamp(11px, 1.05vw, 14px);
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #fff;
-  align-self: flex-start;
-}
-.epov-wordmark .epov-tld {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 0.85em;
-  margin-left: 0.05em;
-}
-.epov-beta {
-  font-size: clamp(9px, 0.85vw, 11px);
-  font-weight: 700;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  padding: 4px 10px;
-  border-radius: 999px;
-  align-self: center;
-  margin-top: clamp(8px, 1.5vw, 16px);
-}
-.epov-hero {
-  font-size: clamp(38px, 5.6vw, 76px);
-  font-weight: 900;
-  line-height: 0.9;
-  letter-spacing: -0.035em;
-  color: #fff;
-  text-align: center;
-  margin-top: clamp(8px, 1.2vw, 14px);
-}
-.epov-subhead {
-  font-size: clamp(11px, 1.1vw, 14px);
-  font-weight: 500;
-  line-height: 1.4;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.78);
-  text-align: center;
-  margin-top: clamp(10px, 1.4vw, 16px);
-  margin-bottom: clamp(4px, 1vw, 8px);
+.mid-feature-mcam {
+  background:
+    radial-gradient(ellipse at 30% 30%, rgba(232, 20, 127, 0.18), transparent 60%),
+    linear-gradient(135deg, #1a0a14 0%, #0a0a0a 55%, #14081a 100%);
+  border: 1px solid rgba(232, 20, 127, 0.25);
 }
 .mid-feature-hivibe {
   background:
@@ -524,13 +479,14 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
   font-weight: 700;
   color: rgba(255, 255, 255, 0.42);
 }
+.mid-feature-mcam .mid-feature-kicker { color: rgba(232, 20, 127, 0.85); }
 .mid-feature-hivibe .mid-feature-kicker { color: rgba(245, 196, 24, 0.85); }
 .mid-feature-brand {
   font-size: clamp(36px, 5.2vw, 72px);
   font-weight: 900;
   color: #fff;
   letter-spacing: -0.02em;
-  line-height: 0.92;
+  line-height: 0.95;
   margin-top: 4px;
 }
 .mid-feature-sub {
