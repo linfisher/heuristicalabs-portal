@@ -462,9 +462,9 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
 }
 .mid-feature-mcam {
   background:
-    radial-gradient(ellipse at 30% 30%, rgba(232, 20, 127, 0.18), transparent 60%),
-    linear-gradient(135deg, #1a0a14 0%, #0a0a0a 55%, #14081a 100%);
-  border: 1px solid rgba(232, 20, 127, 0.25);
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.10), transparent 55%),
+    linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
 }
 .mid-feature-hivibe {
   background:
@@ -479,7 +479,7 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
   font-weight: 700;
   color: rgba(255, 255, 255, 0.42);
 }
-.mid-feature-mcam .mid-feature-kicker { color: rgba(232, 20, 127, 0.85); }
+.mid-feature-mcam .mid-feature-kicker { color: rgba(255, 255, 255, 0.92); letter-spacing: 0.32em; }
 .mid-feature-hivibe .mid-feature-kicker { color: rgba(245, 196, 24, 0.85); }
 .mid-feature-brand {
   font-size: clamp(36px, 5.2vw, 72px);

@@ -90,21 +90,23 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* MID-TIER FEATURE: Extreme Video Factory */}
+        {/* MID-TIER FEATURE: extremePOV.ai */}
         <div className="mid-feature" data-reveal>
           <div className="mid-feature-media">
             <div className="mid-feature-placeholder mid-feature-mcam">
-              <span className="mid-feature-kicker">Horizon · Speech · G-Force</span>
-              <span className="mid-feature-brand">EXTREME<br />VIDEO<br />FACTORY</span>
+              <span className="mid-feature-kicker">Now in Private Beta</span>
+              <span className="mid-feature-brand">SEND IT.<br />WE CUT IT.</span>
+              <span className="mid-feature-sub">Ai Multicam Editing for Extreme Sports Creators</span>
             </div>
           </div>
           <div className="mid-feature-content">
-            <span className="project-tag">AI + Live Video</span>
-            <h3 className="mid-feature-title">Extreme Video Factory</h3>
-            <p className="mid-feature-desc">The AI editor senses shifts in horizon, speech patterns, keywords, and G-forces — taking the pain and hours out of syncing up to 18 camera feeds, plus telemetry and geolocation, into one master timeline. Cut straight to the action!</p>
+            <span className="project-tag">MultiCam Action Sports · Ai Edit &amp; Delivery</span>
+            <h3 className="mid-feature-title">extremePOV.ai</h3>
+            <p className="mid-feature-desc">Send it. We cut it. AI multicam editing built for extreme sports creators — auto-sync up to 18 cameras, peak moments picked via G-force and telemetry, customer-ready 4K reels in minutes. Cut 65–70% of edit costs. Now in private beta.</p>
             <div className="project-links">
-              <a href="/contact.html?project=Extreme+Video+Factory&mode=nda" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
-              <a href="/contact.html?project=Extreme+Video+Factory&mode=contact" className="project-link">Contact <span aria-hidden="true">→</span></a>
+              <a href="https://www.extremepov.ai" target="_blank" rel="noopener noreferrer" className="project-link">Visit extremepov.ai <span aria-hidden="true">→</span></a>
+              <a href="/contact.html?project=extremePOV.ai&mode=nda" className="project-link">Request NDA <span aria-hidden="true">→</span></a>
+              <a href="/contact.html?project=extremePOV.ai&mode=contact" className="project-link">Contact <span aria-hidden="true">→</span></a>
             </div>
           </div>
         </div>
