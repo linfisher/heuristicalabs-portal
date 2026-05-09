@@ -461,18 +461,55 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
   position: relative;
 }
 .mid-feature-epov {
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.10), transparent 55%),
-    linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  justify-content: space-between;
+  padding: clamp(20px, 2.4vw, 32px);
+  gap: 0;
 }
-.mid-feature-epov::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    repeating-linear-gradient(115deg, transparent 0 28px, rgba(255, 255, 255, 0.025) 28px 29px);
-  pointer-events: none;
+.epov-wordmark {
+  font-size: clamp(11px, 1.05vw, 14px);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
+  align-self: flex-start;
+}
+.epov-wordmark .epov-tld {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.85em;
+  margin-left: 0.05em;
+}
+.epov-beta {
+  font-size: clamp(9px, 0.85vw, 11px);
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 4px 10px;
+  border-radius: 999px;
+  align-self: center;
+  margin-top: clamp(8px, 1.5vw, 16px);
+}
+.epov-hero {
+  font-size: clamp(38px, 5.6vw, 76px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.035em;
+  color: #fff;
+  text-align: center;
+  margin-top: clamp(8px, 1.2vw, 14px);
+}
+.epov-subhead {
+  font-size: clamp(11px, 1.1vw, 14px);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.78);
+  text-align: center;
+  margin-top: clamp(10px, 1.4vw, 16px);
+  margin-bottom: clamp(4px, 1vw, 8px);
 }
 .mid-feature-hivibe {
   background:
@@ -487,7 +524,6 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
   font-weight: 700;
   color: rgba(255, 255, 255, 0.42);
 }
-.mid-feature-epov .mid-feature-kicker { color: rgba(255, 255, 255, 0.92); letter-spacing: 0.32em; }
 .mid-feature-hivibe .mid-feature-kicker { color: rgba(245, 196, 24, 0.85); }
 .mid-feature-brand {
   font-size: clamp(36px, 5.2vw, 72px);
@@ -496,18 +532,6 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote {
   letter-spacing: -0.02em;
   line-height: 0.92;
   margin-top: 4px;
-}
-.mid-feature-epov .mid-feature-brand {
-  letter-spacing: -0.04em;
-}
-.epov-tld {
-  display: inline-block;
-  font-size: 0.42em;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  vertical-align: 0.95em;
-  margin-left: 0.18em;
-  color: rgba(255, 255, 255, 0.55);
 }
 .mid-feature-sub {
   font-size: clamp(11px, 1vw, 14px);

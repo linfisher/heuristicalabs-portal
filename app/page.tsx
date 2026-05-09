@@ -94,9 +94,10 @@ export default function HomePage() {
         <div className="mid-feature" data-reveal>
           <div className="mid-feature-media">
             <div className="mid-feature-placeholder mid-feature-epov">
-              <span className="mid-feature-kicker">Send It. We Cut It.</span>
-              <span className="mid-feature-brand">EXTREME<br />POV<span className="epov-tld">.Ai</span></span>
-              <span className="mid-feature-sub">Multicam AI for Extreme Sports</span>
+              <span className="epov-wordmark">EXTREME POV<span className="epov-tld">.Ai</span></span>
+              <span className="epov-beta">Now in Private Beta</span>
+              <span className="epov-hero">SEND IT.<br />WE CUT IT.</span>
+              <span className="epov-subhead">Ai Multicam Editing for<br />Extreme Sports Creators.</span>
             </div>
           </div>
           <div className="mid-feature-content">
