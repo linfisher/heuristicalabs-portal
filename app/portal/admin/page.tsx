@@ -16,6 +16,26 @@ const DURATIONS = [
   { label: "90 days",  chip: "90d", ms: 7776000000 },
 ]
 
+const DEFAULT_GRANT_MS = 2592000000 // 30 days
+
+// Bucket the grant's remaining time into the smallest DURATION that still
+// covers it. Used to visually highlight which chip represents the user's
+// current state ("you set this to 90d, so the 90d chip is active").
+function currentBucketMs(remainingMs: number): number {
+  for (const d of DURATIONS) {
+    if (d.ms >= remainingMs) return d.ms
+  }
+  return DEFAULT_GRANT_MS
+}
+
+// If every checked-pre-grant shares one bucket, pre-select that bucket in
+// the Grant Now dropdown. Otherwise fall back to the new-grant default.
+function commonBucketMs(liveGrants: ProjectGrant[], now: number): number {
+  if (liveGrants.length === 0) return DEFAULT_GRANT_MS
+  const buckets = Array.from(new Set(liveGrants.map((g) => currentBucketMs(g.expiresAt - now))))
+  return buckets.length === 1 && buckets[0] !== undefined ? buckets[0] : DEFAULT_GRANT_MS
+}
+
 function grantStatus(grant: ProjectGrant, now: number): "active" | "expiring" | "expired" {
   if (grant.expiresAt <= now) return "expired"
   if (grant.expiresAt <= now + 7 * 24 * 60 * 60 * 1000) return "expiring"
@@ -44,7 +64,7 @@ const STATUS_COLORS = {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: { sent?: string; granted?: string; extended?: string; error?: string }
+  searchParams: { granted?: string; extended?: string; notified?: string; error?: string }
 }) {
   const [{ data: users, totalCount }, activeProjects, archivedProjects] = await Promise.all([
     clerkClient.users.getUserList({ limit: 200 }),
@@ -88,39 +108,24 @@ export default async function AdminPage({
         </div>
 
         {/* Flash messages */}
-        {searchParams.sent === "1" && (
-          <FlashMessage color="#22c55e" bg="#0f2d0f" border="#22c55e">
-            Grant email sent. Admin will receive duration chips to finalize access.
-          </FlashMessage>
-        )}
         {searchParams.granted === "1" && (
           <FlashMessage color="#22c55e" bg="#0f2d0f" border="#22c55e">
-            Access granted. User notified by email.
+            Access granted.
           </FlashMessage>
         )}
         {searchParams.extended === "1" && (
-          <FlashMessage color="#F5C418" bg="#2d2200" border="#F5C418">
-            Access extended successfully.
+          <FlashMessage color="#22c55e" bg="#0f2d0f" border="#22c55e">
+            Access extended.
           </FlashMessage>
         )}
-        {searchParams.error === "grant_failed" && (
-          <FlashMessage color="#ef4444" bg="#2d0f0f" border="#ef4444">
-            Failed to grant access. Try again.
+        {searchParams.notified === "1" && (
+          <FlashMessage color="#22c55e" bg="#0f2d0f" border="#22c55e">
+            User notified by email.
           </FlashMessage>
         )}
-        {searchParams.error === "extend_failed" && (
+        {searchParams.error && (
           <FlashMessage color="#ef4444" bg="#2d0f0f" border="#ef4444">
-            Failed to extend access. Try again.
-          </FlashMessage>
-        )}
-        {searchParams.error === "revoke_failed" && (
-          <FlashMessage color="#ef4444" bg="#2d0f0f" border="#ef4444">
-            Failed to revoke access. Try again.
-          </FlashMessage>
-        )}
-        {searchParams.error === "email_failed" && (
-          <FlashMessage color="#ef4444" bg="#2d0f0f" border="#ef4444">
-            Failed to send grant email. Try again or use Direct Grant.
+            Action failed ({searchParams.error}). Try again.
           </FlashMessage>
         )}
 
@@ -144,7 +149,7 @@ export default async function AdminPage({
             fontSize: "0.8rem",
           }}
         >
-          <strong style={{ color: "#888888" }}>How this works</strong> — pick projects and a duration under <em>Grant Access</em>. The user gets access immediately and receives a notification email with a direct link to the project.
+          <strong style={{ color: "#888888" }}>How this works</strong> — pick projects and a duration under <em>Grant Access</em>, or use the <em>Set to:</em> chips next to each existing grant to change duration. Changes are silent. When you&apos;re done making changes, click <em>Notify User</em> to send one email summarizing their current access.
         </div>
 
         {/* Projects management */}
@@ -212,6 +217,7 @@ export default async function AdminPage({
                           const projectName = getProject(grant.slug)?.name ?? grant.slug
                           const days = daysRemaining(grant.expiresAt, now)
                           const expiry = formatExpiry(grant.expiresAt)
+                          const activeBucket = currentBucketMs(grant.expiresAt - now)
 
                           return (
                             <div
@@ -275,7 +281,7 @@ export default async function AdminPage({
                                     <input type="hidden" name="durationMs" value={d.ms} />
                                     <button
                                       type="submit"
-                                      style={btnDurationChip}
+                                      style={d.ms === activeBucket ? btnDurationChipActive : btnDurationChip}
                                       title={`Set ${projectName} access to ${d.label}`}
                                     >
                                       {d.chip}
@@ -307,7 +313,7 @@ export default async function AdminPage({
                         name="projectSlug"
                         checkedSlugs={new Set(liveGrants.map((g) => g.slug))}
                       />
-                      <select name="durationMs" style={selectStyle}>
+                      <select name="durationMs" style={selectStyle} defaultValue={commonBucketMs(liveGrants, now)}>
                         {DURATIONS.map((d) => (
                           <option key={d.ms} value={d.ms}>{d.label}</option>
                         ))}
@@ -316,6 +322,18 @@ export default async function AdminPage({
                         Grant Now
                       </button>
                     </form>
+                    {hasAnyLiveGrant && (
+                      <form
+                        action="/portal/admin/notify"
+                        method="POST"
+                        style={{ marginTop: "8px" }}
+                      >
+                        <input type="hidden" name="userId" value={user.id} />
+                        <button type="submit" style={btnNotify} title="Send a summary email of this user's current access">
+                          Notify User
+                        </button>
+                      </form>
+                    )}
                   </div>
 
                 </div>
@@ -470,6 +488,25 @@ const btnDurationChip: React.CSSProperties = {
   fontWeight: 600,
   padding: "2px 7px",
   whiteSpace: "nowrap",
+}
+
+const btnDurationChipActive: React.CSSProperties = {
+  ...btnDurationChip,
+  backgroundColor: "#22c55e",
+  border: "1px solid #22c55e",
+  color: "#0a0a0a",
+}
+
+const btnNotify: React.CSSProperties = {
+  backgroundColor: "transparent",
+  border: "1px solid #2a2a2a",
+  borderRadius: "4px",
+  color: "#aaaaaa",
+  cursor: "pointer",
+  fontSize: "0.75rem",
+  fontWeight: 600,
+  padding: "6px 12px",
+  width: "100%",
 }
 
 const btnRevokeLink: React.CSSProperties = {
