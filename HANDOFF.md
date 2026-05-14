@@ -1,9 +1,8 @@
 # Session Handoff — Resume Here
 
-**Last updated:** 2026-05-14
-**HEAD:** `claude/review-session-failure-3rrGx` → PR #4 open against `main`
-**`main` HEAD:** `036ce7c` (PR #3 — extremePOV.ai card rebrand)
-**Status:** Live homepage healthy. Admin grant cache bug fixed in PR #4, awaiting review/merge.
+**Last updated:** 2026-05-14 (post PR #4 merge)
+**`main` HEAD:** `8717c31` (PR #4 — admin grant UI: pre-checked boxes + fresh data on every render)
+**Status:** All current work shipped + live on VPS. Local and prod at parity. Nothing blocking.
 
 > Transient doc. Rewrite or delete once you pick up new work.
 
@@ -11,24 +10,25 @@
 
 ## What happened recently
 
-### Session that produced this branch (`review-session-failure-3rrGx`)
+### PR #4 — admin grant cache + UX (MERGED as `8717c31`)
 
 User reported two admin-flow symptoms:
 
 1. After approving a project access request via email, the admin page didn't show the new grant in Current Access.
 2. Clicking **Grant Now** with project checkboxes ticked: button stuck ~2s, page scrolled to top, no visible change.
 
-**Root cause:** four grant-mutation routes redirected back to `/portal/admin` without calling `revalidatePath` — Next's Router Cache re-served the stale page. Same rule the project-CRUD routes have followed since Apr 19 (CLAUDE.md critical rule #225782); the grant routes hadn't been brought in line.
+**Root causes — two:**
 
-**Fix (commit `a7ae456`):** added `revalidatePath("/portal/admin")` + `revalidatePath("/portal")` to:
-- `app/portal/admin/direct-grant/route.ts`
-- `app/portal/admin/extend/route.ts`
-- `app/portal/admin/revoke/route.ts`
-- `app/api/access/accept/route.ts`
+1. Four grant-mutation routes redirected back to `/portal/admin` without calling `revalidatePath` — Next's Router Cache re-served the stale page. Same rule the project-CRUD routes have followed since Apr 19; the grant routes hadn't been brought in line.
+2. The Grant Access checkboxes always rendered blank, so a successful grant looked like nothing happened — admins had to cross-reference the green badges in Current Access on the left to see what each user already had.
 
-`deny/route.ts` and the legacy email-invite `grant/route.ts` don't change grants — no fix needed.
+**Fixes shipped in PR #4:**
+- `a7ae456` — `revalidatePath("/portal/admin")` + `revalidatePath("/portal")` added to `app/portal/admin/direct-grant/route.ts`, `app/portal/admin/extend/route.ts`, `app/portal/admin/revoke/route.ts`, `app/api/access/accept/route.ts`. (`deny/route.ts` and the legacy email-invite `grant/route.ts` don't change grants — no fix needed.)
+- `7d69439` — `force-dynamic` on `/portal/admin` + `/portal` so Clerk grants are never cached at the page level.
+- `315f97c` — docs catch-up (CLAUDE.md revalidatePath rule extended to grant routes; HANDOFF.md refresh).
+- `bf00f13` — Admin Grant Access UX: pre-check every box whose slug appears in the user's live grants; label color goes white when checked. Form behavior unchanged: submitting refreshes every checked grant to the selected duration; unchecked existing grants are left alone.
 
-PR #4: https://github.com/linfisher/heuristicalabs-portal/pull/4 (no CI configured on PRs; auto-deploy fires on push to `main` only).
+PR #4 merged via merge commit `8717c31`; VPS auto-deployed via `.github/workflows/deploy.yml` on push to `main`.
 
 ### Session before that — the PR #1 incident
 
@@ -60,9 +60,8 @@ Saved scenarios in Upstash Redis under `proforma-scenarios:<userId>` (admin-only
 
 ## Parity check
 
-- Local working tree at branch tip `a7ae456` (HEAD of `claude/review-session-failure-3rrGx`).
-- `origin/main` at `036ce7c`. PR #4 not yet merged → VPS production is one commit behind the fix.
-- VPS auto-deploys on push to `main` via `.github/workflows/deploy.yml`. Merging PR #4 ships the fix.
+- `origin/main` at `8717c31` (PR #4 merge).
+- VPS auto-deployed via `.github/workflows/deploy.yml` on push to `main`.
 - `.registry.json`: 5 active projects (`1-to-1-bet-matching`, `akasha-ai`, `hivibe-temple`, `no-limit-chess`, `sky-combat-aces-video-factory`). Synced via predev hook.
 
 ---

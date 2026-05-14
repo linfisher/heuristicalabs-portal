@@ -200,13 +200,13 @@ export default async function AdminPage({
                   {/* Current Access */}
                   <div style={{ flex: "1 1 280px", minWidth: 0 }}>
                     <div style={colHeader}>Current Access</div>
-                    {grants.length === 0 ? (
+                    {liveGrants.length === 0 ? (
                       <span style={{ color: "#444444", fontSize: "0.8rem", fontStyle: "italic" }}>
                         No access yet
                       </span>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {grants.map((grant) => {
+                        {liveGrants.map((grant) => {
                           const status = grantStatus(grant, now)
                           const colors = STATUS_COLORS[status]
                           const projectName = getProject(grant.slug)?.name ?? grant.slug
