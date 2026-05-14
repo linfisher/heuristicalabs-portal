@@ -3,14 +3,11 @@ import { NextResponse } from "next/server"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { clerkClient } from "@/lib/clerk"
-import { getProject } from "@/lib/projects"
 import { isAdminEmail } from "@/lib/auth"
-import { VALID_DURATIONS_MS } from "@/lib/durations"
 import { checkSameOrigin } from "@/lib/csrf"
-import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
-export const runtime = 'nodejs'
+export const runtime = "nodejs"
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -34,52 +31,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
   const targetUserId = formData.get("userId") as string | null
-  const projectSlug = formData.get("projectSlug") as string | null
-  const durationMsRaw = formData.get("durationMs") as string | null
 
-  if (!targetUserId || !projectSlug || !durationMsRaw) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+  if (!targetUserId) {
+    return NextResponse.json({ error: "Missing userId" }, { status: 400 })
   }
 
-  const durationMs = parseInt(durationMsRaw, 10)
-  if (Number.isNaN(durationMs) || !VALID_DURATIONS_MS.has(durationMs)) {
-    return NextResponse.json({ error: "Invalid duration" }, { status: 400 })
+  // Self-archive guard
+  if (targetUserId === userId) {
+    redirect("/portal/admin?error=cannot_archive_self")
   }
-
-  if (!getProject(projectSlug)) {
-    return NextResponse.json({ error: "Unknown project" }, { status: 400 })
-  }
-
-  const expiresAt = Date.now() + durationMs
 
   try {
     const targetUser = await clerkClient.users.getUser(targetUserId)
-    const currentGrants =
-      (targetUser.publicMetadata?.projects as ProjectGrant[] | undefined) ?? []
-
-    const updated: ProjectGrant[] = [
-      ...currentGrants.filter((g) => g.slug !== projectSlug),
-      { slug: projectSlug, expiresAt },
-    ]
-
+    const currentPrivate = (targetUser.privateMetadata ?? {}) as Record<string, unknown>
     await clerkClient.users.updateUserMetadata(targetUserId, {
-      publicMetadata: { projects: updated },
+      privateMetadata: { ...currentPrivate, archivedAt: Date.now() },
     })
   } catch {
-    redirect("/portal/admin?error=extend_failed")
+    redirect("/portal/admin?error=archive_failed")
   }
 
   console.info("[admin]", {
-    action: "extend",
+    action: "user-archive",
     adminUserId: userId,
     targetUserId,
-    projectSlug,
-    durationMs,
     timestamp: new Date().toISOString(),
   })
 
   revalidatePath("/portal/admin")
-  revalidatePath("/portal")
-
-  redirect("/portal/admin?extended=1")
+  redirect("/portal/admin?archived=1")
 }
