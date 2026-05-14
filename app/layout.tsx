@@ -9,11 +9,24 @@ const exo2 = Exo_2({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://heuristicalabs.com"),
   title: {
     default: "Heuristica Labs",
     template: "%s — Heuristica Labs",
   },
   description: "Heuristica Labs is an independent venture studio building bold, original technology companies from the ground up.",
+  openGraph: {
+    title: "Heuristica Labs",
+    description: "Venture Studio. Bold Ideas. Real Products.",
+    url: "/",
+    siteName: "Heuristica Labs",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Heuristica Labs",
+    description: "Venture Studio. Bold Ideas. Real Products.",
+  },
 };
 
 export const viewport: Viewport = {

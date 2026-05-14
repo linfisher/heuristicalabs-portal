@@ -6,12 +6,6 @@ import "./main-site.css"
 export const metadata: Metadata = {
   title: "Heuristica Labs — Venture Studio",
   description: "Heuristica Labs is an independent venture studio building bold, original technology companies from the ground up.",
-  openGraph: {
-    title: "Heuristica Labs",
-    description: "Venture Studio. Bold Ideas. Real Products.",
-    url: "https://heuristicalabs.com",
-    type: "website",
-  },
   robots: "index, follow",
 }
 
