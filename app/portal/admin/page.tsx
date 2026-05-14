@@ -290,7 +290,10 @@ export default async function AdminPage({
                     )}
                   </div>
 
-                  {/* Grant Access */}
+                  {/* Grant Access — boxes are pre-checked for projects the user
+                      currently has a LIVE grant on, so the admin can see existing
+                      access at a glance. Submitting refreshes every checked grant
+                      to the selected duration. */}
                   <div style={{ flex: "1 1 220px", minWidth: 0 }}>
                     <div style={colHeader}>Grant Access</div>
                     <form
@@ -299,7 +302,11 @@ export default async function AdminPage({
                       style={{ display: "flex", flexDirection: "column", gap: "6px" }}
                     >
                       <input type="hidden" name="userId" value={user.id} />
-                      <ProjectCheckboxList projects={activeProjects} name="projectSlug" />
+                      <ProjectCheckboxList
+                        projects={activeProjects}
+                        name="projectSlug"
+                        checkedSlugs={new Set(liveGrants.map((g) => g.slug))}
+                      />
                       <select name="durationMs" style={selectStyle}>
                         {DURATIONS.map((d) => (
                           <option key={d.ms} value={d.ms}>{d.label}</option>
@@ -358,7 +365,15 @@ function FlashMessage({
   )
 }
 
-function ProjectCheckboxList({ projects, name }: { projects: { slug: string; name: string }[]; name: string }) {
+function ProjectCheckboxList({
+  projects,
+  name,
+  checkedSlugs,
+}: {
+  projects: { slug: string; name: string }[]
+  name: string
+  checkedSlugs?: Set<string>
+}) {
   return (
     <div
       style={{
@@ -373,22 +388,31 @@ function ProjectCheckboxList({ projects, name }: { projects: { slug: string; nam
         gap: "4px",
       }}
     >
-      {projects.map((p) => (
-        <label
-          key={p.slug}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            color: "#cccccc",
-            fontSize: "0.75rem",
-            cursor: "pointer",
-          }}
-        >
-          <input type="checkbox" name={name} value={p.slug} style={{ accentColor: "#E8147F" }} />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
-        </label>
-      ))}
+      {projects.map((p) => {
+        const isChecked = checkedSlugs?.has(p.slug) ?? false
+        return (
+          <label
+            key={p.slug}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              color: isChecked ? "#ffffff" : "#cccccc",
+              fontSize: "0.75rem",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              name={name}
+              value={p.slug}
+              defaultChecked={isChecked}
+              style={{ accentColor: "#E8147F" }}
+            />
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+          </label>
+        )
+      })}
       {projects.length === 0 && (
         <span style={{ color: "#555", fontSize: "0.7rem" }}>No active projects</span>
       )}
