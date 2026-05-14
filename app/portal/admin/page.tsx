@@ -6,6 +6,8 @@ import { getActiveProjects, getArchivedProjects } from "@/lib/projects-registry"
 import { AdminProjectsPanel } from "@/components/AdminProjectsPanel"
 import type { ProjectGrant } from "@/lib/types"
 
+export const dynamic = "force-dynamic"
+
 const DURATIONS = [
   { label: "24 hours", chip: "24h", ms: 86400000 },
   { label: "3 days",   chip: "3d",  ms: 259200000 },
