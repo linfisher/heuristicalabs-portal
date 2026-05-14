@@ -8,6 +8,8 @@ import AddProjectButton from "@/components/AddProjectButton"
 import ProjectAdminActions from "@/components/ProjectAdminActions"
 import type { ProjectGrant } from "@/lib/types"
 
+export const dynamic = "force-dynamic"
+
 const MS_72H = 72 * 60 * 60 * 1000
 
 function formatDate(ms: number): string {
