@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidatePath } from "next/cache"
 import { verifyToken, deleteGrantGroup } from "@/lib/tokens"
 import { clerkClient } from "@/lib/clerk"
 import { sendEmail } from "@/lib/email"
@@ -68,6 +69,9 @@ export async function GET(request: Request): Promise<NextResponse> {
   } catch {
     return htmlPage("<h1 style=\"color: #E8147F;\">Error</h1><p>Failed to apply access grant. Please try again later or contact support.</p>", 500)
   }
+
+  revalidatePath("/portal/admin")
+  revalidatePath("/portal")
 
   const projectName = getProject(payload.projectSlug)?.name ?? payload.projectSlug
   const projectUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/projects/${payload.projectSlug}?welcome=1`

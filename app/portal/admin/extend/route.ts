@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
 import React from "react"
 import { clerkClient } from "@/lib/clerk"
 import { getProject } from "@/lib/projects"
@@ -109,6 +110,9 @@ export async function POST(request: Request) {
     durationMs,
     timestamp: new Date().toISOString(),
   })
+
+  revalidatePath("/portal/admin")
+  revalidatePath("/portal")
 
   redirect("/portal/admin?extended=1")
 }
