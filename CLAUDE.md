@@ -89,6 +89,10 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 | `share-token:{jti}` | Per-file share token; TTL = duration on creation; multi-use within window; `redis.del()` to revoke |
 | `proforma-scenarios:{userId}` | Saved Pro Forma scenarios (admin-only, server-side via `/api/proforma-scenarios`) |
 
+## CI / branch protection
+- `.github/workflows/ci.yml` runs `tsc --noEmit` + `next build` on every PR to `main` and on pushes to `main`. Placeholder env values inline in the workflow — real secrets stay on the VPS and in Vercel and never reach the CI runner.
+- Branch protection on `main` (classic UI, not rulesets) requires the `Typecheck + build` status check AND requires the PR branch to be up-to-date with `main` before merge. Renaming the workflow job means re-pointing the required check, or the gate goes inert.
+
 ## Deploy
 - **Primary production URL**: `https://heuristicalabs.com` (VPS PM2, port 3001; nginx reverse-proxies from apex). `www.heuristicalabs.com` also serves here.
 - **Old subdomain**: `portal.heuristicalabs.com` fully retired Apr 19 2026 — nginx config, SSL cert, and redirect all removed. DNS A record in GoDaddy should be deleted by user.
@@ -252,6 +256,8 @@ scp ~/Downloads/file.pdf heuristica-vps:/var/www/portal-content/projects/<slug>/
 | File | Purpose |
 |---|---|
 | `app/layout.tsx` | Root layout, ClerkProvider, Exo 2 font |
+| `app/icon.tsx` | 32×32 favicon — black bg, pink "H" (`#E8147F`), generated via `next/og` |
+| `app/apple-icon.tsx` | 180×180 iOS home-screen icon, same design |
 | `app/page.tsx` | Public homepage (imports `main-site.css`) |
 | `app/main-site.css` | All main-site styles (ported from old Vite site; plain CSS) |
 | `components/MainSiteEffects.tsx` | Scroll reveal, nav glass, lightbox, stat counter, swipe-to-back |

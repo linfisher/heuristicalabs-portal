@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Placeholder values so module-load-time env reads don't crash the build.
+      # Production secrets live on the VPS and in Vercel; CI must never see them.
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+      CLERK_SECRET_KEY: sk_test_ci_placeholder
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /portal/sign-in
+      NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: /portal
+      NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: /portal
+      ADMIN_EMAIL: ci@example.com
+      TOKEN_SECRET: ci-placeholder-token-secret-min-32-bytes-long-xxxxx
+      UPSTASH_REDIS_REST_URL: https://ci-placeholder.upstash.io
+      UPSTASH_REDIS_REST_TOKEN: ci_placeholder_token
+      RESEND_API_KEY: re_ci_placeholder
+      FROM_EMAIL: ci@example.com
+      VPS_ORIGIN: https://files.example.com
+      VPS_SECRET: ci_placeholder
+      NEXT_PUBLIC_APP_URL: http://localhost:8888
+      SKIP_VPS_SYNC: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
