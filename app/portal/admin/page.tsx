@@ -4,6 +4,7 @@ import { readGrants } from "@/lib/auth"
 import { getProject } from "@/lib/projects"
 import { getActiveProjects, getArchivedProjects } from "@/lib/projects-registry"
 import { AdminProjectsPanel } from "@/components/AdminProjectsPanel"
+import { GrantAccessForm } from "@/components/GrantAccessForm"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -322,30 +323,18 @@ export default async function AdminPage({
 
                   {/* Grant Access — boxes are pre-checked for projects the user
                       currently has a LIVE grant on, so the admin can see existing
-                      access at a glance. Submitting refreshes every checked grant
-                      to the selected duration. */}
+                      access at a glance. The Grant Now button is dimmed until the
+                      admin actually changes something (toggles a box or changes the
+                      duration), then lights up to signal the change is ready to apply. */}
                   <div style={{ flex: "1 1 220px", minWidth: 0 }}>
                     <div style={colHeader}>Grant Access</div>
-                    <form
-                      action="/portal/admin/direct-grant"
-                      method="POST"
-                      style={{ display: "flex", flexDirection: "column", gap: "6px" }}
-                    >
-                      <input type="hidden" name="userId" value={user.id} />
-                      <ProjectCheckboxList
-                        projects={activeProjects}
-                        name="projectSlug"
-                        checkedSlugs={new Set(liveGrants.map((g) => g.slug))}
-                      />
-                      <select name="durationMs" style={selectStyle} defaultValue={commonBucketMs(liveGrants, now)}>
-                        {DURATIONS.map((d) => (
-                          <option key={d.ms} value={d.ms}>{d.label}</option>
-                        ))}
-                      </select>
-                      <button type="submit" style={btnPrimary}>
-                        Grant Now
-                      </button>
-                    </form>
+                    <GrantAccessForm
+                      userId={user.id}
+                      projects={activeProjects.map((p) => ({ slug: p.slug, name: p.name }))}
+                      initialCheckedSlugs={liveGrants.map((g) => g.slug)}
+                      initialDurationMs={commonBucketMs(liveGrants, now)}
+                      durations={DURATIONS}
+                    />
                     {hasAnyLiveGrant && (
                       <form
                         action="/portal/admin/notify"
@@ -471,61 +460,6 @@ function FlashMessage({
   )
 }
 
-function ProjectCheckboxList({
-  projects,
-  name,
-  checkedSlugs,
-}: {
-  projects: { slug: string; name: string }[]
-  name: string
-  checkedSlugs?: Set<string>
-}) {
-  return (
-    <div
-      style={{
-        background: "#1a1a1a",
-        border: "1px solid #2a2a2a",
-        borderRadius: "4px",
-        padding: "6px 8px",
-        maxHeight: "220px",
-        overflowY: "auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: "4px",
-      }}
-    >
-      {projects.map((p) => {
-        const isChecked = checkedSlugs?.has(p.slug) ?? false
-        return (
-          <label
-            key={p.slug}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              color: isChecked ? "#ffffff" : "#cccccc",
-              fontSize: "0.75rem",
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              name={name}
-              value={p.slug}
-              defaultChecked={isChecked}
-              style={{ accentColor: "#E8147F" }}
-            />
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
-          </label>
-        )
-      })}
-      {projects.length === 0 && (
-        <span style={{ color: "#555", fontSize: "0.7rem" }}>No active projects</span>
-      )}
-    </div>
-  )
-}
-
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div
@@ -542,28 +476,6 @@ function StatCard({ label, value, color }: { label: string; value: number; color
       </div>
     </div>
   )
-}
-
-const selectStyle: React.CSSProperties = {
-  backgroundColor: "#1a1a1a",
-  border: "1px solid #2a2a2a",
-  borderRadius: "4px",
-  color: "#cccccc",
-  fontSize: "0.8rem",
-  padding: "5px 8px",
-  width: "100%",
-}
-
-const btnPrimary: React.CSSProperties = {
-  backgroundColor: "#E8147F",
-  border: "none",
-  borderRadius: "4px",
-  color: "#ffffff",
-  cursor: "pointer",
-  fontSize: "0.8rem",
-  fontWeight: 600,
-  padding: "7px 14px",
-  width: "100%",
 }
 
 const btnDurationChip: React.CSSProperties = {
