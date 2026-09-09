@@ -21,6 +21,8 @@ const RATE_LIMIT_WINDOW_S = 3600
 const VALID_PROJECTS = new Set([
   "SPLINTR",
   "extremePOV.ai",
+  "HALO",
+  "OneUforia Arthaus",
   "Extreme Video Factory",
   "HiVibe Temple",
   "No Limit Chess",

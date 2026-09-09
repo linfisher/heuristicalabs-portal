@@ -35,7 +35,35 @@ export default function MainSiteEffects() {
       navObserver.observe(hero)
     }
 
-    // Smooth scroll for anchor links
+    // Smooth scroll for anchor links.
+    // Hand-rolled rather than scrollIntoView({behavior:"smooth"}): the native
+    // duration is browser-controlled and slow over the long distances between
+    // project blocks, and it ignores the fixed nav overlapping the target.
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const NAV_OFFSET = 96
+    const SCROLL_MS = 620
+    let scrollRAF = 0
+
+    function scrollToTarget(target: Element) {
+      const startY = window.scrollY
+      const maxY = document.documentElement.scrollHeight - window.innerHeight
+      const endY = Math.max(0, Math.min(maxY, startY + target.getBoundingClientRect().top - NAV_OFFSET))
+      const distance = endY - startY
+      if (prefersReducedMotion || Math.abs(distance) < 2) {
+        window.scrollTo(0, endY)
+        return
+      }
+      cancelAnimationFrame(scrollRAF)
+      const start = performance.now()
+      const step = (now: number) => {
+        const progress = Math.min((now - start) / SCROLL_MS, 1)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        window.scrollTo(0, startY + distance * eased)
+        if (progress < 1) scrollRAF = requestAnimationFrame(step)
+      }
+      scrollRAF = requestAnimationFrame(step)
+    }
+
     const anchorHandlers: Array<{ el: Element; handler: (e: Event) => void }> = []
     document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
       const handler = (e: Event) => {
@@ -44,7 +72,7 @@ export default function MainSiteEffects() {
         const target = document.querySelector(href)
         if (target) {
           e.preventDefault()
-          target.scrollIntoView({ behavior: "smooth" })
+          scrollToTarget(target)
         }
       }
       anchor.addEventListener("click", handler)
@@ -154,6 +182,7 @@ export default function MainSiteEffects() {
     document.addEventListener("touchend", onTouchEnd, { passive: true })
 
     return () => {
+      cancelAnimationFrame(scrollRAF)
       revealObserver.disconnect()
       navObserver?.disconnect()
       statObserver.disconnect()
