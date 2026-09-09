@@ -31,6 +31,7 @@ function chipFor(page: ProjectPage): { label: string; bg: string; border: string
   if (page.fileType === "audio") return { label: "AUDIO", bg: "#2d1a00", border: "#fb923c", text: "#fb923c" }
   if (page.fileType === "file") return { label: "FILE", bg: "#1a1a1a", border: "#555", text: "#aaa" }
   if (page.fileType === "viewer") return { label: "3D", bg: "#2a1f00", border: "#c99b3a", text: "#c99b3a" }
+  if (page.fileType === "bundle") return { label: "VIEWER", bg: "#2a1f00", border: "#c99b3a", text: "#c99b3a" }
   if (page.fileType === "embed" || page.fileType === "link") {
     const c = embedSourceColor(page.embedSource ?? "generic")
     const label = page.embedSource === "youtube" ? "YOUTUBE"
@@ -303,7 +304,14 @@ function CardGrid({ pages, slug, adminUser, sections }: { pages: ProjectPage[]; 
                   alt={page.title}
                   style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block" }}
                 />
-              ) : page.fileType === "viewer" ? (
+              ) : page.fileType === "bundle" && page.thumbnailSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={page.thumbnailSrc}
+                  alt={page.title}
+                  style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block" }}
+                />
+              ) : page.fileType === "viewer" || page.fileType === "bundle" ? (
                 <ThumbPlaceholder icon="viewer" />
               ) : (
                 <ThumbPlaceholder icon="generic" />
