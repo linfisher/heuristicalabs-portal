@@ -206,6 +206,28 @@ Single self-contained file: `public/viewers/hivibe-proforma.html` (~3,800 lines)
 - **Failure UX**: persistent `ErrorPanel` with per-file reasons + Dismiss button; never auto-reloads on failure. Auto-reload only runs when everything succeeded.
 - **revalidatePath on EVERY mutation**: create/rename/archive/restore/delete project + upload/add-link/page-delete/page-rename + grant mutations (direct-grant / extend / revoke / `/api/access/accept`). Without this, Next.js Router Cache keeps stale pages until a hard refresh — e.g. admin clicks Grant Now, the route redirects back to `/portal/admin?granted=1`, but the cached page re-serves stale grants and the admin sees no visible change.
 
+## Static Bundles (fileType: "bundle")
+
+For a deliverable that is a whole static site rather than one self-contained HTML file
+(the TireSledz engineering viewer: entry HTML plus its own JS/CSS/fonts/`.glb` models).
+
+- Registry page: `fileType: "bundle"`, `path` = the DIRECTORY under the project's content
+  dir, `entry` = the file to open (defaults to `index.html`).
+- `app/api/bundle/[slug]/[...path]/route.ts` serves ANY file beneath that directory under
+  the same Clerk + grant checks as `/api/proxy`. It finds the owning page by directory
+  prefix, so relative asset requests resolve without every file needing a registry entry.
+  There is deliberately NO share-token path — bundles are grant-gated only.
+- Content types come from `mimeTypeFromName()`. Unknown extensions fall back to
+  `application/octet-stream` under `nosniff`, which blocks module scripts — add new
+  extensions to `lib/file-type.ts` BEFORE a bundle that uses them ships.
+- The project page frames the entry by URL (not `srcDoc`) so relative paths resolve back
+  through the authed route. `next.config.mjs` has an `X-Frame-Options: SAMEORIGIN`
+  exception scoped to `/api/bundle/:path*` for exactly this.
+- Card art: bundles use the interactive-viewer chip and placeholder, and honour
+  `thumbnailSrc`. For NDA work point `thumbnailSrc` at the authed bundle route rather than
+  `public/thumbnails/` (which is world-readable) — masters live in `ops/portal-thumbs/`
+  because `rsync --delete` on a bundle refresh wipes the deployed copy.
+
 ## Interactive Viewers (fileType: "viewer")
 For pages that need an interactive HTML embed (e.g. the Three.js CAD viewer, the Pro Forma viewer), the page entry in `registry.json` uses `fileType: "viewer"` and a `viewerSrc` pointing at a file committed in the repo under `public/viewers/`. The project detail page route (`app/portal/projects/[slug]/[...path]/page.tsx`) reads that file from disk and injects it into a sandboxed iframe via `srcDoc` — bypassing `X-Frame-Options: DENY`. Sandbox is `allow-scripts allow-same-origin allow-modals allow-downloads`. Thumbnails go in `public/thumbnails/<name>.png` and are referenced by the page's `thumbnailSrc`.
 
@@ -310,6 +332,15 @@ scp ~/Downloads/file.pdf heuristica-vps:/var/www/portal-content/projects/<slug>/
 11. `Referrer-Policy` in `next.config.mjs` MUST be `strict-origin-when-cross-origin`, NEVER `no-referrer`. `no-referrer` causes browsers to send `Origin: null` on same-origin form POSTs, which makes `checkSameOrigin` reject every admin form submission silently.
 12. When deleting a project, `app/portal/admin/projects/delete/route.ts` MUST cascade through every Clerk user and strip grants for that slug — otherwise stale "ghost" grants pointing at deleted projects persist in `user.publicMetadata.projects`. Same cascade runs on archive via the shared helper.
 13. `window.print()` MUST be called synchronously inside the click/event handler — wrapping in `setTimeout` silently blocks the dialog (browsers require user-gesture context). If the in-iframe print is unreliable, postMessage out to `IframePrintBridge` rendered next to the iframe.
+15. CSP `connect-src` MUST include `blob:`. three.js `GLTFLoader` unpacks textures embedded
+    in a `.glb` into object URLs and FETCHES them; `fetch()` is governed by `connect-src`,
+    not `img-src`. Without it every embedded texture fails with "Couldn't load texture
+    blob:..." and models render untextured (white). Does not reproduce on a plain static
+    server — only behind the app CSP.
+16. Bundle content directories are replaced with `rsync --delete` on every upstream refresh.
+    Anything we add inside one (card thumbnail, local patch) is destroyed by that sync and
+    must be re-applied. Keep masters in the repo.
+
 14. Share tokens (`lib/share-tokens.ts`) are NOT single-use — they're multi-use within their TTL window. Verify checks signature AND Redis presence so admin can revoke via `redis.del('share-token:<jti>')`. Don't accidentally call `redis.del()` on verify (that's the project access token pattern in `lib/tokens.ts`, which IS single-use).
 
 ## Common Pitfalls
