@@ -47,6 +47,25 @@ export function mimeTypeFromName(name: string): string {
     flac: "audio/flac",
     m4a: "audio/mp4",
     opus: "audio/opus",
+    // Web-asset types — required so a "bundle" page's ES modules, styles and
+    // fonts are served with executable content types rather than octet-stream
+    // (which nosniff would refuse to run).
+    html: "text/html; charset=utf-8",
+    js: "text/javascript; charset=utf-8",
+    mjs: "text/javascript; charset=utf-8",
+    css: "text/css; charset=utf-8",
+    json: "application/json; charset=utf-8",
+    map: "application/json; charset=utf-8",
+    txt: "text/plain; charset=utf-8",
+    xml: "application/xml; charset=utf-8",
+    woff: "font/woff",
+    woff2: "font/woff2",
+    ttf: "font/ttf",
+    otf: "font/otf",
+    glb: "model/gltf-binary",
+    gltf: "model/gltf+json",
+    wasm: "application/wasm",
+    ico: "image/x-icon",
   }
   return map[ext] ?? "application/octet-stream"
 }

@@ -72,6 +72,13 @@ const nextConfig = {
           { key: "Content-Security-Policy", value: csp },
         ],
       },
+      {
+        // Bundle assets are framed by the project page on the same origin,
+        // so the blanket DENY above would block the viewer. Listed after the
+        // catch-all so it overrides for this route only.
+        source: "/api/bundle/:path*",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
     ]
   },
 }

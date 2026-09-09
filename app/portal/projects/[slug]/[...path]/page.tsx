@@ -179,6 +179,24 @@ export default async function ProjectContentPage({ params }: Props) {
     )
   }
 
+  // Bundle — a multi-file static site served by /api/bundle behind the same
+  // auth as the proxy. Framed by URL (not srcDoc) so its relative asset paths
+  // resolve back through the authed route.
+  if (page.fileType === "bundle") {
+    const entry = page.entry ?? "index.html"
+    const bundleUrl = `/api/bundle/${slug}/${filePath}/${entry}`
+    return (
+      <div style={{ position: "fixed", top: "64px", left: 0, right: 0, bottom: 0 }}>
+        <iframe
+          src={bundleUrl}
+          title={pageTitle}
+          sandbox="allow-scripts allow-same-origin allow-downloads allow-modals allow-popups"
+          style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+        />
+      </div>
+    )
+  }
+
   // PDF — proxy route handles auth + byte streaming; no server-side fetch needed
   if (page.fileType === "pdf") {
     const proxyUrl = `/api/proxy/${slug}/${filePath}`;
