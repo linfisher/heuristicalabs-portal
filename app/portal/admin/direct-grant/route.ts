@@ -69,13 +69,19 @@ export async function POST(request: Request) {
     await clerkClient.users.updateUserMetadata(targetUserId, {
       publicMetadata: { projects: updated },
     })
+  } catch (err) {
+    console.error("[direct-grant] failed", { targetUserId, projectSlugs, err })
+    redirect("/portal/admin?error=grant_failed")
+  }
 
-    // Invalidate any pending email-based grant tokens for these projects
+  // Invalidate any pending email-based grant tokens for these projects.
+  // The grant is already saved, so a Redis failure here must not report it as failed.
+  try {
     for (const slug of projectSlugs) {
       await deleteGrantGroup(targetUserId, slug)
     }
-  } catch {
-    redirect("/portal/admin?error=grant_failed")
+  } catch (err) {
+    console.error("[direct-grant] grant saved, token cleanup failed", { targetUserId, projectSlugs, err })
   }
 
   console.info("[admin]", {

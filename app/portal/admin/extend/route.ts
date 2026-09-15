@@ -65,7 +65,8 @@ export async function POST(request: Request) {
     await clerkClient.users.updateUserMetadata(targetUserId, {
       publicMetadata: { projects: updated },
     })
-  } catch {
+  } catch (err) {
+    console.error("[extend] failed", { targetUserId, projectSlug, err })
     redirect("/portal/admin?error=extend_failed")
   }
 

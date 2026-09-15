@@ -55,12 +55,17 @@ export async function POST(request: Request) {
     await clerkClient.users.updateUserMetadata(targetUserId, {
       publicMetadata: { projects: remaining },
     })
-  } catch {
+  } catch (err) {
+    console.error("[revoke] failed", { targetUserId, projectSlug, err })
     redirect("/portal/admin?error=revoke_failed")
   }
 
   // Invalidate any outstanding invite tokens for this user+project
-  await deleteGrantGroup(targetUserId, projectSlug)
+  try {
+    await deleteGrantGroup(targetUserId, projectSlug)
+  } catch (err) {
+    console.error("[revoke] access removed, token cleanup failed", { targetUserId, projectSlug, err })
+  }
 
   console.info("[admin]", {
     action: "revoke",
