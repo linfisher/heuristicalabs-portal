@@ -254,7 +254,7 @@ export default function HomePage() {
       <section id="contact" className="contact">
         <div data-reveal>
           <p className="label">Get in Touch</p>
-          <h2>Let&apos;s Build Something</h2>
+          <h2>Let&apos;s Build Something Together!</h2>
           <p className="contact-sub">Have a bold idea, or interested in one of our projects? Let&apos;s connect.</p>
           <a href="/contact.html" className="cta">Send Us a Message <span aria-hidden="true">→</span></a>
           <p className="contact-mail">or email <a href="mailto:hello@heuristicalabs.com">hello@heuristicalabs.com</a></p>
