@@ -80,6 +80,17 @@ export async function GET(
     }
   }
 
+  // ?thumb=1 serves the page's card thumbnail, stored beside it as "<path>.thumb.png",
+  // under the same auth as the page itself (gated content keeps gated thumbnails).
+  if (new URL(request.url).searchParams.get("thumb") === "1") {
+    return await streamFile({
+      slug,
+      vpsPath: project.vpsPath,
+      filePath: `${filePath}.thumb.png`,
+      page: { fileType: "image", mimeType: "image/png" },
+    })
+  }
+
   return await streamFile({ slug, vpsPath: project.vpsPath, filePath, page })
 }
 

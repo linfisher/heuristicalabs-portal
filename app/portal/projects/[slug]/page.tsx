@@ -304,7 +304,7 @@ function CardGrid({ pages, slug, adminUser, sections }: { pages: ProjectPage[]; 
                   alt={page.title}
                   style={{ width: "100%", aspectRatio: "8.5 / 11", objectFit: "cover", display: "block" }}
                 />
-              ) : page.fileType === "bundle" && page.thumbnailSrc ? (
+              ) : (page.fileType === "bundle" || page.fileType === "html") && page.thumbnailSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={page.thumbnailSrc}
