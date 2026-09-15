@@ -121,7 +121,7 @@ body {
 .plate-brand-stack { font-size: 88px; }
 .plate-brand-small { font-size: 72px; }
 .plate-sub { font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: #aaa; }
-.plate-rocker { position: absolute; right: 30px; bottom: 26px; width: 150px; opacity: .9; }
+.plate-rocker { display: block; width: 150px; margin: 22px auto 0; opacity: .9; } /* centred under the subtitle, never overlapping it */
 
 .splintr-logo { width: 88%; }
 .art { width: 100%; border-radius: 14px; overflow: hidden; box-shadow: 0 30px 70px rgba(0, 0, 0, .6); cursor: zoom-in; }
@@ -224,7 +224,7 @@ body {
   .plate-brand { font-size: 60px; }
   .plate-brand-stack { font-size: 46px; }
   .plate-brand-small { font-size: 40px; }
-  .plate-rocker { width: 90px; right: 16px; bottom: 14px; }
+  .plate-rocker { width: 96px; margin-top: 12px; }
   .lanes, .subcards { grid-template-columns: 1fr; gap: 12px; margin-bottom: 22px; }
   .about h2 { font-size: 44px; }
   .contact { padding: 70px 18px 90px; }
