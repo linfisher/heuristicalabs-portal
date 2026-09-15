@@ -137,6 +137,7 @@ export default function HomePage() {
           <div className="panel-body">
             <div className="tags"><span className="tag">Digital Art Gallery</span></div>
             <h3>OneUforia Arthaus</h3>
+            <p className="panel-sub">Interactive Website &amp; Apple TV App</p>
             <p className="lead"><strong>Experience the Uforia of Metaphysical Surrealism.</strong> A self-hosted arthaus for the organically created work of Lin &ldquo;Wildcard&rdquo; Fisher — every piece shown whole and uncropped.</p>
             <div className="why"><b>Why visitors value it</b>No AI made any of this. Each piece takes weeks, and the framing is part of the art.</div>
             <a href="https://portal.oneuforia.com" target="_blank" rel="noopener noreferrer" className="cta">Enter the gallery <span aria-hidden="true">→</span></a>
