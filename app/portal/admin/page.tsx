@@ -1,7 +1,6 @@
 import type React from "react"
-import { auth } from "@clerk/nextjs/server"
 import { clerkClient } from "@/lib/clerk"
-import { grantsFromMetadata, readGrants } from "@/lib/auth"
+import { grantsFromMetadata, isAdminEmail, readGrants } from "@/lib/auth"
 import { getProject } from "@/lib/projects"
 import { getActiveProjects, getArchivedProjects } from "@/lib/projects-registry"
 import { AdminProjectsPanel } from "@/components/AdminProjectsPanel"
@@ -94,8 +93,6 @@ export default async function AdminPage({
     getArchivedProjects(),
   ])
   const projectOptions: ProjectOption[] = activeProjects.map((p) => ({ slug: p.slug, name: p.name }))
-  // The signed-in admin's own row gets a "You" tag and no Archive button (self-archive is refused).
-  const { userId: currentUserId } = await auth()
 
   // Invited people who have not signed in yet. They have no Clerk user; their
   // access is whatever the admin last set (stored), else what the invite carries.
@@ -118,8 +115,10 @@ export default async function AdminPage({
   // Split archived users out of every flow. Archived users keep their
   // grants + history forever — they just don't appear in the active list,
   // stats, or grant flows.
-  const activeUsers = users.filter((u) => !(u.privateMetadata as { archivedAt?: number } | undefined)?.archivedAt)
-  const archivedUsers = users.filter((u) => !!(u.privateMetadata as { archivedAt?: number } | undefined)?.archivedAt)
+  // The admin's own account(s) are not listed or counted — there is nothing to manage on them.
+  const managedUsers = users.filter((u) => !isAdminEmail(u.primaryEmailAddress?.emailAddress))
+  const activeUsers = managedUsers.filter((u) => !(u.privateMetadata as { archivedAt?: number } | undefined)?.archivedAt)
+  const archivedUsers = managedUsers.filter((u) => !!(u.privateMetadata as { archivedAt?: number } | undefined)?.archivedAt)
 
   // Compute stats (active users only)
   const now = Date.now()
@@ -324,9 +323,6 @@ export default async function AdminPage({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                       <span style={{ color: "#ffffff", fontWeight: 600, fontSize: "0.9rem" }}>{name}</span>
-                      {user.id === currentUserId && (
-                        <span style={{ ...awaitingTag, backgroundColor: "#3a1623", border: "1px solid #E8147F", color: "#FF8CC6" }}>You</span>
-                      )}
                       {!user.lastSignInAt && <span style={awaitingTag}>Not signed in yet</span>}
                     </div>
                     <div style={{ color: "#555555", marginTop: "2px", fontSize: "0.72rem" }}>{email}</div>
@@ -356,18 +352,16 @@ export default async function AdminPage({
                           title="Send a summary email of this user's current access (you get a copy)"
                         />
                       )}
-                      {user.id !== currentUserId && (
-                        <AdminActionButton
-                          endpoint="/portal/admin/users/archive"
-                          payload={{ userId: user.id }}
-                          label="Archive User"
-                          busyLabel="Archiving..."
-                          doneLabel="Archived"
-                          tone="neutral"
-                          fullWidth
-                          title="Archive this user (hide from active list, keep history). Never deleted."
-                        />
-                      )}
+                      <AdminActionButton
+                        endpoint="/portal/admin/users/archive"
+                        payload={{ userId: user.id }}
+                        label="Archive User"
+                        busyLabel="Archiving..."
+                        doneLabel="Archived"
+                        tone="neutral"
+                        fullWidth
+                        title="Archive this user (hide from active list, keep history). Never deleted."
+                      />
                     </>
                   }
                 />
