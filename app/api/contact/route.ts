@@ -19,6 +19,9 @@ const RATE_LIMIT_COUNT = 5
 const RATE_LIMIT_WINDOW_S = 3600
 
 const VALID_PROJECTS = new Set([
+  "HALO",
+  "OneUforia Arthaus",
+  "TireSledz",
   "SPLINTR",
   "extremePOV.ai",
   "Extreme Video Factory",
