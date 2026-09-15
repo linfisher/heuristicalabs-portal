@@ -47,14 +47,11 @@ export function AdminActionButton({
     if (phase === "busy") return
     setPhase("busy")
     try {
+      // Always JSON: URL-encoded bodies from fetch() were rejected as unreadable (400) in production.
       const res = await fetch(endpoint, {
         method: "POST",
-        headers: json
-          ? { Accept: "application/json", "Content-Type": "application/json" }
-          : { Accept: "application/json" },
-        body: json
-          ? JSON.stringify(payload)
-          : new URLSearchParams(Object.entries(payload).map(([k, v]) => [k, String(v)])),
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error(String(res.status))
       setPhase("done")
