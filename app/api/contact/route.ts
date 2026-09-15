@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { Redis } from "@upstash/redis"
+import { kv } from "@/lib/kv"
 import React from "react"
 import { sendEmail } from "@/lib/email"
 import ContactInquiryEmail, { subject as inquirySubject } from "@/emails/contact-inquiry"
@@ -31,12 +31,6 @@ const VALID_PROJECTS = new Set([
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-function getRedis() {
-  return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  })
-}
 
 function clientIp(req: Request): string {
   // X-Real-IP is set by nginx to $remote_addr (the TCP peer) and cannot be
@@ -103,9 +97,8 @@ export async function POST(request: Request) {
   const ip = clientIp(request)
   const rateKey = `contact-rl:${ip}`
   try {
-    const redis = getRedis()
-    const count = await redis.incr(rateKey)
-    if (count === 1) await redis.expire(rateKey, RATE_LIMIT_WINDOW_S)
+    const count = await kv.incr(rateKey)
+    if (count === 1) await kv.expire(rateKey, RATE_LIMIT_WINDOW_S)
     if (count > RATE_LIMIT_COUNT) {
       return NextResponse.json(
         { error: "Too many submissions. Try again later." },
@@ -113,8 +106,8 @@ export async function POST(request: Request) {
       )
     }
   } catch (err) {
-    // Don't fail closed on Redis hiccup — log and continue
-    console.error("[contact] redis rate-limit error", err)
+    // Don't fail closed on a storage hiccup — log and continue
+    console.error("[contact] rate-limit store error", err)
   }
 
   const adminEmail = process.env.ADMIN_EMAIL

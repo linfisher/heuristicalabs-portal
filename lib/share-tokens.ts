@@ -1,6 +1,7 @@
 // Share-link tokens — admin-minted, file-scoped, no Clerk account required.
-// A signed JWT carries the project slug + file path; Redis tracks the token's
-// existence so the admin can revoke or it can naturally expire.
+// A signed JWT carries the project slug + file path; the on-disk store
+// (lib/kv.ts) tracks the token's existence so the admin can revoke or it can
+// naturally expire.
 //
 // Distinct from the project-grant tokens in lib/tokens.ts:
 //   - access tokens are tied to a Clerk userId and issue a project-wide grant
@@ -8,8 +9,8 @@
 //     entirely for the viewer who has the link
 
 import { SignJWT, jwtVerify } from "jose"
-import { Redis } from "@upstash/redis"
 import { randomUUID, createSecretKey } from "crypto"
+import { kv } from "./kv"
 
 export interface ShareToken {
   type: "share"
@@ -20,11 +21,8 @@ export interface ShareToken {
   exp: number
 }
 
-function getRedis(): Redis {
-  return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  })
+function getStore() {
+  return kv
 }
 
 function getSecretKey() {
@@ -52,7 +50,7 @@ export async function signShareToken(
     .sign(getSecretKey())
 
   const ttlSeconds = Math.ceil(expiresInMs / 1000)
-  await getRedis().set(`share-token:${jti}`, "1", { ex: ttlSeconds })
+  await getStore().set(`share-token:${jti}`, "1", { ex: ttlSeconds })
 
   return { token, jti, expiresAt: exp * 1000 }
 }
@@ -79,7 +77,7 @@ export async function verifyShareToken(token: string): Promise<ShareToken> {
   }
 
   const payload = raw as unknown as ShareToken
-  const exists = await getRedis().get(`share-token:${payload.jti}`)
+  const exists = await getStore().get(`share-token:${payload.jti}`)
   if (!exists) {
     throw new Error("Share link has been revoked or has expired")
   }
@@ -88,5 +86,5 @@ export async function verifyShareToken(token: string): Promise<ShareToken> {
 }
 
 export async function revokeShareToken(jti: string): Promise<void> {
-  await getRedis().del(`share-token:${jti}`)
+  await getStore().del(`share-token:${jti}`)
 }

@@ -1,14 +1,11 @@
 import { SignJWT, jwtVerify } from "jose"
-import { Redis } from "@upstash/redis"
 import { randomUUID, createSecretKey } from "crypto"
 import type { AccessToken } from "./types"
 import { TOKEN_LINK_TTL_MS } from "./durations"
+import { kv } from "./kv"
 
-function getRedis(): Redis {
-  return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  })
+function getStore() {
+  return kv
 }
 
 function getSecretKey() {
@@ -35,7 +32,7 @@ export async function signToken(
     .sign(getSecretKey())
 
   const ttlSeconds = Math.ceil(expiresInMs / 1000)
-  await getRedis().set(`token:${jti}`, "1", { ex: ttlSeconds })
+  await getStore().set(`token:${jti}`, "1", { ex: ttlSeconds })
 
   return token
 }
@@ -66,7 +63,7 @@ export async function verifyToken(token: string): Promise<AccessToken> {
 
   const payload = raw as unknown as AccessToken
 
-  const deleted = await getRedis().del(`token:${payload.jti}`)
+  const deleted = await getStore().del(`token:${payload.jti}`)
   if (deleted === 0) {
     throw new Error("Token has already been used or has expired")
   }
@@ -78,7 +75,7 @@ export async function deleteGrantGroup(
   userId: string,
   projectSlug: string
 ): Promise<void> {
-  const redis = getRedis()
+  const redis = getStore()
   const groupKey = `grant-group:${userId}:${projectSlug}`
   const jtis = await redis.get<string[]>(groupKey)
 
@@ -97,7 +94,7 @@ export async function storeGrantGroup(
   ttlSeconds: number
 ): Promise<void> {
   const groupKey = `grant-group:${userId}:${projectSlug}`
-  await getRedis().set(groupKey, jtis, { ex: ttlSeconds })
+  await getStore().set(groupKey, jtis, { ex: ttlSeconds })
 }
 
 export { TOKEN_LINK_TTL_MS }

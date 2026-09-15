@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { Redis } from "@upstash/redis"
+import { kv } from "@/lib/kv"
 import { verifyToken, deleteGrantGroup } from "@/lib/tokens"
 import { clerkClient } from "@/lib/clerk"
 import { sendEmail } from "@/lib/email"
@@ -53,11 +53,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     await deleteGrantGroup(payload.userId, payload.projectSlug)
 
-    const redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    })
-    await redis.del(`req:${payload.userId}:${payload.projectSlug}`)
+    await kv.del(`req:${payload.userId}:${payload.projectSlug}`)
 
     const userEmail = user?.primaryEmailAddress?.emailAddress
 
