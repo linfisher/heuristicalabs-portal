@@ -5,6 +5,7 @@ import { getProject } from "@/lib/projects"
 import { getActiveProjects, getArchivedProjects } from "@/lib/projects-registry"
 import { AdminProjectsPanel } from "@/components/AdminProjectsPanel"
 import { GrantAccessForm } from "@/components/GrantAccessForm"
+import { AddUserForm } from "@/components/AddUserForm"
 import { DURATION_NEVER, isNeverExpiring } from "@/lib/durations"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -75,6 +76,7 @@ export default async function AdminPage({
     notified?: string
     archived?: string
     restored?: string
+    invited?: string
     error?: string
   }
 }) {
@@ -152,11 +154,24 @@ export default async function AdminPage({
             User restored.
           </FlashMessage>
         )}
-        {searchParams.error && (
+        {searchParams.invited === "1" && (
+          <FlashMessage color="#22c55e" bg="#0f2d0f" border="#22c55e">
+            Invite sent. A copy went to your inbox. Their access is ready when they accept.
+          </FlashMessage>
+        )}
+        {searchParams.error === "invite_exists" ? (
+          <FlashMessage color="#F5C418" bg="#2d2200" border="#F5C418">
+            That email already has an account or a pending invite. If they are in the list below, grant access on their row.
+          </FlashMessage>
+        ) : searchParams.error === "invite_email_failed" ? (
+          <FlashMessage color="#ef4444" bg="#2d0f0f" border="#ef4444">
+            The invite was created but the email did not send. Try again in a minute.
+          </FlashMessage>
+        ) : searchParams.error ? (
           <FlashMessage color="#ef4444" bg="#2d0f0f" border="#ef4444">
             Action failed ({searchParams.error}). Try again.
           </FlashMessage>
-        )}
+        ) : null}
 
         {/* Stats cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "40px" }}>
@@ -194,6 +209,12 @@ export default async function AdminPage({
           .user-row[open] > summary .chev { transform: rotate(90deg); }
           .user-row > summary:hover .chev { color: #aaa; }
         `}</style>
+
+        <AddUserForm
+          projects={activeProjects.map((p) => ({ slug: p.slug, name: p.name }))}
+          durations={DURATIONS}
+          defaultDurationMs={DEFAULT_GRANT_MS}
+        />
 
         {/* Users list — each user is a collapsible row.
             Sort: users with live grants first, then alphabetically by first name.

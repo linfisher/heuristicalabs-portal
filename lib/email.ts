@@ -22,12 +22,17 @@ export async function sendEmail({
   // Lazy-initialize so the constructor doesn't throw at build time
   const resend = new Resend(process.env.RESEND_API_KEY)
 
+  // The admin gets a copy of every email the portal sends to someone else.
+  const adminEmail = process.env.ADMIN_EMAIL
+  const bcc = adminEmail && adminEmail.toLowerCase() !== to.toLowerCase() ? adminEmail : undefined
+
   const { error } = await resend.emails.send({
     from: process.env.FROM_EMAIL,
     to,
     subject,
     react,
     ...(replyTo ? { reply_to: replyTo } : {}),
+    ...(bcc ? { bcc } : {}),
   })
 
   if (error) {
