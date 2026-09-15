@@ -62,8 +62,8 @@ body {
 /* ---------- Project index ---------- */
 .index { border-top: 1px solid #1d1d1d; border-bottom: 1px solid #1d1d1d; }
 .index-inner { max-width: 1240px; margin: 0 auto; padding: 0 40px; display: grid; grid-template-columns: repeat(8, 1fr); }
-.index a { padding: 22px 10px; border-right: 1px solid #1d1d1d; font-size: 13px; font-weight: 600; color: #ddd; transition: background-color .15s ease, color .15s ease; }
-.index a:last-child { border-right: 0; }
+.index a { padding: 22px 10px; border-right: 1px solid #1d1d1d; text-align: center; font-size: 13px; font-weight: 600; color: #ddd; transition: background-color .15s ease, color .15s ease; }
+.index a:first-child { border-left: 1px solid #1d1d1d; } /* cells centred and closed at both ends so the row reads centred */
 .index a:hover { background: rgba(232, 20, 127, .08); color: #fff; }
 .index small { display: block; color: var(--pink); font-size: 11px; letter-spacing: .14em; margin-bottom: 6px; }
 
