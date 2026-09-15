@@ -37,3 +37,8 @@ vps-setup-content.sh
 .registry.json
 .registry.json.tmp-*
 .content/
+
+# VPS deploy: side-by-side build folders and the installed-lockfile marker
+.next-build/
+.next-prev/
+.deploy-lock-hash

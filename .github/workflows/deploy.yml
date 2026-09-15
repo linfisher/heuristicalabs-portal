@@ -96,22 +96,56 @@ jobs:
           git reset --hard origin/main
           echo "HEAD is now: $(git rev-parse HEAD)"
 
-          echo "--- npm ci ---"
-          npm ci --prefer-offline --no-audit --no-fund
+          # The live app keeps serving from node_modules + .next during the whole
+          # build. Reinstalling or rebuilding those in place made every deploy
+          # throw "Cannot find module" 500s for a minute or two.
 
-          echo "--- next build ---"
-          npm run build
-
-          echo "--- pm2 restart $PM2_NAME ---"
-          if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
-            pm2 restart "$PM2_NAME" --update-env
+          lock_hash="$(sha256sum package-lock.json | cut -d' ' -f1)"
+          if [ ! -d node_modules ] || [ "$(cat .deploy-lock-hash 2>/dev/null)" != "$lock_hash" ]; then
+            echo "--- npm ci (package-lock.json changed) ---"
+            npm ci --prefer-offline --no-audit --no-fund
+            echo "$lock_hash" > .deploy-lock-hash
           else
+            echo "--- package-lock.json unchanged: keeping node_modules ---"
+          fi
+
+          echo "--- next build into .next-build (live .next keeps serving) ---"
+          rm -rf .next-build
+          NEXT_DIST_DIR=.next-build npm run build
+
+          if ! pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
             echo "::error::PM2 process '$PM2_NAME' not found. Run the one-time setup in DEPLOY_SETUP.md."
             exit 1
           fi
 
+          echo "--- swap build + pm2 restart $PM2_NAME ---"
+          rm -rf .next-prev
+          if [ -d .next ]; then mv .next .next-prev; fi
+          mv .next-build .next
+          pm2 restart "$PM2_NAME" --update-env --time
+
+          echo "--- health check ---"
+          healthy=""
+          for i in $(seq 1 15); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/ || true)"
+            if [ "$code" = "200" ]; then healthy="yes"; break; fi
+            sleep 2
+          done
+          if [ -z "$healthy" ]; then
+            echo "::error::New build did not answer 200 on :3001 (last code: $code). Rolling back to the previous build."
+            if [ -d .next-prev ]; then
+              rm -rf .next-failed
+              mv .next .next-failed
+              mv .next-prev .next
+              pm2 restart "$PM2_NAME" --update-env --time
+            fi
+            exit 1
+          fi
+          pm2 save >/dev/null
+
           echo "--- pm2 status ---"
           pm2 status "$PM2_NAME"
+          rm -rf .next-prev .next-failed
 
           echo "--- deploy finished OK at $(date -u +%FT%TZ) ---"
           REMOTE

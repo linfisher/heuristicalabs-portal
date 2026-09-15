@@ -56,6 +56,10 @@ const csp = [
 ].join("; ")
 
 const nextConfig = {
+  // The VPS deploy builds into .next-build (NEXT_DIST_DIR) while the live app
+  // keeps serving .next, then swaps the folders just before the restart.
+  // Unset at runtime, so `next start` always serves .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Portal content pages render VPS-sourced HTML in sandboxed iframes.
   // The portal shell itself does not embed external iframes.
   poweredByHeader: false,
