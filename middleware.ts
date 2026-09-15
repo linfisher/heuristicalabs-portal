@@ -8,8 +8,8 @@ import type { ProjectGrant } from "@/lib/types"
 export default clerkMiddleware(async (auth, req: NextRequest) => {
   const { pathname } = req.nextUrl
 
-  // /portal/sign-in/** — always public
-  if (pathname.startsWith("/portal/sign-in")) {
+  // /portal/sign-in/** and /portal/sign-up/** (invitation landing) — always public
+  if (pathname.startsWith("/portal/sign-in") || pathname.startsWith("/portal/sign-up")) {
     return NextResponse.next()
   }
 

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { DURATION_NEVER, isNeverExpiring } from "@/lib/durations"
 
 export interface AccessGrantRow {
   userId: string
@@ -22,6 +23,7 @@ const DURATIONS = [
   { label: "7 days",   ms: 604_800_000 },
   { label: "30 days",  ms: 2_592_000_000 },
   { label: "90 days",  ms: 7_776_000_000 },
+  { label: "Infinity", ms: DURATION_NEVER },
 ]
 
 function status(expiresAt: number, now: number): "active" | "expiring" | "expired" {
@@ -110,7 +112,11 @@ export function AccessDrawer({ slug, projectName, grants }: Props) {
                           textTransform: "uppercase",
                         }}>{s}</span>
                         <span style={{ color: colors.text, fontSize: "0.7rem" }}>
-                          {s === "expired" ? `Expired ${fmtExpiry(g.expiresAt)}` : `${days}d · ${fmtExpiry(g.expiresAt)}`}
+                          {s === "expired"
+                            ? `Expired ${fmtExpiry(g.expiresAt)}`
+                            : isNeverExpiring(g.expiresAt)
+                              ? "Never expires"
+                              : `${days}d · ${fmtExpiry(g.expiresAt)}`}
                         </span>
                       </div>
                     </div>
@@ -129,7 +135,7 @@ export function AccessDrawer({ slug, projectName, grants }: Props) {
                       >
                         <option value="">Extend…</option>
                         {DURATIONS.map((d) => (
-                          <option key={d.ms} value={d.ms}>+{d.label}</option>
+                          <option key={d.ms} value={d.ms}>{d.ms === DURATION_NEVER ? d.label : `+${d.label}`}</option>
                         ))}
                       </select>
                       <button

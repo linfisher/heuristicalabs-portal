@@ -1,18 +1,26 @@
 import { auth } from "@clerk/nextjs/server"
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors"
 import { NextResponse } from "next/server"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
+import React from "react"
 import { clerkClient } from "@/lib/clerk"
 import { getProject } from "@/lib/projects"
-import { deleteGrantGroup } from "@/lib/tokens"
 import { isAdminEmail } from "@/lib/auth"
 import { GRANT_DURATIONS_MS, grantExpiresAt } from "@/lib/durations"
 import { checkSameOrigin } from "@/lib/csrf"
+import { sendEmail } from "@/lib/email"
+import UserInviteEmail, { subject } from "@/emails/user-invite"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
-export const runtime = 'nodejs'
+export const runtime = "nodejs"
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Admin "Add User": creates a Clerk invitation carrying the grants in its
+// publicMetadata (copied onto the account when they sign up), then sends our
+// own branded invite email through Resend so the admin copy always goes out.
 export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) {
@@ -34,11 +42,11 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
-  const targetUserId = formData.get("userId") as string | null
+  const email = ((formData.get("email") as string | null) ?? "").trim().toLowerCase()
   const projectSlugs = formData.getAll("projectSlug").filter((s): s is string => typeof s === "string" && s.length > 0)
   const durationMsRaw = formData.get("durationMs") as string | null
 
-  if (!targetUserId || projectSlugs.length === 0 || !durationMsRaw) {
+  if (!EMAIL_RE.test(email) || projectSlugs.length === 0 || !durationMsRaw) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
 
@@ -54,47 +62,59 @@ export async function POST(request: Request) {
   }
 
   const expiresAt = grantExpiresAt(durationMs)
+  const grants: ProjectGrant[] = projectSlugs.map((slug) => ({ slug, expiresAt }))
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://heuristicalabs.com"
 
+  let inviteUrl = ""
   try {
-    const targetUser = await clerkClient.users.getUser(targetUserId)
-    const currentGrants =
-      (targetUser.publicMetadata?.projects as ProjectGrant[] | undefined) ?? []
-
-    const slugSet = new Set(projectSlugs)
-    const updated: ProjectGrant[] = [
-      ...currentGrants.filter((g) => !slugSet.has(g.slug)),
-      ...projectSlugs.map((slug) => ({ slug, expiresAt })),
-    ]
-
-    await clerkClient.users.updateUserMetadata(targetUserId, {
-      publicMetadata: { projects: updated },
+    const invitation = await clerkClient.invitations.createInvitation({
+      emailAddress: email,
+      publicMetadata: { projects: grants },
+      redirectUrl: `${appUrl}/portal/sign-up`,
+      notify: false,
     })
+    inviteUrl = invitation.url ?? ""
   } catch (err) {
-    console.error("[direct-grant] failed", { targetUserId, projectSlugs, err })
-    redirect("/portal/admin?error=grant_failed")
+    const exists =
+      isClerkAPIResponseError(err) &&
+      err.errors.some((e) => e.code === "duplicate_record" || e.code === "form_identifier_exists")
+    if (exists) {
+      redirect("/portal/admin?error=invite_exists")
+    }
+    console.error("[invite] failed", { email, projectSlugs, err })
+    redirect("/portal/admin?error=invite_failed")
   }
 
-  // Invalidate any pending email-based grant tokens for these projects.
-  // The grant is already saved, so a Redis failure here must not report it as failed.
+  if (!inviteUrl) {
+    console.error("[invite] invitation created without a URL", { email })
+    redirect("/portal/admin?error=invite_failed")
+  }
+
   try {
-    for (const slug of projectSlugs) {
-      await deleteGrantGroup(targetUserId, slug)
-    }
+    await sendEmail({
+      to: email,
+      subject,
+      replyTo: process.env.ADMIN_EMAIL,
+      react: React.createElement(UserInviteEmail, {
+        inviteUrl,
+        projects: projectSlugs.map((slug) => ({ name: getProject(slug)?.name ?? slug, expiresAt })),
+      }),
+    })
   } catch (err) {
-    console.error("[direct-grant] grant saved, token cleanup failed", { targetUserId, projectSlugs, err })
+    console.error("[invite] invitation created, email failed", { email, err })
+    redirect("/portal/admin?error=invite_email_failed")
   }
 
   console.info("[admin]", {
-    action: "direct-grant",
+    action: "invite",
     adminUserId: userId,
-    targetUserId,
+    email,
     projectSlugs,
     durationMs,
     timestamp: new Date().toISOString(),
   })
 
   revalidatePath("/portal/admin")
-  revalidatePath("/portal")
 
-  redirect("/portal/admin?granted=1")
+  redirect("/portal/admin?invited=1")
 }

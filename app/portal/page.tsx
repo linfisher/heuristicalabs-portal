@@ -4,6 +4,7 @@ import { clerkClient } from "@/lib/clerk"
 import { getAllActiveProjects, getProject } from "@/lib/projects"
 import { getAllProjects } from "@/lib/registry"
 import { isAdminEmail } from "@/lib/auth"
+import { isNeverExpiring } from "@/lib/durations"
 import AddProjectButton from "@/components/AddProjectButton"
 import ProjectAdminActions from "@/components/ProjectAdminActions"
 import type { ProjectGrant } from "@/lib/types"
@@ -205,7 +206,9 @@ export default async function PortalPage() {
 
                   <div className="flex items-center gap-3 mt-auto">
                     <span style={{ color: "#555" }} className="text-xs">
-                      Access until {formatDate(grant.expiresAt)}
+                      {isNeverExpiring(grant.expiresAt)
+                        ? "Access never expires"
+                        : `Access until ${formatDate(grant.expiresAt)}`}
                     </span>
                     {expiringSoon && (
                       <span

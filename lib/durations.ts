@@ -23,3 +23,18 @@ export const ALL_DURATIONS = [
 ] as const
 
 export const VALID_DURATIONS_MS = new Set(ALL_DURATIONS.map(d => d.ms))
+
+// "Infinity" — grants only, never share links. The grant is stored with a
+// far-future expiresAt, so every existing `expiresAt > now` access gate keeps
+// working unchanged; only displays need to check isNeverExpiring().
+export const DURATION_NEVER = -1
+export const NEVER_EXPIRES_AT = 253402300799999 // 9999-12-31T23:59:59.999Z
+export const GRANT_DURATIONS_MS = new Set<number>([...VALID_DURATIONS_MS, DURATION_NEVER])
+
+export function grantExpiresAt(durationMs: number, now: number = Date.now()): number {
+  return durationMs === DURATION_NEVER ? NEVER_EXPIRES_AT : now + durationMs
+}
+
+export function isNeverExpiring(expiresAt: number): boolean {
+  return expiresAt >= NEVER_EXPIRES_AT
+}

@@ -24,7 +24,7 @@ export default async function PortalLayout({
   }
 
   return (
-    <ClerkProvider signInUrl="/portal/sign-in">
+    <ClerkProvider signInUrl="/portal/sign-in" signUpUrl="/portal/sign-up">
       <nav
         style={{
           background: "#111111",
