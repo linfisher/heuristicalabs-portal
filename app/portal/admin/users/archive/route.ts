@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
 import { checkSameOrigin } from "@/lib/csrf"
-import { respondDone, respondFail } from "@/lib/admin-respond"
+import { readFields, respondDone, respondFail } from "@/lib/admin-respond"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -24,20 +24,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  let formData: FormData
-  try {
-    formData = await request.formData()
-  } catch {
+  const fields = await readFields(request)
+  if (!fields) {
+    console.warn("[user-archive] unreadable request body", { contentType: request.headers.get("content-type") })
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
-  const targetUserId = formData.get("userId") as string | null
+  const targetUserId = fields.userId ?? ""
 
   if (!targetUserId) {
+    console.warn("[user-archive] missing userId", { fields: Object.keys(fields) })
     return NextResponse.json({ error: "Missing userId" }, { status: 400 })
   }
 
   // Self-archive guard
   if (targetUserId === userId) {
+    console.warn("[user-archive] refused: admin tried to archive their own account", { userId })
     return respondFail(request, "cannot_archive_self", 400)
   }
 

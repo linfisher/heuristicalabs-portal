@@ -7,7 +7,7 @@ import { getProject } from "@/lib/projects"
 import { isAdminEmail } from "@/lib/auth"
 import { checkSameOrigin } from "@/lib/csrf"
 import { sendEmail } from "@/lib/email"
-import { respondDone, respondFail } from "@/lib/admin-respond"
+import { readFields, respondDone, respondFail } from "@/lib/admin-respond"
 import AccessSummaryEmail, { subject as summarySubject } from "@/emails/access-summary"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -29,15 +29,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  let formData: FormData
-  try {
-    formData = await request.formData()
-  } catch {
+  const fields = await readFields(request)
+  if (!fields) {
+    console.warn("[notify] unreadable request body", { contentType: request.headers.get("content-type") })
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
-  const targetUserId = formData.get("userId") as string | null
+  const targetUserId = fields.userId ?? ""
 
   if (!targetUserId) {
+    console.warn("[notify] missing userId", { fields: Object.keys(fields) })
     return NextResponse.json({ error: "Missing userId" }, { status: 400 })
   }
 
