@@ -8,7 +8,9 @@ import { GrantAccessForm } from "@/components/GrantAccessForm"
 import { AddUserForm } from "@/components/AddUserForm"
 import { AdminActionButton } from "@/components/AdminActionButton"
 import { GrantDurationChips } from "@/components/GrantDurationChips"
+import { UserRowDetails } from "@/components/UserRowDetails"
 import { DURATION_NEVER, isNeverExpiring } from "@/lib/durations"
+import { getStoredPendingGrants, inviteTargetId } from "@/lib/pending-grants"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -70,6 +72,7 @@ const STATUS_COLORS = {
 }
 
 type PendingInvite = { id: string; email: string; createdAt: number; grants: ProjectGrant[] }
+type ProjectOption = { slug: string; name: string }
 
 export default async function AdminPage({
   searchParams,
@@ -89,15 +92,22 @@ export default async function AdminPage({
     getActiveProjects(),
     getArchivedProjects(),
   ])
+  const projectOptions: ProjectOption[] = activeProjects.map((p) => ({ slug: p.slug, name: p.name }))
 
-  // Invited people who have not signed in yet. They have no Clerk user, so
-  // they come from the pending invitation list, with grants riding on the invite.
+  // Invited people who have not signed in yet. They have no Clerk user; their
+  // access is whatever the admin last set (stored), else what the invite carries.
   let pendingInvites: PendingInvite[] = []
   try {
     const { data } = await clerkClient.invitations.getInvitationList({ status: "pending", limit: 100 })
-    pendingInvites = data
-      .map((i) => ({ id: i.id, email: i.emailAddress, createdAt: i.createdAt, grants: grantsFromMetadata(i.publicMetadata) }))
-      .sort((a, b) => b.createdAt - a.createdAt)
+    pendingInvites = await Promise.all(
+      data.map(async (i) => ({
+        id: i.id,
+        email: i.emailAddress,
+        createdAt: i.createdAt,
+        grants: (await getStoredPendingGrants(i.emailAddress)) ?? grantsFromMetadata(i.publicMetadata),
+      })),
+    )
+    pendingInvites.sort((a, b) => b.createdAt - a.createdAt)
   } catch (err) {
     console.error("[admin] could not load pending invitations", err)
   }
@@ -140,7 +150,7 @@ export default async function AdminPage({
           </h1>
           <p style={{ color: "#555555", marginTop: "6px", fontSize: "0.8125rem" }}>
             Heuristica Labs Portal — {activeUsers.length} active user{activeUsers.length !== 1 ? "s" : ""}
-            {pendingInvites.length > 0 && ` · ${pendingInvites.length} awaiting sign-in`}
+            {pendingInvites.length > 0 && ` · ${pendingInvites.length} not signed in yet`}
             {archivedUsers.length > 0 && ` · ${archivedUsers.length} archived`}
           </p>
         </div>
@@ -211,7 +221,7 @@ export default async function AdminPage({
             fontSize: "0.8rem",
           }}
         >
-          <strong style={{ color: "#888888" }}>How this works</strong> — every change saves the moment you make it: tick or untick projects under <em>Grant Access</em>, change the access length, or use the <em>Set to:</em> chips on an existing grant. Changes are silent. When you&apos;re done, click <em>Notify User</em> to send one email summarizing their current access.
+          <strong style={{ color: "#888888" }}>How this works</strong> — every change saves the moment you make it: tick or untick projects under <em>Grant Access</em>, change the access length, or use the <em>Set to:</em> chips on an existing grant. Changes are silent. When you&apos;re done, click <em>Notify User</em> to send one email summarizing their current access. People invited but not signed in yet can be edited the same way; their access applies when they first sign in.
         </div>
 
         {/* Projects management */}
@@ -228,50 +238,67 @@ export default async function AdminPage({
           .user-row > summary:hover .chev { color: #aaa; }
         `}</style>
 
+        <h2 style={{ color: "#ffffff", fontSize: "1.1rem", fontWeight: 700, margin: "40px 0 0" }}>
+          Users
+          <span style={{ color: "#777777", fontSize: "0.8rem", fontWeight: 500, marginLeft: "10px" }}>
+            {activeUsers.length} active
+            {pendingInvites.length > 0 && ` · ${pendingInvites.length} invited, not signed in yet`}
+          </span>
+        </h2>
+
         <AddUserForm
-          projects={activeProjects.map((p) => ({ slug: p.slug, name: p.name }))}
+          projects={projectOptions}
           durations={DURATIONS}
           defaultDurationMs={DEFAULT_GRANT_MS}
         />
 
-        {/* Users list — invited people awaiting sign-in first, then each user as
-            a collapsible row. Sort: users with live grants first, then
-            alphabetically by first name. Users with no live grants sink. */}
+        {/* Users list — invited people not signed in yet first, then each user.
+            Every row is editable the same way. Sort: users with live grants first,
+            then alphabetically by first name. Users with no live grants sink. */}
         <div>
-          {pendingInvites.map((invite) => (
-            <div
-              key={invite.id}
-              className="user-row"
-              style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}
-            >
-              <span style={{ width: "12px" }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                  <span style={{ color: "#ffffff", fontWeight: 600, fontSize: "0.9rem" }}>{invite.email}</span>
-                  <span style={awaitingTag}>Awaiting sign-in</span>
-                </div>
-                <div style={{ color: "#777777", marginTop: "4px", fontSize: "0.72rem" }}>
-                  Invited {formatExpiry(invite.createdAt)}
-                  {" · "}
-                  {invite.grants.length === 0
-                    ? "no projects"
-                    : invite.grants
-                        .map((g) => `${getProject(g.slug)?.name ?? g.slug} (${isNeverExpiring(g.expiresAt) ? "no expiry" : `until ${formatExpiry(g.expiresAt)}`})`)
-                        .join(", ")}
-                </div>
-              </div>
-              <AdminActionButton
-                endpoint="/portal/admin/invite/resend"
-                json
-                payload={{ invitationId: invite.id }}
-                label="Resend Invite"
-                busyLabel="Sending..."
-                doneLabel="Invite resent"
-                tone="pink"
-                title={`Send ${invite.email} a fresh invite email (you get a copy)`}
-              />
-            </div>
-          ))}
+          {pendingInvites.map((invite) => {
+            const liveGrants = invite.grants.filter((g) => g.expiresAt > now)
+            return (
+              <UserRowDetails key={invite.id} defaultOpen>
+                <summary>
+                  <span className="chev">▸</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <span style={{ color: "#ffffff", fontWeight: 600, fontSize: "0.9rem" }}>{invite.email}</span>
+                      <span style={awaitingTag}>Not signed in yet</span>
+                    </div>
+                    <div style={{ color: "#777777", marginTop: "2px", fontSize: "0.72rem" }}>
+                      Invited {formatExpiry(invite.createdAt)} · access applies when they first sign in
+                    </div>
+                  </div>
+                  <div style={{ color: liveGrants.length > 0 ? "#F5C418" : "#555555", fontSize: "0.72rem", whiteSpace: "nowrap" }}>
+                    {liveGrants.length > 0
+                      ? `${liveGrants.length} project${liveGrants.length !== 1 ? "s" : ""} set`
+                      : "no projects set"}
+                  </div>
+                </summary>
+                <AccessColumns
+                  targetId={inviteTargetId(invite.email)}
+                  liveGrants={liveGrants}
+                  now={now}
+                  projects={projectOptions}
+                  actions={
+                    <AdminActionButton
+                      endpoint="/portal/admin/invite/resend"
+                      json
+                      payload={{ invitationId: invite.id }}
+                      label="Resend Invite"
+                      busyLabel="Sending..."
+                      doneLabel="Invite resent"
+                      tone="pink"
+                      fullWidth
+                      title={`Send ${invite.email} a fresh invite email with their current projects (you get a copy)`}
+                    />
+                  }
+                />
+              </UserRowDetails>
+            )
+          })}
 
           {[...activeUsers].sort((a, b) => {
             const aLive = readGrants(a).some((g) => g.expiresAt > now)
@@ -284,16 +311,18 @@ export default async function AdminPage({
             const email = user.primaryEmailAddress?.emailAddress ?? "(no email)"
             const name =
               [user.firstName, user.lastName].filter(Boolean).join(" ") || email
-            const grants = readGrants(user)
-            const liveGrants = grants.filter((g) => g.expiresAt > now)
+            const liveGrants = readGrants(user).filter((g) => g.expiresAt > now)
             const hasAnyLiveGrant = liveGrants.length > 0
 
             return (
-              <details key={user.id} className="user-row" open={hasAnyLiveGrant}>
+              <UserRowDetails key={user.id} defaultOpen={hasAnyLiveGrant}>
                 <summary>
                   <span className="chev">▸</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ color: "#ffffff", fontWeight: 600, fontSize: "0.9rem" }}>{name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <span style={{ color: "#ffffff", fontWeight: 600, fontSize: "0.9rem" }}>{name}</span>
+                      {!user.lastSignInAt && <span style={awaitingTag}>Not signed in yet</span>}
+                    </div>
                     <div style={{ color: "#555555", marginTop: "2px", fontSize: "0.72rem" }}>{email}</div>
                   </div>
                   <div style={{ color: hasAnyLiveGrant ? "#22c55e" : "#555555", fontSize: "0.72rem", whiteSpace: "nowrap" }}>
@@ -302,103 +331,14 @@ export default async function AdminPage({
                       : "no access"}
                   </div>
                 </summary>
-
-                <div style={{ display: "flex", gap: "20px", padding: "4px 18px 18px", flexWrap: "wrap" }}>
-
-                  {/* Current Access */}
-                  <div style={{ flex: "1 1 280px", minWidth: 0 }}>
-                    <div style={colHeader}>Current Access</div>
-                    {liveGrants.length === 0 ? (
-                      <span style={{ color: "#444444", fontSize: "0.8rem", fontStyle: "italic" }}>
-                        No access yet
-                      </span>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {liveGrants.map((grant) => {
-                          const status = grantStatus(grant, now)
-                          const colors = STATUS_COLORS[status]
-                          const projectName = getProject(grant.slug)?.name ?? grant.slug
-                          const days = daysRemaining(grant.expiresAt, now)
-                          const expiry = formatExpiry(grant.expiresAt)
-                          const never = isNeverExpiring(grant.expiresAt)
-
-                          return (
-                            <div
-                              key={grant.slug}
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "4px",
-                                paddingBottom: "8px",
-                                borderBottom: "1px solid #1a1a1a",
-                              }}
-                            >
-                              {/* Row 1: project badge + current state + Revoke */}
-                              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                                <span
-                                  style={{
-                                    backgroundColor: colors.bg,
-                                    border: `1px solid ${colors.border}`,
-                                    color: colors.text,
-                                    borderRadius: "4px",
-                                    padding: "2px 8px",
-                                    fontSize: "0.75rem",
-                                    fontWeight: 600,
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {projectName}
-                                </span>
-                                <span style={{ color: colors.text, fontSize: "0.75rem", whiteSpace: "nowrap" }}>
-                                  {status === "expired"
-                                    ? `Expired ${expiry}`
-                                    : never
-                                      ? "Never expires"
-                                      : `${days}d · ${expiry}`}
-                                </span>
-                                <div style={{ marginLeft: "auto" }}>
-                                  <AdminActionButton
-                                    endpoint="/portal/admin/project-access"
-                                    json
-                                    payload={{ action: "revoke", userId: user.id, projectSlug: grant.slug }}
-                                    label="Revoke"
-                                    busyLabel="Revoking..."
-                                    doneLabel="Revoked"
-                                    tone="link"
-                                    title={`Revoke ${projectName} access`}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Row 2: one-click duration chips */}
-                              <GrantDurationChips
-                                userId={user.id}
-                                projectSlug={grant.slug}
-                                projectName={projectName}
-                                durations={DURATIONS}
-                                activeMs={currentBucketMs(grant, now)}
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Grant Access — boxes are pre-checked for projects the user
-                      currently has a LIVE grant on. Every tick, untick and length
-                      change saves immediately. */}
-                  <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-                    <div style={colHeader}>Grant Access</div>
-                    <GrantAccessForm
-                      userId={user.id}
-                      projects={activeProjects.map((p) => ({ slug: p.slug, name: p.name }))}
-                      initialCheckedSlugs={liveGrants.map((g) => g.slug)}
-                      initialDurationMs={commonBucketMs(liveGrants, now)}
-                      durations={DURATIONS}
-                    />
-                    {hasAnyLiveGrant && (
-                      <div style={{ marginTop: "8px" }}>
+                <AccessColumns
+                  targetId={user.id}
+                  liveGrants={liveGrants}
+                  now={now}
+                  projects={projectOptions}
+                  actions={
+                    <>
+                      {hasAnyLiveGrant && (
                         <AdminActionButton
                           endpoint="/portal/admin/notify"
                           payload={{ userId: user.id }}
@@ -409,9 +349,7 @@ export default async function AdminPage({
                           fullWidth
                           title="Send a summary email of this user's current access (you get a copy)"
                         />
-                      </div>
-                    )}
-                    <div style={{ marginTop: "8px" }}>
+                      )}
                       <AdminActionButton
                         endpoint="/portal/admin/users/archive"
                         payload={{ userId: user.id }}
@@ -422,11 +360,10 @@ export default async function AdminPage({
                         fullWidth
                         title="Archive this user (hide from active list, keep history). Never deleted."
                       />
-                    </div>
-                  </div>
-
-                </div>
-              </details>
+                    </>
+                  }
+                />
+              </UserRowDetails>
             )
           })}
         </div>
@@ -488,6 +425,126 @@ export default async function AdminPage({
           </details>
         )}
       </div>
+    </div>
+  )
+}
+
+// The two editable columns of a user row: Current Access (per-project state,
+// Revoke, Set to chips) and Grant Access (autosaving checkboxes + length),
+// followed by the row's action buttons. targetId is a Clerk user id or
+// "invite:<email>" for someone invited who has not signed in yet.
+function AccessColumns({
+  targetId,
+  liveGrants,
+  now,
+  projects,
+  actions,
+}: {
+  targetId: string
+  liveGrants: ProjectGrant[]
+  now: number
+  projects: ProjectOption[]
+  actions: React.ReactNode
+}) {
+  return (
+    <div style={{ display: "flex", gap: "20px", padding: "4px 18px 18px", flexWrap: "wrap" }}>
+
+      {/* Current Access */}
+      <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+        <div style={colHeader}>Current Access</div>
+        {liveGrants.length === 0 ? (
+          <span style={{ color: "#444444", fontSize: "0.8rem", fontStyle: "italic" }}>
+            No access yet
+          </span>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {liveGrants.map((grant) => {
+              const status = grantStatus(grant, now)
+              const colors = STATUS_COLORS[status]
+              const projectName = getProject(grant.slug)?.name ?? grant.slug
+              const days = daysRemaining(grant.expiresAt, now)
+              const expiry = formatExpiry(grant.expiresAt)
+              const never = isNeverExpiring(grant.expiresAt)
+
+              return (
+                <div
+                  key={grant.slug}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                    paddingBottom: "8px",
+                    borderBottom: "1px solid #1a1a1a",
+                  }}
+                >
+                  {/* Row 1: project badge + current state + Revoke */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span
+                      style={{
+                        backgroundColor: colors.bg,
+                        border: `1px solid ${colors.border}`,
+                        color: colors.text,
+                        borderRadius: "4px",
+                        padding: "2px 8px",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {projectName}
+                    </span>
+                    <span style={{ color: colors.text, fontSize: "0.75rem", whiteSpace: "nowrap" }}>
+                      {status === "expired"
+                        ? `Expired ${expiry}`
+                        : never
+                          ? "Never expires"
+                          : `${days}d · ${expiry}`}
+                    </span>
+                    <div style={{ marginLeft: "auto" }}>
+                      <AdminActionButton
+                        endpoint="/portal/admin/project-access"
+                        json
+                        payload={{ action: "revoke", userId: targetId, projectSlug: grant.slug }}
+                        label="Revoke"
+                        busyLabel="Revoking..."
+                        doneLabel="Revoked"
+                        tone="link"
+                        title={`Revoke ${projectName} access`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 2: one-click duration chips */}
+                  <GrantDurationChips
+                    userId={targetId}
+                    projectSlug={grant.slug}
+                    projectName={projectName}
+                    durations={DURATIONS}
+                    activeMs={currentBucketMs(grant, now)}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Grant Access — boxes are pre-checked for projects with LIVE access.
+          Every tick, untick and length change saves immediately. */}
+      <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+        <div style={colHeader}>Grant Access</div>
+        <GrantAccessForm
+          userId={targetId}
+          projects={projects}
+          initialCheckedSlugs={liveGrants.map((g) => g.slug)}
+          initialDurationMs={commonBucketMs(liveGrants, now)}
+          durations={DURATIONS}
+        />
+        <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+          {actions}
+        </div>
+      </div>
+
     </div>
   )
 }

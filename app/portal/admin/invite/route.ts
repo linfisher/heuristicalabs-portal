@@ -10,6 +10,7 @@ import { GRANT_DURATIONS_MS, grantExpiresAt } from "@/lib/durations"
 import { checkSameOrigin } from "@/lib/csrf"
 import { sendEmail } from "@/lib/email"
 import { respondDone, respondFail } from "@/lib/admin-respond"
+import { setPendingGrants } from "@/lib/pending-grants"
 import UserInviteEmail, { subject } from "@/emails/user-invite"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -88,6 +89,13 @@ export async function POST(request: Request) {
   if (!inviteUrl) {
     console.error("[invite] invitation created without a URL", { email })
     return respondFail(request, "invite_failed")
+  }
+
+  // The dashboard edits an invited person's access here until they sign in.
+  try {
+    await setPendingGrants(email, grants)
+  } catch (err) {
+    console.error("[invite] could not store pending grants (invitation still carries them)", { email, err })
   }
 
   try {

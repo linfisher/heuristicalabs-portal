@@ -5,6 +5,7 @@ import { getAllActiveProjects, getProject } from "@/lib/projects"
 import { getAllProjects } from "@/lib/registry"
 import { isAdminEmail } from "@/lib/auth"
 import { isNeverExpiring } from "@/lib/durations"
+import { claimPendingGrants } from "@/lib/pending-grants"
 import AddProjectButton from "@/components/AddProjectButton"
 import ProjectAdminActions from "@/components/ProjectAdminActions"
 import type { CSSProperties } from "react"
@@ -187,7 +188,12 @@ export default async function PortalPage() {
   }
 
   // Regular users — show only granted projects
-  const allGrants = (user.publicMetadata?.projects ?? []) as ProjectGrant[]
+  // First visit after accepting an invite: apply the access the admin set while they were pending.
+  const claimed = await claimPendingGrants(user).catch((err) => {
+    console.error("[portal] could not apply pending invite grants", { userId: user.id, err })
+    return null
+  })
+  const allGrants = claimed ?? ((user.publicMetadata?.projects ?? []) as ProjectGrant[])
   const now = Date.now()
   const validGrants = allGrants.filter((g) => g.expiresAt > now)
 
