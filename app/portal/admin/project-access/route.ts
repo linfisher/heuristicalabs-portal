@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
 import { deleteGrantGroup } from "@/lib/tokens"
-import { VALID_DURATIONS_MS } from "@/lib/durations"
+import { GRANT_DURATIONS_MS, grantExpiresAt } from "@/lib/durations"
 import { checkSameOrigin } from "@/lib/csrf"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -53,10 +53,10 @@ export async function POST(request: Request) {
       console.info("[admin]", { action: "revoke", adminUserId: userId, targetUserId, projectSlug, timestamp: new Date().toISOString() })
     } else if (action === "extend") {
       const durationMs = Number(body.durationMs)
-      if (!Number.isFinite(durationMs) || !VALID_DURATIONS_MS.has(durationMs)) {
+      if (!Number.isFinite(durationMs) || !GRANT_DURATIONS_MS.has(durationMs)) {
         return NextResponse.json({ error: "Invalid duration" }, { status: 400 })
       }
-      const updated: ProjectGrant = { slug: projectSlug, expiresAt: Date.now() + durationMs }
+      const updated: ProjectGrant = { slug: projectSlug, expiresAt: grantExpiresAt(durationMs) }
       const next = [...current.filter((g) => g.slug !== projectSlug), updated]
       await clerkClient.users.updateUserMetadata(targetUserId, {
         publicMetadata: { projects: next },

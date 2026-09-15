@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { clerkClient } from "@/lib/clerk"
 import { getProject } from "@/lib/projects"
 import { isAdminEmail } from "@/lib/auth"
-import { VALID_DURATIONS_MS } from "@/lib/durations"
+import { GRANT_DURATIONS_MS, grantExpiresAt } from "@/lib/durations"
 import { checkSameOrigin } from "@/lib/csrf"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   const durationMs = parseInt(durationMsRaw, 10)
-  if (Number.isNaN(durationMs) || !VALID_DURATIONS_MS.has(durationMs)) {
+  if (Number.isNaN(durationMs) || !GRANT_DURATIONS_MS.has(durationMs)) {
     return NextResponse.json({ error: "Invalid duration" }, { status: 400 })
   }
 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unknown project" }, { status: 400 })
   }
 
-  const expiresAt = Date.now() + durationMs
+  const expiresAt = grantExpiresAt(durationMs)
 
   try {
     const targetUser = await clerkClient.users.getUser(targetUserId)

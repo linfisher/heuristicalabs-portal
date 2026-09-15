@@ -10,6 +10,7 @@ import {
   Text,
 } from "@react-email/components";
 import * as React from "react";
+import { isNeverExpiring } from "@/lib/durations";
 
 export const subject = "Your Heuristica Labs portal access";
 
@@ -69,7 +70,9 @@ export default function AccessSummaryEmail({
                     {p.name}
                   </Link>
                   <Text style={expiryText}>
-                    Valid until {formatExpiry(p.expiresAt)}
+                    {isNeverExpiring(p.expiresAt)
+                      ? "No expiration"
+                      : `Valid until ${formatExpiry(p.expiresAt)}`}
                   </Text>
                 </div>
               ))}

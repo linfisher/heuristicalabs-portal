@@ -5,6 +5,7 @@ import { getProject } from "@/lib/projects"
 import { getActiveProjects, getArchivedProjects } from "@/lib/projects-registry"
 import { AdminProjectsPanel } from "@/components/AdminProjectsPanel"
 import { GrantAccessForm } from "@/components/GrantAccessForm"
+import { DURATION_NEVER, isNeverExpiring } from "@/lib/durations"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -15,6 +16,7 @@ const DURATIONS = [
   { label: "7 days",   chip: "7d",  ms: 604800000 },
   { label: "30 days",  chip: "30d", ms: 2592000000 },
   { label: "90 days",  chip: "90d", ms: 7776000000 },
+  { label: "Infinity", chip: "Infinity", ms: DURATION_NEVER },
 ]
 
 const DEFAULT_GRANT_MS = 2592000000 // 30 days
@@ -22,7 +24,9 @@ const DEFAULT_GRANT_MS = 2592000000 // 30 days
 // Bucket the grant's remaining time into the smallest DURATION that still
 // covers it. Used to visually highlight which chip represents the user's
 // current state ("you set this to 90d, so the 90d chip is active").
-function currentBucketMs(remainingMs: number): number {
+function currentBucketMs(grant: ProjectGrant, now: number): number {
+  if (isNeverExpiring(grant.expiresAt)) return DURATION_NEVER
+  const remainingMs = grant.expiresAt - now
   for (const d of DURATIONS) {
     if (d.ms >= remainingMs) return d.ms
   }
@@ -33,7 +37,7 @@ function currentBucketMs(remainingMs: number): number {
 // the Grant Now dropdown. Otherwise fall back to the new-grant default.
 function commonBucketMs(liveGrants: ProjectGrant[], now: number): number {
   if (liveGrants.length === 0) return DEFAULT_GRANT_MS
-  const buckets = Array.from(new Set(liveGrants.map((g) => currentBucketMs(g.expiresAt - now))))
+  const buckets = Array.from(new Set(liveGrants.map((g) => currentBucketMs(g, now))))
   return buckets.length === 1 && buckets[0] !== undefined ? buckets[0] : DEFAULT_GRANT_MS
 }
 
@@ -242,7 +246,8 @@ export default async function AdminPage({
                           const projectName = getProject(grant.slug)?.name ?? grant.slug
                           const days = daysRemaining(grant.expiresAt, now)
                           const expiry = formatExpiry(grant.expiresAt)
-                          const activeBucket = currentBucketMs(grant.expiresAt - now)
+                          const never = isNeverExpiring(grant.expiresAt)
+                          const activeBucket = currentBucketMs(grant, now)
 
                           return (
                             <div
@@ -274,7 +279,9 @@ export default async function AdminPage({
                                 <span style={{ color: colors.text, fontSize: "0.75rem", whiteSpace: "nowrap" }}>
                                   {status === "expired"
                                     ? `Expired ${expiry}`
-                                    : `${days}d · ${expiry}`}
+                                    : never
+                                      ? "Never expires"
+                                      : `${days}d · ${expiry}`}
                                 </span>
                                 <form
                                   action="/portal/admin/revoke"
