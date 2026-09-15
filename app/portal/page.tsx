@@ -7,11 +7,50 @@ import { isAdminEmail } from "@/lib/auth"
 import { isNeverExpiring } from "@/lib/durations"
 import AddProjectButton from "@/components/AddProjectButton"
 import ProjectAdminActions from "@/components/ProjectAdminActions"
+import type { CSSProperties } from "react"
 import type { ProjectGrant } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
 const MS_72H = 72 * 60 * 60 * 1000
+
+// Project cards rotate through three brand-pink tones, each with a tinted card
+// background and a matching document chip, so neighbouring projects read as
+// separate cards instead of one dark wall.
+const TONES = [
+  { hex: "#E8147F", rgb: "232,20,127", buttonText: "#FAF7F0" },
+  { hex: "#B0105F", rgb: "176,16,95", buttonText: "#FAF7F0" },
+  { hex: "#F06AAE", rgb: "240,106,174", buttonText: "#1a0010" },
+] as const
+
+type Tone = (typeof TONES)[number]
+
+function toneFor(idx: number): Tone {
+  return TONES[idx % TONES.length]!
+}
+
+function cardStyle(tone: Tone): CSSProperties {
+  return {
+    background: `linear-gradient(180deg, rgba(${tone.rgb},0.20) 0%, rgba(${tone.rgb},0.06) 45%, #111 100%)`,
+    border: `1px solid rgba(${tone.rgb},0.40)`,
+    borderTop: `3px solid ${tone.hex}`,
+  }
+}
+
+function chipStyle(tone: Tone): CSSProperties {
+  return {
+    alignSelf: "flex-start",
+    background: `rgba(${tone.rgb},0.22)`,
+    border: `1px solid rgba(${tone.rgb},0.55)`,
+    color: "#FFD1E8",
+    fontSize: "0.7rem",
+    fontWeight: 600,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    padding: "3px 10px",
+    borderRadius: "999px",
+  }
+}
 
 function formatDate(ms: number): string {
   return new Date(ms).toLocaleDateString("en-US", {
@@ -59,41 +98,45 @@ export default async function PortalPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {active.map((project, idx) => (
-              <div
-                key={project.slug}
-                style={{ background: "#111", border: "1px solid #222" }}
-                className="rounded-lg p-6 flex flex-col gap-4"
-              >
-                <div className="flex-1 flex flex-col gap-2">
-                  <h2 style={{ color: "#E8147F" }} className="text-xl font-semibold tracking-wide">
-                    {project.name}
-                  </h2>
-                  <p style={{ color: "#888" }} className="text-sm leading-relaxed">
-                    {project.description || <span style={{ color: "#444" }}>No description</span>}
-                  </p>
-                  <p style={{ color: "#444" }} className="text-xs mt-2">
-                    {project.pages.length} document{project.pages.length !== 1 ? "s" : ""}
-                  </p>
-                </div>
-
-                <ProjectAdminActions
-                  slug={project.slug}
-                  name={project.name}
-                  status="active"
-                  canMoveUp={idx > 0}
-                  canMoveDown={idx < active.length - 1}
-                />
-
-                <Link
-                  href={`/portal/projects/${project.slug}`}
-                  style={{ background: "#E8147F", color: "#FAF7F0" }}
-                  className="inline-block text-center text-sm font-semibold tracking-wide px-4 py-2 rounded hover:opacity-90 transition-opacity"
+            {active.map((project, idx) => {
+              const tone = toneFor(idx)
+              return (
+                <div
+                  key={project.slug}
+                  style={cardStyle(tone)}
+                  className="rounded-lg p-6 flex flex-col gap-4"
                 >
-                  Open Project
-                </Link>
-              </div>
-            ))}
+                  <div className="flex-1 flex flex-col gap-2">
+                    <h2 style={{ color: "#FAF7F0" }} className="text-xl font-semibold tracking-wide">
+                      {project.name}
+                    </h2>
+                    <p style={{ color: "#BDBDBD" }} className="text-sm leading-relaxed">
+                      {project.description || <span style={{ color: "#777" }}>No description</span>}
+                    </p>
+                    <span style={chipStyle(tone)} className="mt-1">
+                      {project.pages.length} document{project.pages.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <ProjectAdminActions
+                    slug={project.slug}
+                    name={project.name}
+                    status="active"
+                    canMoveUp={idx > 0}
+                    canMoveDown={idx < active.length - 1}
+                    variant="quiet"
+                  />
+
+                  <Link
+                    href={`/portal/projects/${project.slug}`}
+                    style={{ background: tone.hex, color: tone.buttonText }}
+                    className="inline-block text-center text-sm font-semibold tracking-wide px-4 py-2 rounded hover:opacity-90 transition-opacity"
+                  >
+                    Open Project
+                  </Link>
+                </div>
+              )
+            })}
           </div>
 
           {archived.length > 0 && (
@@ -184,28 +227,29 @@ export default async function PortalPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {grantedProjects.map(({ grant, project }) => {
+            {grantedProjects.map(({ grant, project }, idx) => {
               const expiringSoon = grant.expiresAt - now < MS_72H
+              const tone = toneFor(idx)
               return (
                 <div
                   key={project.slug}
-                  style={{ background: "#111", border: "1px solid #222" }}
+                  style={cardStyle(tone)}
                   className="rounded-lg p-6 flex flex-col gap-4"
                 >
                   <div>
                     <h2
-                      style={{ color: "#E8147F" }}
+                      style={{ color: "#FAF7F0" }}
                       className="text-xl font-semibold tracking-wide mb-2"
                     >
                       {project.name}
                     </h2>
-                    <p style={{ color: "#888" }} className="text-sm leading-relaxed">
+                    <p style={{ color: "#BDBDBD" }} className="text-sm leading-relaxed">
                       {project.description}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-3 mt-auto">
-                    <span style={{ color: "#555" }} className="text-xs">
+                    <span style={{ color: "#999" }} className="text-xs">
                       {isNeverExpiring(grant.expiresAt)
                         ? "Access never expires"
                         : `Access until ${formatDate(grant.expiresAt)}`}
@@ -226,7 +270,7 @@ export default async function PortalPage() {
 
                   <Link
                     href={`/portal/projects/${project.slug}`}
-                    style={{ background: "#E8147F", color: "#FAF7F0" }}
+                    style={{ background: tone.hex, color: tone.buttonText }}
                     className="inline-block text-center text-sm font-semibold tracking-wide px-4 py-2 rounded hover:opacity-90 transition-opacity"
                   >
                     Open Project
