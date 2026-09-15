@@ -1,4 +1,5 @@
 import type React from "react"
+import { auth } from "@clerk/nextjs/server"
 import { clerkClient } from "@/lib/clerk"
 import { grantsFromMetadata, readGrants } from "@/lib/auth"
 import { getProject } from "@/lib/projects"
@@ -93,6 +94,8 @@ export default async function AdminPage({
     getArchivedProjects(),
   ])
   const projectOptions: ProjectOption[] = activeProjects.map((p) => ({ slug: p.slug, name: p.name }))
+  // The signed-in admin's own row gets a "You" tag and no Archive button (self-archive is refused).
+  const { userId: currentUserId } = await auth()
 
   // Invited people who have not signed in yet. They have no Clerk user; their
   // access is whatever the admin last set (stored), else what the invite carries.
@@ -321,6 +324,9 @@ export default async function AdminPage({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                       <span style={{ color: "#ffffff", fontWeight: 600, fontSize: "0.9rem" }}>{name}</span>
+                      {user.id === currentUserId && (
+                        <span style={{ ...awaitingTag, backgroundColor: "#3a1623", border: "1px solid #E8147F", color: "#FF8CC6" }}>You</span>
+                      )}
                       {!user.lastSignInAt && <span style={awaitingTag}>Not signed in yet</span>}
                     </div>
                     <div style={{ color: "#555555", marginTop: "2px", fontSize: "0.72rem" }}>{email}</div>
@@ -350,16 +356,18 @@ export default async function AdminPage({
                           title="Send a summary email of this user's current access (you get a copy)"
                         />
                       )}
-                      <AdminActionButton
-                        endpoint="/portal/admin/users/archive"
-                        payload={{ userId: user.id }}
-                        label="Archive User"
-                        busyLabel="Archiving..."
-                        doneLabel="Archived"
-                        tone="neutral"
-                        fullWidth
-                        title="Archive this user (hide from active list, keep history). Never deleted."
-                      />
+                      {user.id !== currentUserId && (
+                        <AdminActionButton
+                          endpoint="/portal/admin/users/archive"
+                          payload={{ userId: user.id }}
+                          label="Archive User"
+                          busyLabel="Archiving..."
+                          doneLabel="Archived"
+                          tone="neutral"
+                          fullWidth
+                          title="Archive this user (hide from active list, keep history). Never deleted."
+                        />
+                      )}
                     </>
                   }
                 />
