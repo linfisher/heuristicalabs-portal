@@ -24,3 +24,21 @@ Re-upload after a bundle swap:
 
     scp ops/portal-thumbs/tiresledz-ts200.png \
       heuristica-vps:/var/www/portal-content/projects/knucklehead-sledz/tiresledz/portal-thumb.png
+
+## HTML pages (fileType "html")
+A single-file HTML page's thumbnail sits beside it in the content directory as
+`<path>.thumb.png`, and the page's `thumbnailSrc` is
+`/api/proxy/<slug>/<path>?thumb=1` — served under the same auth as the page.
+Every new portal page gets a thumbnail; none ship without one.
+
+- `ede-oman-fee-model.png` — `ede-x-oman` / `ede-oman-fee-model`. Headless Chrome
+  render of the page at 1275x1650, scaled to 850x1100.
+- `ede-oman-team-brief-slides.png` — `ede-x-oman` / `ede-oman-team-brief-slides`.
+  Title slide, cropped to the slide area, 850x1100.
+
+Upload:
+
+    scp ops/portal-thumbs/ede-oman-fee-model.png \
+      heuristica-vps:/var/www/portal-content/projects/ede-x-oman/ede-oman-fee-model.thumb.png
+    scp ops/portal-thumbs/ede-oman-team-brief-slides.png \
+      heuristica-vps:/var/www/portal-content/projects/ede-x-oman/ede-oman-team-brief-slides.thumb.png
