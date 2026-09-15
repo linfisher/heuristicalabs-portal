@@ -7,14 +7,15 @@ import { getProject } from "@/lib/projects"
 import { grantsFromMetadata, isAdminEmail } from "@/lib/auth"
 import { checkSameOrigin } from "@/lib/csrf"
 import { sendEmail } from "@/lib/email"
+import { getStoredPendingGrants } from "@/lib/pending-grants"
 import UserInviteEmail, { subject } from "@/emails/user-invite"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
-// Resend a pending invite. Clerk invitations cannot be re-sent, so the old one
-// is revoked and a new one is created with the same grants (same expiry), then
-// the branded invite email goes out again with the new link.
+// Resend a pending invite. Clerk invitations cannot be re-sent, so a new one
+// is created with the person's current grants, then the old one is revoked,
+// then the branded invite email goes out again with the new link.
 export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) {
@@ -51,16 +52,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "invite_not_found" }, { status: 404 })
     }
     email = old.emailAddress
-    const grants = grantsFromMetadata(old.publicMetadata)
+    const grants = (await getStoredPendingGrants(email)) ?? grantsFromMetadata(old.publicMetadata)
 
-    await clerkClient.invitations.revokeInvitation(old.id)
+    // New invitation first (ignoreExisting lets it coexist with the old one),
+    // old one revoked only after that succeeds — a failure never loses the invite.
     const fresh = await clerkClient.invitations.createInvitation({
       emailAddress: email,
       publicMetadata: { projects: grants },
       redirectUrl: `${appUrl}/portal/sign-up`,
       notify: false,
+      ignoreExisting: true,
     })
     if (!fresh.url) throw new Error("Invitation created without a URL")
+    await clerkClient.invitations.revokeInvitation(old.id)
 
     await sendEmail({
       to: email,

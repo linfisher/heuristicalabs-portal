@@ -6,22 +6,26 @@ import { resolveContentRoot } from "./registry"
 // whose database was deleted for inactivity in 2026. Implements only the calls
 // the portal uses: get / set (ex, nx) / del / incr / expire.
 //
-// Safe because the portal runs as a single PM2 fork process: state lives in
-// memory (so check-and-delete is atomic within one tick) and every mutation is
-// written to disk atomically (temp file + rename), so it survives restarts.
+// Safe because the portal runs as a single PM2 fork process. State lives on
+// globalThis, not in module scope: Next can bundle this module more than once
+// (route handlers vs server pages), and every copy must share one store.
+// Mutations run one at a time against a copy, the copy is written to disk
+// (temp file + rename), and only then becomes the live store — so single-use
+// checks stay atomic and a failed write leaves memory unchanged.
 
 type Entry = { v: unknown; exp?: number } // exp = Unix ms
+type KvState = { store: Map<string, Entry> | null; chain: Promise<unknown> }
 
-let store: Map<string, Entry> | null = null
-let writeChain: Promise<void> = Promise.resolve()
+const g = globalThis as typeof globalThis & { __portalKv?: KvState }
+const state: KvState = (g.__portalKv ??= { store: null, chain: Promise.resolve() })
 
 function filePath(): string {
   return process.env.KV_PATH ?? path.join(resolveContentRoot(), "kv.json")
 }
 
 function load(): Map<string, Entry> {
-  if (store) return store
-  store = new Map()
+  if (state.store) return state.store
+  const store = new Map<string, Entry>()
   try {
     const raw = JSON.parse(fs.readFileSync(filePath(), "utf-8")) as Record<string, Entry>
     const now = Date.now()
@@ -31,73 +35,79 @@ function load(): Map<string, Entry> {
   } catch {
     // Missing or unreadable file: start empty.
   }
+  state.store = store
   return store
 }
 
-function live(key: string): Entry | undefined {
-  const s = load()
-  const entry = s.get(key)
-  if (entry?.exp && entry.exp <= Date.now()) {
-    s.delete(key)
-    return undefined
-  }
-  return entry
+function read(key: string): Entry | undefined {
+  const entry = load().get(key)
+  return entry && (!entry.exp || entry.exp > Date.now()) ? entry : undefined
 }
 
-function persist(): Promise<void> {
-  const s = load()
-  const now = Date.now()
-  for (const [key, entry] of s) {
-    if (entry.exp && entry.exp <= now) s.delete(key)
-  }
-  const snapshot = JSON.stringify(Object.fromEntries(s))
-  writeChain = writeChain
-    .catch(() => {})
-    .then(async () => {
+function mutate<T>(apply: (next: Map<string, Entry>) => { result: T; changed: boolean }): Promise<T> {
+  const run = async (): Promise<T> => {
+    const now = Date.now()
+    const next = new Map<string, Entry>()
+    for (const [key, entry] of load()) {
+      if (!entry.exp || entry.exp > now) next.set(key, entry)
+    }
+    const { result, changed } = apply(next)
+    if (changed) {
       const p = filePath()
       await fs.promises.mkdir(path.dirname(p), { recursive: true })
       const tmp = `${p}.tmp`
-      await fs.promises.writeFile(tmp, snapshot)
+      await fs.promises.writeFile(tmp, JSON.stringify(Object.fromEntries(next)))
       await fs.promises.rename(tmp, p)
-    })
-  return writeChain
+      state.store = next
+    }
+    return result
+  }
+  const pending = state.chain.then(run, run)
+  state.chain = pending.catch(() => {})
+  return pending
 }
 
 export const kv = {
   async get<T = unknown>(key: string): Promise<T | null> {
-    const entry = live(key)
-    return entry ? (entry.v as T) : null
+    const entry = read(key)
+    // A copy, so callers that edit the value cannot change the store without set().
+    return entry ? (structuredClone(entry.v) as T) : null
   },
 
-  async set(key: string, value: unknown, opts: { ex?: number; nx?: boolean } = {}): Promise<"OK" | null> {
-    if (opts.nx && live(key)) return null
-    load().set(key, opts.ex ? { v: value, exp: Date.now() + opts.ex * 1000 } : { v: value })
-    await persist()
-    return "OK"
+  set(key: string, value: unknown, opts: { ex?: number; nx?: boolean } = {}): Promise<"OK" | null> {
+    return mutate<"OK" | null>((next) => {
+      if (opts.nx && next.has(key)) return { result: null, changed: false }
+      const v = structuredClone(value)
+      next.set(key, opts.ex ? { v, exp: Date.now() + opts.ex * 1000 } : { v })
+      return { result: "OK", changed: true }
+    })
   },
 
-  async del(...keys: string[]): Promise<number> {
-    let removed = 0
-    for (const key of keys) {
-      if (live(key) && load().delete(key)) removed++
-    }
-    if (removed > 0) await persist()
-    return removed
+  del(...keys: string[]): Promise<number> {
+    return mutate<number>((next) => {
+      let removed = 0
+      for (const key of keys) {
+        if (next.delete(key)) removed++
+      }
+      return { result: removed, changed: removed > 0 }
+    })
   },
 
-  async incr(key: string): Promise<number> {
-    const entry = live(key)
-    const next = (typeof entry?.v === "number" ? entry.v : 0) + 1
-    load().set(key, entry?.exp ? { v: next, exp: entry.exp } : { v: next })
-    await persist()
-    return next
+  incr(key: string): Promise<number> {
+    return mutate<number>((next) => {
+      const entry = next.get(key)
+      const value = (typeof entry?.v === "number" ? entry.v : 0) + 1
+      next.set(key, entry?.exp ? { v: value, exp: entry.exp } : { v: value })
+      return { result: value, changed: true }
+    })
   },
 
-  async expire(key: string, seconds: number): Promise<number> {
-    const entry = live(key)
-    if (!entry) return 0
-    entry.exp = Date.now() + seconds * 1000
-    await persist()
-    return 1
+  expire(key: string, seconds: number): Promise<number> {
+    return mutate<number>((next) => {
+      const entry = next.get(key)
+      if (!entry) return { result: 0, changed: false }
+      next.set(key, { v: entry.v, exp: Date.now() + seconds * 1000 })
+      return { result: 1, changed: true }
+    })
   },
 }

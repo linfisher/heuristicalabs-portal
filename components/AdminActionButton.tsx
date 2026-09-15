@@ -61,6 +61,8 @@ export function AdminActionButton({
       router.refresh()
     } catch {
       setPhase("error")
+      // Reload the page data too, so a retry acts on current state (e.g. a re-created invite).
+      router.refresh()
     }
   }
 
