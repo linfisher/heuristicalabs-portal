@@ -1,10 +1,10 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
-import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
 import { checkSameOrigin } from "@/lib/csrf"
+import { respondDone, respondFail } from "@/lib/admin-respond"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
   // Self-archive guard
   if (targetUserId === userId) {
-    redirect("/portal/admin?error=cannot_archive_self")
+    return respondFail(request, "cannot_archive_self", 400)
   }
 
   try {
@@ -47,8 +47,9 @@ export async function POST(request: Request) {
     await clerkClient.users.updateUserMetadata(targetUserId, {
       privateMetadata: { ...currentPrivate, archivedAt: Date.now() },
     })
-  } catch {
-    redirect("/portal/admin?error=archive_failed")
+  } catch (err) {
+    console.error("[user-archive] failed", { targetUserId, err })
+    return respondFail(request, "archive_failed")
   }
 
   console.info("[admin]", {
@@ -59,5 +60,5 @@ export async function POST(request: Request) {
   })
 
   revalidatePath("/portal/admin")
-  redirect("/portal/admin?archived=1")
+  return respondDone(request, "/portal/admin?archived=1")
 }

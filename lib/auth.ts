@@ -16,7 +16,13 @@ export function isAdminEmail(email: string | undefined): boolean {
 }
 
 export function readGrants(user: User): ProjectGrant[] {
-  const raw = user.publicMetadata?.projects
+  return grantsFromMetadata(user.publicMetadata)
+}
+
+// Same validation for any publicMetadata blob carrying grants — a user's, or a
+// pending invitation's (grants ride on the invite until the account exists).
+export function grantsFromMetadata(metadata: unknown): ProjectGrant[] {
+  const raw = (metadata as { projects?: unknown } | null | undefined)?.projects
   if (!Array.isArray(raw)) return []
   return raw.filter(
     (g): g is ProjectGrant =>

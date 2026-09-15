@@ -1,11 +1,13 @@
 import type React from "react"
 import { clerkClient } from "@/lib/clerk"
-import { readGrants } from "@/lib/auth"
+import { grantsFromMetadata, readGrants } from "@/lib/auth"
 import { getProject } from "@/lib/projects"
 import { getActiveProjects, getArchivedProjects } from "@/lib/projects-registry"
 import { AdminProjectsPanel } from "@/components/AdminProjectsPanel"
 import { GrantAccessForm } from "@/components/GrantAccessForm"
 import { AddUserForm } from "@/components/AddUserForm"
+import { AdminActionButton } from "@/components/AdminActionButton"
+import { GrantDurationChips } from "@/components/GrantDurationChips"
 import { DURATION_NEVER, isNeverExpiring } from "@/lib/durations"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -35,7 +37,7 @@ function currentBucketMs(grant: ProjectGrant, now: number): number {
 }
 
 // If every checked-pre-grant shares one bucket, pre-select that bucket in
-// the Grant Now dropdown. Otherwise fall back to the new-grant default.
+// the Grant Access length dropdown. Otherwise fall back to the new-grant default.
 function commonBucketMs(liveGrants: ProjectGrant[], now: number): number {
   if (liveGrants.length === 0) return DEFAULT_GRANT_MS
   const buckets = Array.from(new Set(liveGrants.map((g) => currentBucketMs(g, now))))
@@ -67,6 +69,8 @@ const STATUS_COLORS = {
   expired:  { bg: "#2d0f0f", border: "#ef4444", text: "#ef4444" },
 }
 
+type PendingInvite = { id: string; email: string; createdAt: number; grants: ProjectGrant[] }
+
 export default async function AdminPage({
   searchParams,
 }: {
@@ -85,6 +89,18 @@ export default async function AdminPage({
     getActiveProjects(),
     getArchivedProjects(),
   ])
+
+  // Invited people who have not signed in yet. They have no Clerk user, so
+  // they come from the pending invitation list, with grants riding on the invite.
+  let pendingInvites: PendingInvite[] = []
+  try {
+    const { data } = await clerkClient.invitations.getInvitationList({ status: "pending", limit: 100 })
+    pendingInvites = data
+      .map((i) => ({ id: i.id, email: i.emailAddress, createdAt: i.createdAt, grants: grantsFromMetadata(i.publicMetadata) }))
+      .sort((a, b) => b.createdAt - a.createdAt)
+  } catch (err) {
+    console.error("[admin] could not load pending invitations", err)
+  }
 
   // Split archived users out of every flow. Archived users keep their
   // grants + history forever — they just don't appear in the active list,
@@ -124,11 +140,13 @@ export default async function AdminPage({
           </h1>
           <p style={{ color: "#555555", marginTop: "6px", fontSize: "0.8125rem" }}>
             Heuristica Labs Portal — {activeUsers.length} active user{activeUsers.length !== 1 ? "s" : ""}
+            {pendingInvites.length > 0 && ` · ${pendingInvites.length} awaiting sign-in`}
             {archivedUsers.length > 0 && ` · ${archivedUsers.length} archived`}
           </p>
         </div>
 
-        {/* Flash messages */}
+        {/* Flash messages — only reached by plain form posts; the dashboard's
+            own buttons save in place and show their result on the button. */}
         {searchParams.granted === "1" && (
           <FlashMessage color="#22c55e" bg="#0f2d0f" border="#22c55e">
             Access granted.
@@ -193,7 +211,7 @@ export default async function AdminPage({
             fontSize: "0.8rem",
           }}
         >
-          <strong style={{ color: "#888888" }}>How this works</strong> — pick projects and a duration under <em>Grant Access</em>, or use the <em>Set to:</em> chips next to each existing grant to change duration. Changes are silent. When you&apos;re done making changes, click <em>Notify User</em> to send one email summarizing their current access.
+          <strong style={{ color: "#888888" }}>How this works</strong> — every change saves the moment you make it: tick or untick projects under <em>Grant Access</em>, change the access length, or use the <em>Set to:</em> chips on an existing grant. Changes are silent. When you&apos;re done, click <em>Notify User</em> to send one email summarizing their current access.
         </div>
 
         {/* Projects management */}
@@ -216,10 +234,45 @@ export default async function AdminPage({
           defaultDurationMs={DEFAULT_GRANT_MS}
         />
 
-        {/* Users list — each user is a collapsible row.
-            Sort: users with live grants first, then alphabetically by first name.
-            Users with no live grants (revoked / none) sink to the bottom. */}
+        {/* Users list — invited people awaiting sign-in first, then each user as
+            a collapsible row. Sort: users with live grants first, then
+            alphabetically by first name. Users with no live grants sink. */}
         <div>
+          {pendingInvites.map((invite) => (
+            <div
+              key={invite.id}
+              className="user-row"
+              style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}
+            >
+              <span style={{ width: "12px" }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ color: "#ffffff", fontWeight: 600, fontSize: "0.9rem" }}>{invite.email}</span>
+                  <span style={awaitingTag}>Awaiting sign-in</span>
+                </div>
+                <div style={{ color: "#777777", marginTop: "4px", fontSize: "0.72rem" }}>
+                  Invited {formatExpiry(invite.createdAt)}
+                  {" · "}
+                  {invite.grants.length === 0
+                    ? "no projects"
+                    : invite.grants
+                        .map((g) => `${getProject(g.slug)?.name ?? g.slug} (${isNeverExpiring(g.expiresAt) ? "no expiry" : `until ${formatExpiry(g.expiresAt)}`})`)
+                        .join(", ")}
+                </div>
+              </div>
+              <AdminActionButton
+                endpoint="/portal/admin/invite/resend"
+                json
+                payload={{ invitationId: invite.id }}
+                label="Resend Invite"
+                busyLabel="Sending..."
+                doneLabel="Invite resent"
+                tone="pink"
+                title={`Send ${invite.email} a fresh invite email (you get a copy)`}
+              />
+            </div>
+          ))}
+
           {[...activeUsers].sort((a, b) => {
             const aLive = readGrants(a).some((g) => g.expiresAt > now)
             const bLive = readGrants(b).some((g) => g.expiresAt > now)
@@ -268,7 +321,6 @@ export default async function AdminPage({
                           const days = daysRemaining(grant.expiresAt, now)
                           const expiry = formatExpiry(grant.expiresAt)
                           const never = isNeverExpiring(grant.expiresAt)
-                          const activeBucket = currentBucketMs(grant, now)
 
                           return (
                             <div
@@ -304,44 +356,28 @@ export default async function AdminPage({
                                       ? "Never expires"
                                       : `${days}d · ${expiry}`}
                                 </span>
-                                <form
-                                  action="/portal/admin/revoke"
-                                  method="POST"
-                                  style={{ marginLeft: "auto" }}
-                                >
-                                  <input type="hidden" name="userId" value={user.id} />
-                                  <input type="hidden" name="projectSlug" value={grant.slug} />
-                                  <button type="submit" style={btnRevokeLink} title="Revoke access">
-                                    Revoke
-                                  </button>
-                                </form>
+                                <div style={{ marginLeft: "auto" }}>
+                                  <AdminActionButton
+                                    endpoint="/portal/admin/project-access"
+                                    json
+                                    payload={{ action: "revoke", userId: user.id, projectSlug: grant.slug }}
+                                    label="Revoke"
+                                    busyLabel="Revoking..."
+                                    doneLabel="Revoked"
+                                    tone="link"
+                                    title={`Revoke ${projectName} access`}
+                                  />
+                                </div>
                               </div>
 
                               {/* Row 2: one-click duration chips */}
-                              <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
-                                <span style={{ color: "#666666", fontSize: "0.7rem", marginRight: "2px" }}>
-                                  Set to:
-                                </span>
-                                {DURATIONS.map((d) => (
-                                  <form
-                                    key={d.ms}
-                                    action="/portal/admin/extend"
-                                    method="POST"
-                                    style={{ display: "inline" }}
-                                  >
-                                    <input type="hidden" name="userId" value={user.id} />
-                                    <input type="hidden" name="projectSlug" value={grant.slug} />
-                                    <input type="hidden" name="durationMs" value={d.ms} />
-                                    <button
-                                      type="submit"
-                                      style={d.ms === activeBucket ? btnDurationChipActive : btnDurationChip}
-                                      title={`Set ${projectName} access to ${d.label}`}
-                                    >
-                                      {d.chip}
-                                    </button>
-                                  </form>
-                                ))}
-                              </div>
+                              <GrantDurationChips
+                                userId={user.id}
+                                projectSlug={grant.slug}
+                                projectName={projectName}
+                                durations={DURATIONS}
+                                activeMs={currentBucketMs(grant, now)}
+                              />
                             </div>
                           )
                         })}
@@ -350,10 +386,8 @@ export default async function AdminPage({
                   </div>
 
                   {/* Grant Access — boxes are pre-checked for projects the user
-                      currently has a LIVE grant on, so the admin can see existing
-                      access at a glance. The Grant Now button is dimmed until the
-                      admin actually changes something (toggles a box or changes the
-                      duration), then lights up to signal the change is ready to apply. */}
+                      currently has a LIVE grant on. Every tick, untick and length
+                      change saves immediately. */}
                   <div style={{ flex: "1 1 220px", minWidth: 0 }}>
                     <div style={colHeader}>Grant Access</div>
                     <GrantAccessForm
@@ -364,27 +398,31 @@ export default async function AdminPage({
                       durations={DURATIONS}
                     />
                     {hasAnyLiveGrant && (
-                      <form
-                        action="/portal/admin/notify"
-                        method="POST"
-                        style={{ marginTop: "8px" }}
-                      >
-                        <input type="hidden" name="userId" value={user.id} />
-                        <button type="submit" style={btnNotify} title="Send a summary email of this user's current access">
-                          Notify User
-                        </button>
-                      </form>
+                      <div style={{ marginTop: "8px" }}>
+                        <AdminActionButton
+                          endpoint="/portal/admin/notify"
+                          payload={{ userId: user.id }}
+                          label="Notify User"
+                          busyLabel="Sending email..."
+                          doneLabel="Email sent"
+                          tone="neutral"
+                          fullWidth
+                          title="Send a summary email of this user's current access (you get a copy)"
+                        />
+                      </div>
                     )}
-                    <form
-                      action="/portal/admin/users/archive"
-                      method="POST"
-                      style={{ marginTop: "8px" }}
-                    >
-                      <input type="hidden" name="userId" value={user.id} />
-                      <button type="submit" style={btnArchiveUser} title="Archive this user (hide from active list, keep history). Never deleted.">
-                        Archive User
-                      </button>
-                    </form>
+                    <div style={{ marginTop: "8px" }}>
+                      <AdminActionButton
+                        endpoint="/portal/admin/users/archive"
+                        payload={{ userId: user.id }}
+                        label="Archive User"
+                        busyLabel="Archiving..."
+                        doneLabel="Archived"
+                        tone="neutral"
+                        fullWidth
+                        title="Archive this user (hide from active list, keep history). Never deleted."
+                      />
+                    </div>
                   </div>
 
                 </div>
@@ -434,12 +472,15 @@ export default async function AdminPage({
                           archived {formatExpiry(archivedAt)}
                         </div>
                       )}
-                      <form action="/portal/admin/users/restore" method="POST">
-                        <input type="hidden" name="userId" value={user.id} />
-                        <button type="submit" style={btnRestoreUser} title="Restore this user to the active list">
-                          Restore
-                        </button>
-                      </form>
+                      <AdminActionButton
+                        endpoint="/portal/admin/users/restore"
+                        payload={{ userId: user.id }}
+                        label="Restore"
+                        busyLabel="Restoring..."
+                        doneLabel="Restored"
+                        tone="success"
+                        title="Restore this user to the active list"
+                      />
                     </div>
                   )
                 })}
@@ -458,6 +499,19 @@ const colHeader: React.CSSProperties = {
   letterSpacing: "0.1em",
   textTransform: "uppercase",
   marginBottom: "8px",
+}
+
+const awaitingTag: React.CSSProperties = {
+  backgroundColor: "#2d2200",
+  border: "1px solid #F5C418",
+  color: "#F5C418",
+  borderRadius: "999px",
+  padding: "1px 8px",
+  fontSize: "0.62rem",
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  whiteSpace: "nowrap",
 }
 
 function FlashMessage({
@@ -505,66 +559,3 @@ function StatCard({ label, value, color }: { label: string; value: number; color
     </div>
   )
 }
-
-const btnDurationChip: React.CSSProperties = {
-  backgroundColor: "#1a1a1a",
-  border: "1px solid #2a2a2a",
-  borderRadius: "3px",
-  color: "#aaaaaa",
-  cursor: "pointer",
-  fontSize: "0.7rem",
-  fontWeight: 600,
-  padding: "2px 7px",
-  whiteSpace: "nowrap",
-}
-
-const btnDurationChipActive: React.CSSProperties = {
-  ...btnDurationChip,
-  backgroundColor: "#22c55e",
-  border: "1px solid #22c55e",
-  color: "#0a0a0a",
-}
-
-const btnNotify: React.CSSProperties = {
-  backgroundColor: "transparent",
-  border: "1px solid #2a2a2a",
-  borderRadius: "4px",
-  color: "#aaaaaa",
-  cursor: "pointer",
-  fontSize: "0.75rem",
-  fontWeight: 600,
-  padding: "6px 12px",
-  width: "100%",
-}
-
-const btnArchiveUser: React.CSSProperties = {
-  ...btnNotify,
-  color: "#666666",
-  fontSize: "0.7rem",
-  padding: "4px 10px",
-}
-
-const btnRestoreUser: React.CSSProperties = {
-  backgroundColor: "transparent",
-  border: "1px solid #2a4a2a",
-  borderRadius: "4px",
-  color: "#22c55e",
-  cursor: "pointer",
-  fontSize: "0.75rem",
-  fontWeight: 600,
-  padding: "4px 12px",
-  whiteSpace: "nowrap",
-}
-
-const btnRevokeLink: React.CSSProperties = {
-  backgroundColor: "transparent",
-  border: "none",
-  color: "#888888",
-  cursor: "pointer",
-  fontSize: "0.7rem",
-  padding: "2px 4px",
-  textDecoration: "underline",
-  textUnderlineOffset: "2px",
-  whiteSpace: "nowrap",
-}
-

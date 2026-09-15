@@ -1,10 +1,12 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 import type React from "react"
 
 type Project = { slug: string; name: string }
 type Duration = { label: string; chip: string; ms: number }
+type Phase = "idle" | "busy" | "done" | "error"
 
 export function AddUserForm({
   projects,
@@ -15,9 +17,13 @@ export function AddUserForm({
   durations: Duration[]
   defaultDurationMs: number
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState("")
   const [checked, setChecked] = useState<Set<string>>(() => new Set())
+  const [phase, setPhase] = useState<Phase>("idle")
+  const [message, setMessage] = useState("")
+  const [pressed, setPressed] = useState(false)
   const ready = email.includes("@") && checked.size > 0
 
   function toggle(slug: string, on: boolean) {
@@ -29,16 +35,55 @@ export function AddUserForm({
     })
   }
 
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!ready || phase === "busy") return
+    setPhase("busy")
+    setMessage("")
+    const sentTo = email
+    try {
+      const res = await fetch("/portal/admin/invite", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+        body: new FormData(e.currentTarget),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      if (!res.ok) {
+        setPhase("error")
+        setMessage(
+          data.error === "invite_exists"
+            ? "That email already has an account or a pending invite."
+            : data.error === "invite_email_failed"
+              ? "The invite was created but the email did not send. Use Resend Invite on their row."
+              : "The invite did not go out. Try again.",
+        )
+        return
+      }
+      setPhase("done")
+      setMessage(`Invite sent to ${sentTo}. A copy went to your inbox.`)
+      setEmail("")
+      setChecked(new Set())
+      router.refresh()
+      setTimeout(() => setPhase("idle"), 2500)
+    } catch {
+      setPhase("error")
+      setMessage("The invite did not go out. Try again.")
+    }
+  }
+
+  const sendLabel =
+    phase === "busy" ? "Sending invite..." : phase === "done" ? "Invite sent" : phase === "error" ? "Try again" : "Send Invite"
+
   return (
     <div style={{ marginBottom: "16px" }}>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <button type="button" onClick={() => setOpen((o) => !o)} style={open ? btnCancel : btnAdd}>
-          {open ? "Cancel" : "+ Add User"}
+          {open ? "Close" : "+ Add User"}
         </button>
       </div>
 
       {open && (
-        <form action="/portal/admin/invite" method="POST" style={panel}>
+        <form onSubmit={submit} style={panel}>
           <label style={labelStyle} htmlFor="add-user-email">Email</label>
           <input
             id="add-user-email"
@@ -77,23 +122,47 @@ export function AddUserForm({
 
           <button
             type="submit"
-            disabled={!ready}
-            style={{
-              ...btnSend,
-              backgroundColor: ready ? "#E8147F" : "#3a1623",
-              color: ready ? "#ffffff" : "#8a8a8a",
-              cursor: ready ? "pointer" : "not-allowed",
-            }}
+            disabled={phase === "busy" || (!ready && phase !== "done")}
+            onPointerDown={() => setPressed(true)}
+            onPointerUp={() => setPressed(false)}
+            onPointerLeave={() => setPressed(false)}
+            style={sendStyle(phase, ready, pressed)}
           >
-            Send Invite
+            {sendLabel}
           </button>
-          <p style={{ color: "#777777", fontSize: "0.72rem", margin: 0 }}>
-            They get an email invite to create their sign-in. Access starts now. You get a copy of the email.
-          </p>
+          {message ? (
+            <p style={{ color: phase === "error" ? "#ef4444" : "#22c55e", fontSize: "0.75rem", margin: 0 }}>{message}</p>
+          ) : (
+            <p style={{ color: "#777777", fontSize: "0.72rem", margin: 0 }}>
+              They get an email invite to create their sign-in. Access starts now. You get a copy of the email.
+            </p>
+          )}
         </form>
       )}
     </div>
   )
+}
+
+function sendStyle(phase: Phase, ready: boolean, pressed: boolean): React.CSSProperties {
+  const base: React.CSSProperties = {
+    border: "1px solid transparent",
+    borderRadius: "4px",
+    fontSize: "0.85rem",
+    fontWeight: 600,
+    padding: "8px 14px",
+    marginTop: "4px",
+    transform: pressed ? "scale(0.97)" : "scale(1)",
+    transition: "transform 80ms ease, background-color 150ms ease, color 150ms ease, border-color 150ms ease",
+  }
+  if (phase === "busy") return { ...base, backgroundColor: "#3a1623", borderColor: "#E8147F", color: "#ffffff", cursor: "wait" }
+  if (phase === "done") return { ...base, backgroundColor: "#0f2d0f", borderColor: "#22c55e", color: "#22c55e", cursor: "default" }
+  if (phase === "error") return { ...base, backgroundColor: "#2d0f0f", borderColor: "#ef4444", color: "#ef4444", cursor: "pointer" }
+  return {
+    ...base,
+    backgroundColor: ready ? "#E8147F" : "#3a1623",
+    color: ready ? "#ffffff" : "#8a8a8a",
+    cursor: ready ? "pointer" : "not-allowed",
+  }
 }
 
 const btnAdd: React.CSSProperties = {
@@ -155,14 +224,4 @@ const checkList: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   gap: "5px",
-}
-
-const btnSend: React.CSSProperties = {
-  border: "none",
-  borderRadius: "4px",
-  fontSize: "0.85rem",
-  fontWeight: 600,
-  padding: "8px 14px",
-  marginTop: "4px",
-  transition: "background-color 0.15s ease, color 0.15s ease",
 }

@@ -1,10 +1,10 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
-import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { clerkClient } from "@/lib/clerk"
 import { isAdminEmail } from "@/lib/auth"
 import { checkSameOrigin } from "@/lib/csrf"
+import { respondDone, respondFail } from "@/lib/admin-respond"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -43,8 +43,9 @@ export async function POST(request: Request) {
     await clerkClient.users.updateUserMetadata(targetUserId, {
       privateMetadata: rest,
     })
-  } catch {
-    redirect("/portal/admin?error=restore_failed")
+  } catch (err) {
+    console.error("[user-restore] failed", { targetUserId, err })
+    return respondFail(request, "restore_failed")
   }
 
   console.info("[admin]", {
@@ -55,5 +56,5 @@ export async function POST(request: Request) {
   })
 
   revalidatePath("/portal/admin")
-  redirect("/portal/admin?restored=1")
+  return respondDone(request, "/portal/admin?restored=1")
 }
