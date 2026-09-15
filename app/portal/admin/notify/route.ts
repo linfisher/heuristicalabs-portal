@@ -1,6 +1,5 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
-import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import React from "react"
 import { clerkClient } from "@/lib/clerk"
@@ -8,6 +7,7 @@ import { getProject } from "@/lib/projects"
 import { isAdminEmail } from "@/lib/auth"
 import { checkSameOrigin } from "@/lib/csrf"
 import { sendEmail } from "@/lib/email"
+import { respondDone, respondFail } from "@/lib/admin-respond"
 import AccessSummaryEmail, { subject as summarySubject } from "@/emails/access-summary"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -57,12 +57,13 @@ export async function POST(request: Request) {
     const grants =
       (targetUser.publicMetadata?.projects as ProjectGrant[] | undefined) ?? []
     liveGrants = grants.filter((g) => g.expiresAt > now)
-  } catch {
-    redirect("/portal/admin?error=notify_failed")
+  } catch (err) {
+    console.error("[notify] failed to load user", { targetUserId, err })
+    return respondFail(request, "notify_failed")
   }
 
   if (!targetEmail) {
-    redirect("/portal/admin?error=notify_no_email")
+    return respondFail(request, "notify_no_email", 400)
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://heuristicalabs.com"
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error("[notify] email send failed", { targetEmail, err })
-    redirect("/portal/admin?error=notify_failed")
+    return respondFail(request, "notify_failed")
   }
 
   console.info("[admin]", {
@@ -102,5 +103,5 @@ export async function POST(request: Request) {
   })
 
   revalidatePath("/portal/admin")
-  redirect("/portal/admin?notified=1")
+  return respondDone(request, "/portal/admin?notified=1")
 }

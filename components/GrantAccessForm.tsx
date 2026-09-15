@@ -1,11 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
 import type React from "react"
 
 type Project = { slug: string; name: string }
 type Duration = { label: string; chip: string; ms: number }
+type SaveState = "saving" | "saved" | "error"
 
+// Grant Access saves as you change it: ticking a project grants it at the
+// selected length, unticking revokes it, and changing the length re-applies it
+// to every ticked project. Each project shows Saving / Saved inline.
 export function GrantAccessForm({
   userId,
   projects,
@@ -19,47 +24,108 @@ export function GrantAccessForm({
   initialDurationMs: number
   durations: Duration[]
 }) {
-  const initialSet = useMemo(() => new Set(initialCheckedSlugs), [initialCheckedSlugs])
+  const router = useRouter()
   const [checked, setChecked] = useState<Set<string>>(() => new Set(initialCheckedSlugs))
   const [durationMs, setDurationMs] = useState<number>(initialDurationMs)
+  const [status, setStatus] = useState<Record<string, SaveState>>({})
+  const [durationNote, setDurationNote] = useState<SaveState | null>(null)
+  // Each save rewrites this user's whole grant list in Clerk, so saves run one at a time.
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  const pending = useRef(0)
 
-  const isDirty = useMemo(() => {
-    if (durationMs !== initialDurationMs) return true
-    if (checked.size !== initialSet.size) return true
-    for (const slug of checked) if (!initialSet.has(slug)) return true
-    return false
-  }, [checked, durationMs, initialDurationMs, initialSet])
+  // Pick up changes made elsewhere on the page (Set to chips, Revoke) once nothing is mid-save.
+  const serverSig = [...initialCheckedSlugs].sort().join(",")
+  useEffect(() => {
+    if (pending.current === 0) setChecked(new Set(initialCheckedSlugs))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverSig])
+
+  function mark(slugs: string[], state: SaveState) {
+    setStatus((prev) => {
+      const next = { ...prev }
+      for (const slug of slugs) next[slug] = state
+      return next
+    })
+    if (state === "saved") {
+      setTimeout(() => {
+        setStatus((prev) => {
+          const next = { ...prev }
+          for (const slug of slugs) if (next[slug] === "saved") delete next[slug]
+          return next
+        })
+      }, 2000)
+    }
+  }
+
+  function enqueue(task: () => Promise<void>) {
+    pending.current++
+    queue.current = queue.current.then(task).finally(() => {
+      pending.current--
+    })
+  }
+
+  async function save(body: Record<string, unknown>) {
+    const res = await fetch("/portal/admin/project-access", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, ...body }),
+    })
+    if (!res.ok) throw new Error(String(res.status))
+  }
 
   function toggle(slug: string, on: boolean) {
+    const ms = durationMs
     setChecked((prev) => {
       const next = new Set(prev)
       if (on) next.add(slug)
       else next.delete(slug)
       return next
     })
+    mark([slug], "saving")
+    enqueue(async () => {
+      try {
+        await save(on ? { action: "extend", projectSlug: slug, durationMs: ms } : { action: "revoke", projectSlug: slug })
+        mark([slug], "saved")
+        router.refresh()
+      } catch {
+        mark([slug], "error")
+        setChecked((prev) => {
+          const next = new Set(prev)
+          if (on) next.delete(slug)
+          else next.add(slug)
+          return next
+        })
+      }
+    })
+  }
+
+  function changeDuration(ms: number) {
+    setDurationMs(ms)
+    const slugs = [...checked]
+    if (slugs.length === 0) return
+    setDurationNote("saving")
+    mark(slugs, "saving")
+    enqueue(async () => {
+      let allSaved = true
+      for (const slug of slugs) {
+        try {
+          await save({ action: "extend", projectSlug: slug, durationMs: ms })
+          mark([slug], "saved")
+        } catch {
+          allSaved = false
+          mark([slug], "error")
+        }
+      }
+      setDurationNote(allSaved ? "saved" : "error")
+      router.refresh()
+    })
   }
 
   return (
-    <form
-      action="/portal/admin/direct-grant"
-      method="POST"
-      style={{ display: "flex", flexDirection: "column", gap: "6px" }}
-    >
-      <input type="hidden" name="userId" value={userId} />
-      <div
-        style={{
-          background: "#1a1a1a",
-          border: "1px solid #2a2a2a",
-          borderRadius: "4px",
-          padding: "6px 8px",
-          maxHeight: "220px",
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: "4px",
-        }}
-      >
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      <div style={listBox}>
         {projects.map((p) => {
+          const state = status[p.slug]
           const isChecked = checked.has(p.slug)
           return (
             <label
@@ -70,20 +136,28 @@ export function GrantAccessForm({
                 gap: "6px",
                 color: isChecked ? "#ffffff" : "#cccccc",
                 fontSize: "0.75rem",
-                cursor: "pointer",
+                cursor: state === "saving" ? "wait" : "pointer",
+                borderRadius: "3px",
+                padding: "2px 4px",
+                backgroundColor: state === "saving" ? "rgba(232,20,127,0.18)" : "transparent",
+                transition: "background-color 150ms ease",
               }}
             >
               <input
                 type="checkbox"
-                name="projectSlug"
-                value={p.slug}
                 checked={isChecked}
+                disabled={state === "saving"}
                 onChange={(e) => toggle(p.slug, e.target.checked)}
                 style={{ accentColor: "#E8147F" }}
               />
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {p.name}
               </span>
+              {state && (
+                <span style={statusStyle(state)}>
+                  {state === "saving" ? "Saving" : state === "saved" ? "Saved" : "Not saved"}
+                </span>
+              )}
             </label>
           )
         })}
@@ -92,10 +166,10 @@ export function GrantAccessForm({
         )}
       </div>
       <select
-        name="durationMs"
         style={selectStyle}
         value={durationMs}
-        onChange={(e) => setDurationMs(Number(e.target.value))}
+        onChange={(e) => changeDuration(Number(e.target.value))}
+        aria-label="Access length"
       >
         {durations.map((d) => (
           <option key={d.ms} value={d.ms}>
@@ -103,21 +177,32 @@ export function GrantAccessForm({
           </option>
         ))}
       </select>
-      <button
-        type="submit"
-        disabled={!isDirty}
-        style={{
-          ...btnPrimary,
-          backgroundColor: isDirty ? "#E8147F" : "#3a1623",
-          color: isDirty ? "#ffffff" : "#8a8a8a",
-          cursor: isDirty ? "pointer" : "not-allowed",
-        }}
-        title={isDirty ? "Apply changes" : "No changes to apply"}
-      >
-        Grant Now
-      </button>
-    </form>
+      <span style={{ color: durationNote === "error" ? "#ef4444" : durationNote === "saving" ? "#E8147F" : "#666666", fontSize: "0.68rem" }}>
+        {durationNote === "saving"
+          ? "Updating access length..."
+          : durationNote === "error"
+            ? "Some changes did not save - try again"
+            : "Changes save as you make them"}
+      </span>
+    </div>
   )
+}
+
+function statusStyle(state: SaveState): React.CSSProperties {
+  const color = state === "saving" ? "#E8147F" : state === "saved" ? "#22c55e" : "#ef4444"
+  return { color, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap" }
+}
+
+const listBox: React.CSSProperties = {
+  background: "#1a1a1a",
+  border: "1px solid #2a2a2a",
+  borderRadius: "4px",
+  padding: "6px 8px",
+  maxHeight: "220px",
+  overflowY: "auto",
+  display: "flex",
+  flexDirection: "column",
+  gap: "2px",
 }
 
 const selectStyle: React.CSSProperties = {
@@ -128,14 +213,4 @@ const selectStyle: React.CSSProperties = {
   fontSize: "0.8rem",
   padding: "5px 8px",
   width: "100%",
-}
-
-const btnPrimary: React.CSSProperties = {
-  border: "none",
-  borderRadius: "4px",
-  fontSize: "0.8rem",
-  fontWeight: 600,
-  padding: "7px 14px",
-  width: "100%",
-  transition: "background-color 0.15s ease, color 0.15s ease",
 }

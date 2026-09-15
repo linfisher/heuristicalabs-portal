@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs/server"
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors"
 import { NextResponse } from "next/server"
-import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import React from "react"
 import { clerkClient } from "@/lib/clerk"
@@ -10,6 +9,7 @@ import { isAdminEmail } from "@/lib/auth"
 import { GRANT_DURATIONS_MS, grantExpiresAt } from "@/lib/durations"
 import { checkSameOrigin } from "@/lib/csrf"
 import { sendEmail } from "@/lib/email"
+import { respondDone, respondFail } from "@/lib/admin-respond"
 import UserInviteEmail, { subject } from "@/emails/user-invite"
 import type { ProjectGrant } from "@/lib/types"
 
@@ -66,6 +66,7 @@ export async function POST(request: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://heuristicalabs.com"
 
   let inviteUrl = ""
+  let alreadyExists = false
   try {
     const invitation = await clerkClient.invitations.createInvitation({
       emailAddress: email,
@@ -75,19 +76,18 @@ export async function POST(request: Request) {
     })
     inviteUrl = invitation.url ?? ""
   } catch (err) {
-    const exists =
+    alreadyExists =
       isClerkAPIResponseError(err) &&
       err.errors.some((e) => e.code === "duplicate_record" || e.code === "form_identifier_exists")
-    if (exists) {
-      redirect("/portal/admin?error=invite_exists")
-    }
-    console.error("[invite] failed", { email, projectSlugs, err })
-    redirect("/portal/admin?error=invite_failed")
+    if (!alreadyExists) console.error("[invite] failed", { email, projectSlugs, err })
   }
 
+  if (alreadyExists) {
+    return respondFail(request, "invite_exists", 409)
+  }
   if (!inviteUrl) {
     console.error("[invite] invitation created without a URL", { email })
-    redirect("/portal/admin?error=invite_failed")
+    return respondFail(request, "invite_failed")
   }
 
   try {
@@ -102,7 +102,8 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error("[invite] invitation created, email failed", { email, err })
-    redirect("/portal/admin?error=invite_email_failed")
+    revalidatePath("/portal/admin")
+    return respondFail(request, "invite_email_failed", 502)
   }
 
   console.info("[admin]", {
@@ -115,6 +116,5 @@ export async function POST(request: Request) {
   })
 
   revalidatePath("/portal/admin")
-
-  redirect("/portal/admin?invited=1")
+  return respondDone(request, "/portal/admin?invited=1")
 }

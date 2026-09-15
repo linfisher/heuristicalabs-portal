@@ -20,7 +20,7 @@ const MS_72H = 72 * 60 * 60 * 1000
 const TONES = [
   { hex: "#E8147F", rgb: "232,20,127", buttonText: "#FAF7F0" },
   { hex: "#B0105F", rgb: "176,16,95", buttonText: "#FAF7F0" },
-  { hex: "#F06AAE", rgb: "240,106,174", buttonText: "#1a0010" },
+  { hex: "#6E0A3F", rgb: "110,10,63", buttonText: "#FAF7F0" },
 ] as const
 
 type Tone = (typeof TONES)[number]
