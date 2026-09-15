@@ -69,7 +69,7 @@ export default function HomePage() {
           <h2>8 Active Projects</h2>
         </div>
 
-        {/* HALO — lead platform */}
+        {/* HALO — lead platform, with its three products underneath */}
         <article id="halo" className="panel t1" data-reveal>
           <div className="panel-body">
             <div className="tags">
@@ -169,7 +169,7 @@ export default function HomePage() {
         </article>
 
         {/* TireSledz — teaser, under NDA */}
-        <article id="tiresledz" className="panel panel-short ty" data-reveal>
+        <article id="tiresledz" className="panel panel-short t2" data-reveal>
           <div className="panel-body">
             <div className="tags">
               <span className="tag">Recovery Equipment</span>
@@ -177,7 +177,7 @@ export default function HomePage() {
             </div>
             <h3>TireSledz</h3>
             <p className="lead">Off-road vehicle recovery skids for professional tow operators.</p>
-            <a href="/contact.html?project=TireSledz&mode=nda" className="cta cta-yellow">Request NDA <span aria-hidden="true">→</span></a>
+            <a href="/contact.html?project=TireSledz&mode=nda" className="cta">Request NDA <span aria-hidden="true">→</span></a>
           </div>
           <div className="panel-media">
             <div className="plate plate-short">
@@ -188,23 +188,25 @@ export default function HomePage() {
           </div>
         </article>
 
-        {/* Smaller projects */}
-        <div className="cards">
-          <article id="nlc" className="card" data-reveal>
-            <div className="card-media" data-lightbox="/nlc.png" data-lightbox-alt="No Limit Chess" role="button" tabIndex={0} aria-label="View No Limit Chess image fullscreen">
+        {/* No Limit Chess — main panel, with Akasha Ai and 1 TO 1 underneath */}
+        <article id="nlc" className="panel panel-rev t3" data-reveal>
+          <div className="panel-media">
+            <div className="art" data-lightbox="/nlc.png" data-lightbox-alt="No Limit Chess" role="button" tabIndex={0} aria-label="View No Limit Chess image fullscreen">
               <img src="/nlc.png" alt="No Limit Chess" />
             </div>
-            <div className="card-body">
-              <span className="label">Strategy Gaming</span>
-              <h4>No Limit Chess</h4>
-              <p>Where strategy meets chaos. A bold reimagining of the world&apos;s oldest game — built for the next generation of players.</p>
-              <div className="links">
-                <a href="/contact.html?project=No+Limit+Chess&mode=nda">Request NDA <span aria-hidden="true">→</span></a>
-                <a href="/contact.html?project=No+Limit+Chess&mode=contact">Contact <span aria-hidden="true">→</span></a>
-              </div>
+          </div>
+          <div className="panel-body">
+            <div className="tags"><span className="tag">Strategy Gaming</span></div>
+            <h3>No Limit Chess</h3>
+            <p className="lead">Where strategy meets chaos. A bold reimagining of the world&apos;s oldest game — built for the next generation of players.</p>
+            <div className="links">
+              <a href="/contact.html?project=No+Limit+Chess&mode=nda">Request NDA <span aria-hidden="true">→</span></a>
+              <a href="/contact.html?project=No+Limit+Chess&mode=contact">Contact <span aria-hidden="true">→</span></a>
             </div>
-          </article>
-          <article id="akasha" className="card" data-reveal data-reveal-delay="1">
+          </div>
+        </article>
+        <div className="subcards">
+          <article id="akasha" className="card" data-reveal>
             <div className="card-media" data-lightbox="/akasha.jpg" data-lightbox-alt="Akasha Ai" role="button" tabIndex={0} aria-label="View Akasha Ai image fullscreen">
               <img src="/akasha.jpg" alt="Akasha Ai" />
             </div>
@@ -218,7 +220,7 @@ export default function HomePage() {
               </div>
             </div>
           </article>
-          <article id="oneto1" className="card" data-reveal data-reveal-delay="2">
+          <article id="oneto1" className="card" data-reveal data-reveal-delay="1">
             <div className="card-media" data-lightbox="/oto.png" data-lightbox-alt="1 TO 1" role="button" tabIndex={0} aria-label="View 1 TO 1 image fullscreen">
               <img src="/oto.png" alt="1 TO 1" />
             </div>
