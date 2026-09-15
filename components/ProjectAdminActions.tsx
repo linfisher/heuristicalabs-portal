@@ -14,9 +14,11 @@ interface Props {
   status: "active" | "archived"
   canMoveUp?: boolean
   canMoveDown?: boolean
+  // "quiet" drops the boxed bar for use inside the tinted cards on /portal
+  variant?: "boxed" | "quiet"
 }
 
-export default function ProjectAdminActions({ slug, name, status, canMoveUp, canMoveDown }: Props) {
+export default function ProjectAdminActions({ slug, name, status, canMoveUp, canMoveDown, variant = "boxed" }: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -80,8 +82,8 @@ export default function ProjectAdminActions({ slug, name, status, canMoveUp, can
   }
 
   return (
-    <div style={adminBarStyle}>
-      <div style={adminBarLabelStyle}>Admin</div>
+    <div style={variant === "quiet" ? quietBarStyle : adminBarStyle}>
+      <div style={variant === "quiet" ? quietBarLabelStyle : adminBarLabelStyle}>Admin</div>
       <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
         {renaming ? (
           <>
@@ -218,6 +220,20 @@ const adminBarLabelStyle: React.CSSProperties = {
   fontWeight: 700,
   letterSpacing: "0.12em",
   textTransform: "uppercase",
+}
+
+const quietBarStyle: React.CSSProperties = {
+  borderTop: "1px solid rgba(255,255,255,0.08)",
+  paddingTop: "12px",
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  flexWrap: "wrap",
+}
+
+const quietBarLabelStyle: React.CSSProperties = {
+  ...adminBarLabelStyle,
+  color: "#777777",
 }
 
 const renameInputStyle: React.CSSProperties = {
