@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import { Redis } from "@upstash/redis"
+import { kv } from "@/lib/kv"
 import { decodeJwt } from "jose"
 import { clerkClient } from "@/lib/clerk"
 import { sendEmail } from "@/lib/email"
@@ -55,10 +55,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
   const userName = user.firstName ?? userEmail
 
-  const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  })
+  const redis = kv
 
   // Global per-user rate limit: max 5 access requests per hour across all projects
   try {

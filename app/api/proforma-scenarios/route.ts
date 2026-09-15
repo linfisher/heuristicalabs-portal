@@ -1,28 +1,21 @@
 import { NextResponse } from "next/server"
 import { auth, currentUser } from "@clerk/nextjs/server"
-import { Redis } from "@upstash/redis"
 import { isAdminEmail } from "@/lib/auth"
+import { kv } from "@/lib/kv"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
-// Saved Pro Forma scenarios live in Upstash Redis so they sync across every
-// browser (VPS prod, local dev, mobile, whatever) instead of being trapped in
-// per-domain localStorage. One key per Clerk user; admin's set is the canonical
-// "house" set used inside the SPV deck.
+// Saved Pro Forma scenarios live in the server-side store (lib/kv.ts) so they
+// sync across every browser instead of being trapped in per-domain
+// localStorage. One key per Clerk user; admin's set is the canonical "house"
+// set used inside the SPV deck.
 //
 // Shape of stored value: { [name: string]: { state: <state-snapshot>, savedAt: <ms> } }
 const KEY_PREFIX = "proforma-scenarios:"
 
-let _redis: Redis | null = null
-function getRedis(): Redis {
-  if (!_redis) {
-    _redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    })
-  }
-  return _redis
+function getStore() {
+  return kv
 }
 
 async function requireUser() {
@@ -41,7 +34,7 @@ export async function GET() {
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
   try {
-    const raw = await getRedis().get(KEY_PREFIX + userId)
+    const raw = await getStore().get(KEY_PREFIX + userId)
     const scenarios = raw && typeof raw === "object" ? raw : {}
     return NextResponse.json({ scenarios })
   } catch (err) {
@@ -70,10 +63,10 @@ export async function POST(req: Request) {
 
   try {
     const key = KEY_PREFIX + userId
-    const existing = await getRedis().get(key)
+    const existing = await getStore().get(key)
     const scenarios = existing && typeof existing === "object" ? existing as Record<string, unknown> : {}
     scenarios[name] = { state: body.state, savedAt: Date.now() }
-    await getRedis().set(key, scenarios)
+    await getStore().set(key, scenarios)
     return NextResponse.json({ ok: true, scenarios })
   } catch (err) {
     console.error("[proforma-scenarios] POST failed:", err)
@@ -92,10 +85,10 @@ export async function DELETE(req: Request) {
 
   try {
     const key = KEY_PREFIX + userId
-    const existing = await getRedis().get(key)
+    const existing = await getStore().get(key)
     const scenarios = existing && typeof existing === "object" ? existing as Record<string, unknown> : {}
     delete scenarios[name]
-    await getRedis().set(key, scenarios)
+    await getStore().set(key, scenarios)
     return NextResponse.json({ ok: true, scenarios })
   } catch (err) {
     console.error("[proforma-scenarios] DELETE failed:", err)

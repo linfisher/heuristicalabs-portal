@@ -6,7 +6,7 @@ The entire Heuristica Labs web presence, in one Next.js 14 app, on one domain (`
 ## Stack
 - **Framework**: Next.js 14 App Router, TypeScript (strict)
 - **Auth**: Clerk v5 (`@clerk/nextjs@^5`) — Google, Apple, magic link
-- **Token system**: HMAC-SHA256 JWTs via `jose`, single-use enforcement via Upstash Redis
+- **Token system**: HMAC-SHA256 JWTs via `jose`, single-use enforcement via the on-disk key-value store `lib/kv.ts` (`/var/www/portal-content/kv.json` on the VPS). Upstash Redis was retired 2026-09-14 after Upstash deleted the idle database; `UPSTASH_*` env vars are no longer read.
 - **Email**: Resend + React Email templates
 - **Content origin**: VPS at `VPS_ORIGIN`, authenticated with `X-Portal-Secret` header
 - **Styling**: Tailwind v3 + plain CSS in `app/main-site.css` for the marketing pages
@@ -56,8 +56,7 @@ All required — `.env.local` is gitignored. See `.env.local.example` for shape.
 | `CLERK_SECRET_KEY` | Clerk dashboard → API Keys |
 | `ADMIN_EMAIL` | **Must be `linfisher@gmail.com`** in every environment — local-part match means iCloud/Google variants both work |
 | `TOKEN_SECRET` | **Must be >= 32 bytes** — shorter key silently weakens JWTs |
-| `UPSTASH_REDIS_REST_URL` | Upstash console |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash console |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | **No longer read** (retired 2026-09-14). Token, share-link, rate-limit and Pro Forma scenario state lives in `lib/kv.ts` on the VPS disk. Optional `KV_PATH` overrides the file location. |
 | `RESEND_API_KEY` | resend.com |
 | `FROM_EMAIL` | Verified sender address in Resend |
 | `VPS_ORIGIN` | e.g. `https://files.heuristicalabs.com` |
@@ -80,7 +79,7 @@ Flow B (user-initiated): User visits `/portal/request-access` → POST `/api/req
 **Accept handler order (critical):** verifyToken → getUser → updateUserMetadata → deleteToken → deleteGrantGroup → sendEmail → return.
 **Deny handler:** verifyToken → deleteToken → deleteGrantGroup → redis.del(reqKey) → sendEmail → return.
 
-## Redis Key Patterns
+## Store Key Patterns (`lib/kv.ts` — formerly Upstash Redis)
 | Key | Purpose |
 |---|---|
 | `token:{jti}` | Project access token, single-use marker; DEL'd on accept/deny |
