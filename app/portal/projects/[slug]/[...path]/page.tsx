@@ -303,9 +303,12 @@ export default async function ProjectContentPage({ params }: Props) {
           projectSlug={slug}
           pageTitle={pageTitle}
         />
+        {/* Uploaded HTML documents are admin-supplied. allow-forms and the popup
+            flags let an embedded form (e.g. Jotform) submit and open links in a
+            new tab; sandbox flags carry down to frames inside this document. */}
         <iframe
           srcDoc={content}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin allow-modals allow-downloads allow-forms allow-popups allow-popups-to-escape-sandbox"
           title="Project content"
           referrerPolicy="no-referrer"
           style={{

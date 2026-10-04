@@ -5,6 +5,7 @@ const VIDEO_EXT = ["mp4", "mov", "webm", "mkv", "ogv", "m4v"]
 const AUDIO_EXT = ["mp3", "wav", "ogg", "aac", "flac", "m4a", "opus"]
 const MD_EXT = ["md", "markdown"]
 const PDF_EXT = ["pdf"]
+const HTML_EXT = ["html", "htm"]
 
 export function extensionOf(name: string): string {
   const idx = name.lastIndexOf(".")
@@ -14,6 +15,9 @@ export function extensionOf(name: string): string {
 
 export function fileTypeFromName(name: string): PageFileType {
   const ext = extensionOf(name)
+  // An uploaded .html document opens in the HTML viewer; without this it would
+  // be typed "file" and offered as a download.
+  if (HTML_EXT.includes(ext)) return "html"
   if (PDF_EXT.includes(ext)) return "pdf"
   if (MD_EXT.includes(ext)) return "md"
   if (IMAGE_EXT.includes(ext)) return "image"
