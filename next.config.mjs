@@ -16,6 +16,8 @@ const scriptSrc = [
   "https://*.heuristicalabs.com",
   "https://cdnjs.cloudflare.com",
   "https://cdn.jsdelivr.net",
+  // Jotform's embed handler, used by uploaded HTML documents that embed a form
+  "https://cdn.jotfor.ms",
 ].filter(Boolean).join(" ")
 
 // Embed sources admins may add via "Add Link": YouTube, Google Drive, Dropbox, Vimeo
@@ -40,12 +42,15 @@ const csp = [
   "default-src 'self'",
   `script-src ${scriptSrc}`,
   "worker-src blob:",
-  `frame-src 'self' blob: https://*.clerk.accounts.dev https://*.heuristicalabs.com ${embedFrameSrc}`,
+  // Jotform frames are embedded by uploaded HTML documents; the CSP of the
+  // portal page also governs srcDoc documents rendered inside it.
+  `frame-src 'self' blob: https://*.clerk.accounts.dev https://*.heuristicalabs.com https://form.jotform.com https://*.jotform.com ${embedFrameSrc}`,
+  `child-src 'self' blob: https://form.jotform.com https://*.jotform.com ${embedFrameSrc}`,
   // blob: is required by three.js's GLTFLoader, which unpacks textures embedded
   // in a .glb into object URLs and FETCHES them. img-src blob: is not enough —
   // fetch() is governed by connect-src, so without this the textures fail with
   // "Couldn't load texture blob:..." and models render untextured white.
-  "connect-src 'self' blob: https://*.clerk.com https://*.clerk.accounts.dev https://*.heuristicalabs.com https://*.upstash.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
+  "connect-src 'self' blob: https://*.clerk.com https://*.clerk.accounts.dev https://*.heuristicalabs.com https://*.upstash.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://*.jotform.com",
   `img-src 'self' data: blob: https://img.clerk.com https://*.heuristicalabs.com ${embedImgSrc}`,
   "media-src 'self' blob:",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.heuristicalabs.com https://*.clerk.com",
