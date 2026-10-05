@@ -51,6 +51,22 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* MANIFESTO — what the name means */}
+      <section className="manifesto" aria-label="What Heuristica means">
+        <div className="manifesto-split" data-reveal>
+          <div className="manifesto-panel">
+            <p className="manifesto-statement">HEURISTIC</p>
+            <p className="manifesto-eyebrow">/ hjʊˈrɪstɪk / — adjective</p>
+            <p className="manifesto-definition">Enabling a person to discover or learn something for themselves.</p>
+          </div>
+          <div className="manifesto-panel manifesto-heuristica">
+            <p className="manifesto-statement">HEURISTICA</p>
+            <p className="manifesto-eyebrow">/ hjʊˈrɪstɪkə / — verb</p>
+            <p className="manifesto-definition">Activating everyone to discover or learn something for themselves by having <strong>FUN</strong>.</p>
+          </div>
+        </div>
+      </section>
+
       {/* PROJECT INDEX */}
       <nav className="index" aria-label="Projects">
         <div className="index-inner">
