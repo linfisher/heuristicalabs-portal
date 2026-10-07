@@ -146,37 +146,15 @@ export default async function AdminPage({
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: "40px", display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
-          <div>
-            <h1 style={{ color: "#ffffff", fontSize: "1.75rem", fontWeight: 700, margin: 0 }}>
-              Admin Dashboard
-            </h1>
-            <p style={{ color: "#555555", marginTop: "6px", fontSize: "0.8125rem" }}>
-              Heuristica Labs Portal — {activeUsers.length} active user{activeUsers.length !== 1 ? "s" : ""}
-              {pendingInvites.length > 0 && ` · ${pendingInvites.length} not signed in yet`}
-              {archivedUsers.length > 0 && ` · ${archivedUsers.length} archived`}
-            </p>
-          </div>
-          {/* EYES = the Command Center app. Separate app with its own sign-in;
-              opens in a new tab, never framed. */}
-          <a
-            href="https://3rdeye.heuristicalabs.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              border: "1px solid #E8147F",
-              color: "#ffffff",
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              letterSpacing: "0.18em",
-              padding: "9px 18px",
-              borderRadius: "8px",
-              textDecoration: "none",
-            }}
-            className="hover:bg-[#E8147F] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#E8147F]"
-          >
-            EYES
-          </a>
+        <div style={{ marginBottom: "40px" }}>
+          <h1 style={{ color: "#ffffff", fontSize: "1.75rem", fontWeight: 700, margin: 0 }}>
+            Admin Dashboard
+          </h1>
+          <p style={{ color: "#555555", marginTop: "6px", fontSize: "0.8125rem" }}>
+            Heuristica Labs Portal — {activeUsers.length} active user{activeUsers.length !== 1 ? "s" : ""}
+            {pendingInvites.length > 0 && ` · ${pendingInvites.length} not signed in yet`}
+            {archivedUsers.length > 0 && ` · ${archivedUsers.length} archived`}
+          </p>
         </div>
 
         {/* Flash messages — only reached by plain form posts; the dashboard's

@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/lib/auth"
 import { isNeverExpiring } from "@/lib/durations"
 import { claimPendingGrants } from "@/lib/pending-grants"
 import AddProjectButton from "@/components/AddProjectButton"
+import EyeDoor from "@/components/EyeDoor"
 import ProjectAdminActions from "@/components/ProjectAdminActions"
 import type { CSSProperties } from "react"
 import type { ProjectGrant } from "@/lib/types"
@@ -61,6 +62,10 @@ function formatDate(ms: number): string {
   })
 }
 
+// Command Center (a separate app with its own sign-in). Only the admin's page
+// receives this address; clients see the eye as artwork with no door.
+const COMMAND_CENTER_URL = "https://3rdeye.heuristicalabs.com"
+
 export default async function PortalPage() {
   const { userId } = await auth()
 
@@ -82,6 +87,7 @@ export default async function PortalPage() {
         className="px-6 py-12"
       >
         <div className="max-w-4xl mx-auto">
+          <EyeDoor href={COMMAND_CENTER_URL} />
           <div className="flex items-center justify-between mb-10">
             <h1 style={{ color: "#FAF7F0" }} className="text-3xl font-semibold tracking-wide">
               All Projects
@@ -211,6 +217,7 @@ export default async function PortalPage() {
       className="px-6 py-12"
     >
       <div className="max-w-4xl mx-auto">
+        <EyeDoor />
         <h1
           style={{ color: "#FAF7F0" }}
           className="text-3xl font-semibold tracking-wide mb-10"
