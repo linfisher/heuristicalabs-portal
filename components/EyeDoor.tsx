@@ -50,11 +50,11 @@ export default function EyeDoor({ href }: { href?: string }) {
   const art = (
     <span style={{ position: "relative", display: "block", width: "clamp(150px, 24vw, 200px)", aspectRatio: "2500 / 2120" }} onClick={onTap}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/eye-door.svg" alt="" draggable={false} style={layer} />
+      <img src="/eye-door.png" alt="" draggable={false} style={layer} />
       {href && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src="/eye-door-armed.svg"
+          src="/eye-door-armed.png"
           alt=""
           draggable={false}
           style={{ ...layer, opacity: armed ? 1 : 0, transition: "opacity 150ms" }}
