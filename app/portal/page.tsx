@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/lib/auth"
 import { isNeverExpiring } from "@/lib/durations"
 import { claimPendingGrants } from "@/lib/pending-grants"
 import AddProjectButton from "@/components/AddProjectButton"
+import EyeDoor from "@/components/EyeDoor"
 import ProjectAdminActions from "@/components/ProjectAdminActions"
 import type { CSSProperties } from "react"
 import type { ProjectGrant } from "@/lib/types"
@@ -61,6 +62,13 @@ function formatDate(ms: number): string {
   })
 }
 
+// Command Center (a separate app that checks the same sign-in itself). Only
+// Lin's exact account receives this address: matched on the account ID, not
+// the admin email-prefix rule or project grants. Everyone else sees the eye
+// as artwork with no door.
+const COMMAND_CENTER_URL = "https://3rdeye.heuristicalabs.com/command-center"
+const COMMAND_CENTER_OWNER_ID = "user_3CPowNBfcJQDNNRA5JV3Sc1aE2Q" // linfisher@gmail.com
+
 export default async function PortalPage() {
   const { userId } = await auth()
 
@@ -82,6 +90,7 @@ export default async function PortalPage() {
         className="px-6 py-12"
       >
         <div className="max-w-4xl mx-auto">
+          <EyeDoor href={userId === COMMAND_CENTER_OWNER_ID ? COMMAND_CENTER_URL : undefined} />
           <div className="flex items-center justify-between mb-10">
             <h1 style={{ color: "#FAF7F0" }} className="text-3xl font-semibold tracking-wide">
               All Projects
@@ -211,6 +220,7 @@ export default async function PortalPage() {
       className="px-6 py-12"
     >
       <div className="max-w-4xl mx-auto">
+        <EyeDoor />
         <h1
           style={{ color: "#FAF7F0" }}
           className="text-3xl font-semibold tracking-wide mb-10"
