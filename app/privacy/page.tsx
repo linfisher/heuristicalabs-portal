@@ -41,10 +41,10 @@ export default function PrivacyPage() {
         <p>These stay on your Apple TV. They are never sent to us or to anyone else. Deleting the app deletes them.</p>
 
         <h2>What the app fetches</h2>
-        <p>To show you the gallery, the app downloads images, text, music and films from the artist&apos;s gallery server at portal.oneuforia.com. For a few films hosted on YouTube, it downloads the poster image from YouTube&apos;s image server (i.ytimg.com). The app does not play anything from YouTube and does not sign you in to YouTube.</p>
+        <p>To show you the gallery, the app downloads images, text, music and films from the artist&apos;s gallery server at portal.oneuforia.com. For a few films hosted on YouTube, it downloads the poster image from YouTube&apos;s image server (i.ytimg.com). The app does not play anything from YouTube and does not sign you in to YouTube. A few album pictures in the Art Gallery are downloaded from the OneUforia store&apos;s image server (oneuforia.com); the app does not open the store or sell anything.</p>
 
         <h2>What the gallery server sees</h2>
-        <p>When your Apple TV asks for a picture or a song, the server receives the request and, as with any website, your network&apos;s IP address. The server keeps standard web access logs for up to 14 days to keep the service running and secure, and does not use them to identify, profile or track anyone. YouTube&apos;s handling of its image requests is covered by Google&apos;s privacy policy.</p>
+        <p>When your Apple TV asks for a picture or a song, the server receives the request and, as with any website, your network&apos;s IP address. The server keeps standard web access logs for up to 14 days to keep the service running and secure, and does not use them to identify, profile or track anyone. YouTube&apos;s handling of its image requests is covered by Google&apos;s privacy policy, and the store image server&apos;s by Shopify&apos;s.</p>
 
         <h2>What we do not do</h2>
         <ul>
